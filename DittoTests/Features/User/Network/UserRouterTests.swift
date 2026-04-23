@@ -11,25 +11,28 @@ import Testing
 
 struct UserRouterTests {
     @Test func joinRouterUsesPostMethodAndJoinPath() {
-        let router = UserRouter.join(
+        let request = JoinRequest(
             email: "ditto@example.com",
             password: "password123",
             nick: "ditto"
         )
+        let router = UserRouter.join(request)
 
         #expect(router.method == .post)
         #expect(router.path == "v1/user/join")
     }
 
     @Test func loginRouterUsesPostMethodAndLoginPath() {
-        let router = UserRouter.login(email: "ditto@example.com", password: "password123")
+        let request = LoginRequest(email: "ditto@example.com", password: "password123")
+        let router = UserRouter.login(request)
 
         #expect(router.method == .post)
         #expect(router.path == "v1/users/login")
     }
 
     @Test func loginBodyOmitsNilDeviceToken() throws {
-        let router = UserRouter.login(email: "ditto@example.com", password: "password123")
+        let request = LoginRequest(email: "ditto@example.com", password: "password123")
+        let router = UserRouter.login(request)
         let body = try #require(router.body)
         let data = try JSONEncoder().encode(AnyEncodable(body))
         let dictionary = try #require(try JSONSerialization.jsonObject(with: data) as? [String: String])
