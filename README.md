@@ -9,9 +9,10 @@ DITTO는 다양한 투어, 액티비티, 체험 상품을 탐색하고 구매할
 - Platform: iOS
 - Language: Swift
 - UI Framework: SwiftUI
-- Architecture: MVI, TCA
+- Architecture: MVVM
 - Networking: URLSession
-- Reactive Programming: Combine
+- Concurrency: Swift Concurrency
+- State Management Experiment: TCA 일부 적용
 - IDE: Xcode
 
 ## 2. Project Goal
@@ -37,14 +38,24 @@ DITTO는 다양한 투어, 액티비티, 체험 상품을 탐색하고 구매할
 
 ## 4. Architecture
 
-프로젝트는 MVI 패턴과 TCA를 기반으로 단방향 데이터 흐름을 유지하는 방향으로 설계합니다.
+프로젝트의 기본 구조는 MVVM을 기반으로 설계합니다. 화면 단위로 View와 ViewModel의 역할을 분리하고, 네트워크 요청과 같은 비동기 작업은 Swift Concurrency를 중심으로 처리합니다.
 
 구성 원칙:
-- View는 상태를 렌더링하고 사용자 액션을 전달합니다.
-- State는 화면에 필요한 데이터를 표현합니다.
-- Action은 사용자 입력과 내부 이벤트를 정의합니다.
-- Reducer는 Action을 처리하여 State를 변경합니다.
-- Effect는 네트워크 요청 등 외부 작업을 담당합니다.
+- View는 화면을 렌더링하고 사용자 입력을 ViewModel에 전달합니다.
+- ViewModel은 화면 상태를 관리하고 사용자 액션에 따른 비즈니스 흐름을 처리합니다.
+- Model과 Service는 데이터 구조와 외부 API 호출을 담당합니다.
+- 네트워크 요청은 `async/await` 기반으로 구현합니다.
+- Combine은 기본 설계에 포함하지 않고, 필요성이 명확할 때 제한적으로 검토합니다.
+
+### TCA Experiment
+
+학습과 비교를 위해 특정 독립 뷰 하나에는 TCA를 실험적으로 적용합니다. 단, 앱 전체의 기본 아키텍처는 MVVM으로 유지합니다.
+
+TCA 적용 원칙:
+- 전역 상태나 핵심 인증 흐름이 아닌 독립적인 기능을 대상으로 합니다.
+- 한 화면 안에서 MVVM과 TCA를 동시에 섞지 않습니다.
+- TCA 화면은 Store, State, Action, Reducer 구조를 독립적으로 가집니다.
+- 비동기 작업은 TCA에서도 Swift Concurrency 기반으로 처리합니다.
 
 ## 5. Development Principles
 
@@ -81,4 +92,5 @@ DITTO/
 - 주요 화면 구조 정리
 - 도메인 모델 초안 작성
 - 네트워크 구조 설계
-- Feature 단위 설계
+- MVVM 기준 폴더 구조와 역할 정리
+- TCA 실험 대상 뷰 선정
