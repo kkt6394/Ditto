@@ -10,30 +10,24 @@ import XCTest
 final class DittoUITests: XCTestCase {
 
     override func setUpWithError() throws {
-        // Put setup code here. This method is called before the invocation of each test method in the class.
-
-        // In UI tests it is usually best to stop immediately when a failure occurs.
+        // UI 테스트는 한 단계가 실패하면 뒤의 검증도 의미가 없어지므로 즉시 중단한다.
         continueAfterFailure = false
-
-        // In UI tests it’s important to set the initial state - such as interface orientation - required for your tests before they run. The setUp method is a good place to do this.
     }
 
     override func tearDownWithError() throws {
-        // Put teardown code here. This method is called after the invocation of each test method in the class.
+        // 테스트별 정리 작업이 필요해지면 앱 데이터 초기화 코드를 이 위치에 둔다.
     }
 
     @MainActor
     func testExample() throws {
-        // UI tests must launch the application that they test.
+        // XCUIApplication은 실제 앱 프로세스를 실행해 사용자가 보는 화면 기준으로 검증한다.
         let app = XCUIApplication()
         app.launch()
-
-        // Use XCTAssert and related functions to verify your tests produce the correct results.
     }
 
     @MainActor
     func testLaunchPerformance() throws {
-        // This measures how long it takes to launch your application.
+        // launch performance는 앱 시작 시간이 과도하게 늘어나는 회귀를 잡기 위한 기본 성능 테스트다.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()
         }

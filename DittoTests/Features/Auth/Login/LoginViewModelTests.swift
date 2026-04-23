@@ -11,6 +11,7 @@ import Testing
 @MainActor
 struct LoginViewModelTests {
     @Test func emptyEmailReturnsValidationError() {
+        // 공백만 입력한 이메일도 빈 이메일로 처리되는지 확인한다.
         let viewModel = LoginViewModel()
 
         viewModel.email = " "
@@ -47,6 +48,7 @@ struct LoginViewModelTests {
     }
 
     @Test func socialLoginSelectionShowsPreparedMessage() {
+        // 아직 API가 연결되지 않은 액션은 사용자에게 준비 중 메시지를 보여준다.
         let viewModel = LoginViewModel()
 
         viewModel.selectSocialLogin(provider: .apple)

@@ -22,9 +22,7 @@ final class DittoUITestsLaunchTests: XCTestCase {
         let app = XCUIApplication()
         app.launch()
 
-        // Insert steps here to perform after app launch but before taking a screenshot,
-        // such as logging into a test account or navigating somewhere in the app
-
+        // 실패 시 화면 상태를 확인할 수 있도록 시작 화면 스크린샷을 테스트 결과에 첨부한다.
         let attachment = XCTAttachment(screenshot: app.screenshot())
         attachment.name = "Launch Screen"
         attachment.lifetime = .keepAlways

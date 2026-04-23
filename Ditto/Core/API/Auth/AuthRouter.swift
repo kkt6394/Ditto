@@ -1,20 +1,23 @@
 //
-//  UserRouter.swift
+//  AuthRouter.swift
 //  Ditto
 //
 //  Created by 김기태 on 4/23/26.
 //
 
-enum UserRouter: APIRouter {
+// Auth 관련 API endpoint를 정의한다.
+// Core/API는 API 명세 타입을 모으고, Core/Network는 실제 통신 인프라만 담당한다.
+enum AuthRouter: APIRouter {
     case join(JoinRequest)
     case login(LoginRequest)
 }
 
-extension UserRouter {
+extension AuthRouter {
     var path: String {
         switch self {
         case .join:
-            return "v1/user/join"
+            // API 문서 기준 회원가입 endpoint는 users 복수형을 사용한다.
+            return "v1/users/join"
         case .login:
             return "v1/users/login"
         }
@@ -28,6 +31,7 @@ extension UserRouter {
     }
 
     var body: Encodable? {
+        // Router는 어떤 DTO를 보낼지만 결정하고, 실제 JSON 인코딩은 NetworkManager가 수행한다.
         switch self {
         case .join(let request):
             return request

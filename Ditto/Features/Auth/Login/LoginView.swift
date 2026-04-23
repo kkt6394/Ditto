@@ -8,7 +8,9 @@
 import SwiftUI
 
 struct LoginView: View {
+    // 로그인 화면이 직접 소유하는 상태이므로 @State로 ViewModel을 생성한다.
     @State private var viewModel = LoginViewModel()
+    // enum 기반 focus 관리는 문자열 key보다 오타에 안전하다.
     @FocusState private var focusedField: LoginField?
 
     var body: some View {
@@ -33,6 +35,7 @@ struct LoginView: View {
 
 private extension LoginView {
     var background: some View {
+        // 배경 레이어를 분리하면 실제 콘텐츠 배치와 장식 코드를 독립적으로 읽을 수 있다.
         LinearGradient(
             colors: [
                 Color(red: 0.98, green: 0.96, blue: 0.90),
@@ -81,6 +84,7 @@ private extension LoginView {
 
     var formSection: some View {
         VStack(spacing: 14) {
+            // 입력값은 Binding으로 ViewModel에 연결해 별도 onChange 없이 상태가 동기화된다.
             LoginInputField(
                 title: "이메일",
                 placeholder: "ditto@example.com",
@@ -169,8 +173,11 @@ private extension LoginView {
             Text("|")
                 .foregroundStyle(.secondary.opacity(0.45))
 
-            Button("회원가입") {
-                viewModel.selectSignUp()
+            NavigationLink {
+                // NavigationStack은 ContentView에서 제공하므로 여기서는 목적지만 선언하면 된다.
+                SignUpView()
+            } label: {
+                Text("회원가입")
             }
         }
         .font(.system(size: 14, weight: .bold, design: .rounded))
@@ -186,6 +193,7 @@ private extension LoginView {
 }
 
 private struct LoginInputField: View {
+    // 로그인/회원가입 폼에서 반복되는 입력 UI를 작은 View로 분리해 재사용성을 높인다.
     let title: String
     let placeholder: String
     @Binding var text: String
@@ -228,6 +236,7 @@ private struct LoginInputField: View {
 }
 
 private struct LoginSecureField: View {
+    // SecureField는 TextField와 API가 다르므로 별도 컴포넌트로 분리한다.
     let title: String
     let placeholder: String
     @Binding var text: String
@@ -269,6 +278,7 @@ private struct MessageRow: View {
     let message: LoginMessage
 
     var body: some View {
+        // ViewModel의 메시지 타입에 따라 아이콘과 색상만 다르게 표현한다.
         Label(message.text, systemImage: iconName)
             .font(.system(size: 13, weight: .semibold, design: .rounded))
             .foregroundStyle(foregroundColor)

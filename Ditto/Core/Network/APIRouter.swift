@@ -7,6 +7,8 @@
 
 import Foundation
 
+// 각 API endpoint가 URLRequest로 변환되기 위해 필요한 정보만 정의한다.
+// 실제 URLRequest 생성과 실행은 NetworkManager가 담당한다.
 protocol APIRouter {
     var path: String { get }
     var method: HTTPMethod { get }
@@ -16,6 +18,7 @@ protocol APIRouter {
 }
 
 extension APIRouter {
+    // body/query/header가 없는 API는 라우터마다 빈 구현을 반복하지 않도록 기본값을 제공한다.
     var queryItems: [URLQueryItem] {
         []
     }
@@ -30,6 +33,7 @@ extension APIRouter {
 }
 
 enum HTTPMethod: String {
+    // rawValue를 HTTP 표준 method 문자열로 두면 URLRequest.httpMethod에 바로 넣을 수 있다.
     case get = "GET"
     case post = "POST"
     case put = "PUT"

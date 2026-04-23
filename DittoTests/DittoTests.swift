@@ -11,7 +11,7 @@ import Testing
 struct DittoTests {
 
     @Test func example() async throws {
-        // Write your test here and use APIs like `#expect(...)` to check expected conditions.
+        // 기본 테스트 파일은 프로젝트 생성 시 함께 만들어진 자리이며, 기능별 테스트는 하위 폴더에 작성한다.
     }
 
 }
