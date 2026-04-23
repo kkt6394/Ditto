@@ -115,7 +115,8 @@ private extension NetworkManager {
         }
 
         guard (200..<300).contains(httpResponse.statusCode) else {
-            throw NetworkError.statusCode(httpResponse.statusCode, data: data)
+            let errorResponse = try? decoder.decode(APIErrorResponse.self, from: data)
+            throw NetworkError.statusCode(httpResponse.statusCode, message: errorResponse?.message, data: data)
         }
     }
 }

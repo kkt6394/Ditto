@@ -10,8 +10,12 @@ import Foundation
 enum NetworkError: Error {
     case invalidURL
     case invalidResponse
-    case statusCode(Int, data: Data)
+    case statusCode(Int, message: String?, data: Data)
     case encodingFailed(Error)
     case decodingFailed(Error)
     case requestFailed(Error)
+}
+
+struct APIErrorResponse: Decodable, Equatable {
+    let message: String
 }

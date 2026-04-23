@@ -1,0 +1,6 @@
+// Shared app configuration. Local secrets are optional so the project can build
+// before each developer adds them.
+BASE_URL =
+API_KEY =
+
+#include? "Secrets.xcconfig"
