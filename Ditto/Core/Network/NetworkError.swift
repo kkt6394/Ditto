@@ -11,6 +11,7 @@ import Foundation
 enum NetworkError: Error {
     case invalidURL
     case invalidResponse
+    case missingAuthenticationToken
     // 서버가 내려준 message는 사용자 안내 문구나 디버깅 정보로 활용할 수 있다.
     case statusCode(Int, message: String?, data: Data)
     case encodingFailed(Error)

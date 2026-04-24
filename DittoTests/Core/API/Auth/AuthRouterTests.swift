@@ -44,6 +44,17 @@ struct AuthRouterTests {
         #expect(dictionary["password"] == "password123")
         #expect(dictionary["deviceToken"] == nil)
     }
+
+    @Test func refreshRouterUsesGetPathAndRefreshHeader() {
+        let tokens = AuthTokens(accessToken: "access-token", refreshToken: "refresh-token")
+        let router = AuthRouter.refresh(tokens)
+
+        #expect(router.method == .get)
+        #expect(router.path == "v1/auth/refresh")
+        #expect(router.requiresAuthentication)
+        #expect(!router.allowsTokenRefreshRetry)
+        #expect(router.headers["RefreshToken"] == "refresh-token")
+    }
 }
 
 // 테스트에서도 router.body의 Encodable 값을 JSON으로 확인하기 위해 사용하는 type eraser다.

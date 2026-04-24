@@ -58,7 +58,8 @@ struct KeychainTokenStore: TokenStoring {
         case errSecSuccess:
             return
         case errSecDuplicateItem:
-            let updateStatus = SecItemUpdate(baseQuery as CFDictionary, [kSecValueData as String: data] as CFDictionary)
+            let attributesToUpdate = [kSecValueData as String: data] as CFDictionary
+            let updateStatus = SecItemUpdate(baseQuery as CFDictionary, attributesToUpdate)
 
             guard updateStatus == errSecSuccess else {
                 throw TokenStoreError.unhandledStatus(updateStatus)

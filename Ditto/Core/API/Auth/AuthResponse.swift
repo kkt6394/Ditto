@@ -54,3 +54,15 @@ extension LoginResponse {
         AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
     }
 }
+
+// accessToken 만료 후 refresh API가 내려주는 새 인증 토큰 묶음이다.
+struct RefreshTokenResponse: Decodable, Equatable {
+    let accessToken: String
+    let refreshToken: String
+}
+
+extension RefreshTokenResponse {
+    var tokens: AuthTokens {
+        AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
+    }
+}

@@ -15,18 +15,36 @@ protocol NetworkManaging {
 
 final class NetworkManager: NetworkManaging {
     private let configuration: AppConfiguration
+    private let authManager: any AuthManaging
     // URLSession을 주입받게 하면 실제 통신 대신 테스트용 session으로 교체할 수 있다.
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
 
-    init(
+    convenience init(
         configuration: AppConfiguration,
         session: URLSession = .shared,
         encoder: JSONEncoder = JSONEncoder(),
         decoder: JSONDecoder = JSONDecoder()
     ) {
+        self.init(
+            configuration: configuration,
+            authManager: AuthManager(),
+            session: session,
+            encoder: encoder,
+            decoder: decoder
+        )
+    }
+
+    init(
+        configuration: AppConfiguration,
+        authManager: any AuthManaging,
+        session: URLSession = .shared,
+        encoder: JSONEncoder = JSONEncoder(),
+        decoder: JSONDecoder = JSONDecoder()
+    ) {
         self.configuration = configuration
+        self.authManager = authManager
         self.session = session
         self.encoder = encoder
         self.decoder = decoder
@@ -54,10 +72,18 @@ private extension NetworkManager {
         let request = try makeRequest(from: router)
 
         do {
-            // URLSession은 Data와 URLResponse를 함께 반환하므로, HTTP status 검증은 별도로 해야 한다.
-            let (data, response) = try await session.data(for: request)
-            try validate(response: response, data: data)
-            return data
+            return try await perform(request: request)
+        } catch let NetworkError.statusCode(statusCode, _, _)
+            where statusCode == 419 && router.allowsTokenRefreshRetry {
+            do {
+                try await refreshTokens()
+            } catch {
+                try signOutIfRefreshExpired(with: error)
+                throw error
+            }
+
+            let retryRequest = try makeRequest(from: router)
+            return try await perform(request: retryRequest)
         } catch let error as NetworkError {
             throw error
         } catch {
@@ -74,6 +100,14 @@ private extension NetworkManager {
         request.httpMethod = router.method.rawValue
         // 모든 API에 공통으로 필요한 API key header다.
         request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
+
+        if router.requiresAuthentication {
+            guard let accessToken = authManager.tokens?.accessToken else {
+                throw NetworkError.missingAuthenticationToken
+            }
+
+            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
+        }
 
         // endpoint별로 추가 header가 필요해지면 Router에서만 정의하고 여기서 일괄 반영한다.
         router.headers.forEach { key, value in
@@ -128,6 +162,37 @@ private extension NetworkManager {
             // 실패 응답도 JSON message를 내려줄 수 있으므로, 가능하면 같이 파싱해서 보존한다.
             let errorResponse = try? decoder.decode(APIErrorResponse.self, from: data)
             throw NetworkError.statusCode(httpResponse.statusCode, message: errorResponse?.message, data: data)
+        }
+    }
+
+    func refreshTokens() async throws {
+        guard let currentTokens = authManager.tokens else {
+            throw NetworkError.missingAuthenticationToken
+        }
+
+        let response: RefreshTokenResponse = try await request(AuthRouter.refresh(currentTokens))
+        try authManager.authenticate(with: response.tokens)
+    }
+
+    func signOutIfRefreshExpired(with error: Error) throws {
+        guard case let NetworkError.statusCode(statusCode, _, _) = error,
+              statusCode == 401 || statusCode == 418 else {
+            return
+        }
+
+        try authManager.signOut()
+    }
+
+    func perform(request: URLRequest) async throws -> Data {
+        do {
+            // URLSession은 Data와 URLResponse를 함께 반환하므로, HTTP status 검증은 별도로 해야 한다.
+            let (data, response) = try await session.data(for: request)
+            try validate(response: response, data: data)
+            return data
+        } catch let error as NetworkError {
+            throw error
+        } catch {
+            throw NetworkError.requestFailed(error)
         }
     }
 }

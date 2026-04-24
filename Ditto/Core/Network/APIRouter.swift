@@ -15,6 +15,8 @@ protocol APIRouter {
     var queryItems: [URLQueryItem] { get }
     var headers: [String: String] { get }
     var body: Encodable? { get }
+    var requiresAuthentication: Bool { get }
+    var allowsTokenRefreshRetry: Bool { get }
 }
 
 extension APIRouter {
@@ -29,6 +31,14 @@ extension APIRouter {
 
     var body: Encodable? {
         nil
+    }
+
+    var requiresAuthentication: Bool {
+        false
+    }
+
+    var allowsTokenRefreshRetry: Bool {
+        requiresAuthentication
     }
 }
 

@@ -25,12 +25,14 @@ final class SignUpViewModel {
     private let authManager: any AuthManaging
 
     convenience init() {
+        let authManager = AuthManager()
+
         self.init(
             networkManagerProvider: {
                 // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration())
+                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
-            authManager: AuthManager()
+            authManager: authManager
         )
     }
 
@@ -38,7 +40,7 @@ final class SignUpViewModel {
         self.init(
             networkManagerProvider: {
                 // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration())
+                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
             authManager: authManager
         )
@@ -169,6 +171,8 @@ private extension SignUpViewModel {
             return "요청 주소가 올바르지 않습니다."
         case .invalidResponse:
             return "서버 응답을 확인할 수 없습니다."
+        case .missingAuthenticationToken:
+            return "로그인이 필요합니다."
         case .statusCode(_, let message, _):
             return message ?? "회원가입 요청에 실패했습니다."
         case .encodingFailed:

@@ -10,6 +10,7 @@
 enum AuthRouter: APIRouter {
     case join(JoinRequest)
     case login(LoginRequest)
+    case refresh(AuthTokens)
 }
 
 extension AuthRouter {
@@ -20,11 +21,15 @@ extension AuthRouter {
             return "v1/users/join"
         case .login:
             return "v1/users/login"
+        case .refresh:
+            return "v1/auth/refresh"
         }
     }
 
     var method: HTTPMethod {
         switch self {
+        case .refresh:
+            return .get
         case .join, .login:
             return .post
         }
@@ -37,6 +42,35 @@ extension AuthRouter {
             return request
         case .login(let request):
             return request
+        case .refresh:
+            return nil
+        }
+    }
+
+    var headers: [String: String] {
+        switch self {
+        case .refresh(let tokens):
+            return ["RefreshToken": tokens.refreshToken]
+        case .join, .login:
+            return [:]
+        }
+    }
+
+    var requiresAuthentication: Bool {
+        switch self {
+        case .refresh:
+            return true
+        case .join, .login:
+            return false
+        }
+    }
+
+    var allowsTokenRefreshRetry: Bool {
+        switch self {
+        case .refresh:
+            return false
+        case .join, .login:
+            return false
         }
     }
 }
