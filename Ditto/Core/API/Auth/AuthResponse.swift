@@ -23,6 +23,12 @@ struct JoinResponse: Decodable, Equatable {
     }
 }
 
+extension JoinResponse {
+    var tokens: AuthTokens {
+        AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
+    }
+}
+
 // 이메일 로그인 성공 응답이다. profileImage는 없을 수도 있으므로 Optional로 둔다.
 struct LoginResponse: Decodable, Equatable {
     let userID: String
@@ -40,5 +46,11 @@ struct LoginResponse: Decodable, Equatable {
         case accessToken
         case refreshToken
         case profileImage
+    }
+}
+
+extension LoginResponse {
+    var tokens: AuthTokens {
+        AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
     }
 }

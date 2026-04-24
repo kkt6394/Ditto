@@ -8,10 +8,16 @@
 import SwiftUI
 
 struct SignUpView: View {
+    private let authManager: any AuthManaging
     // View가 소유하는 화면 상태이므로 @State로 ViewModel 생명주기를 관리한다.
-    @State private var viewModel = SignUpViewModel()
+    @State private var viewModel: SignUpViewModel
     // FocusState를 enum으로 관리하면 다음 입력칸 이동 흐름을 명확하게 표현할 수 있다.
     @FocusState private var focusedField: SignUpField?
+
+    init(authManager: any AuthManaging) {
+        self.authManager = authManager
+        _viewModel = State(initialValue: SignUpViewModel(authManager: authManager))
+    }
 
     var body: some View {
         ZStack {
@@ -328,6 +334,6 @@ private enum SignUpField: Hashable {
 
 #Preview {
     NavigationStack {
-        SignUpView()
+        SignUpView(authManager: AuthManager())
     }
 }

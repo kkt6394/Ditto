@@ -59,7 +59,8 @@ struct LoginViewModelTests {
 
     @Test func validInputSendsLoginRequestWithoutDeviceToken() async throws {
         let networkManager = StubLoginNetworkManager()
-        let viewModel = LoginViewModel(networkManager: networkManager)
+        let authManager = StubLoginAuthManager()
+        let viewModel = LoginViewModel(networkManager: networkManager, authManager: authManager)
 
         viewModel.email = " ditto@example.com "
         viewModel.password = "password123"
@@ -67,6 +68,7 @@ struct LoginViewModelTests {
         await viewModel.submitLogin()
 
         #expect(viewModel.message == .success("ditto님, 다시 오신 걸 환영해요."))
+        #expect(authManager.savedTokens == LoginResponse.dummy.tokens)
 
         let router = try #require(networkManager.requestedRouter as? AuthRouter)
 
@@ -91,6 +93,27 @@ struct LoginViewModelTests {
         await viewModel.submitLogin()
 
         #expect(viewModel.message == .error("이메일 또는 비밀번호를 확인해 주세요."))
+    }
+}
+
+@MainActor
+private final class StubLoginAuthManager: AuthManaging {
+    private(set) var tokens: AuthTokens?
+
+    var isAuthenticated: Bool {
+        tokens != nil
+    }
+
+    var savedTokens: AuthTokens? {
+        tokens
+    }
+
+    func authenticate(with tokens: AuthTokens) throws {
+        self.tokens = tokens
+    }
+
+    func signOut() throws {
+        tokens = nil
     }
 }
 

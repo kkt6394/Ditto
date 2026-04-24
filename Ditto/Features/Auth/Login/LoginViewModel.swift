@@ -19,19 +19,46 @@ final class LoginViewModel {
 
     let socialProviders = SocialLoginProvider.allCases
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
+    private let authManager: any AuthManaging
 
-    init(networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging = {
-        // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-        NetworkManager(configuration: try AppConfiguration())
-    }) {
-        self.networkManagerProvider = networkManagerProvider
+    convenience init() {
+        self.init(
+            networkManagerProvider: {
+                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+                NetworkManager(configuration: try AppConfiguration())
+            },
+            authManager: AuthManager()
+        )
     }
 
-    init(networkManager: any NetworkManaging) {
+    convenience init(authManager: any AuthManaging) {
+        self.init(
+            networkManagerProvider: {
+                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+                NetworkManager(configuration: try AppConfiguration())
+            },
+            authManager: authManager
+        )
+    }
+
+    init(
+        networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
+        authManager: any AuthManaging
+    ) {
+        self.networkManagerProvider = networkManagerProvider
+        self.authManager = authManager
+    }
+
+    convenience init(networkManager: any NetworkManaging) {
+        self.init(networkManager: networkManager, authManager: AuthManager())
+    }
+
+    init(networkManager: any NetworkManaging, authManager: any AuthManaging) {
         // 테스트에서는 StubNetworkManager를 주입해 네트워크 결과를 고정한다.
         networkManagerProvider = {
             networkManager
         }
+        self.authManager = authManager
     }
 
     var isLoginButtonEnabled: Bool {
@@ -57,6 +84,7 @@ final class LoginViewModel {
         do {
             let networkManager = try networkManagerProvider()
             let response: LoginResponse = try await networkManager.request(AuthRouter.login(makeLoginRequest()))
+            try authManager.authenticate(with: response.tokens)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
         } catch {
@@ -113,6 +141,8 @@ final class LoginViewModel {
         switch error {
         case let error as NetworkError:
             return makeNetworkErrorMessage(from: error)
+        case AuthManagerError.tokenSaveFailed:
+            return "인증 정보를 저장할 수 없습니다."
         case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
             return "API 설정값을 확인해 주세요."
         default:

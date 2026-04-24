@@ -22,19 +22,46 @@ final class SignUpViewModel {
     private(set) var message: SignUpMessage?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
+    private let authManager: any AuthManaging
 
-    init(networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging = {
-        // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-        NetworkManager(configuration: try AppConfiguration())
-    }) {
-        self.networkManagerProvider = networkManagerProvider
+    convenience init() {
+        self.init(
+            networkManagerProvider: {
+                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+                NetworkManager(configuration: try AppConfiguration())
+            },
+            authManager: AuthManager()
+        )
     }
 
-    init(networkManager: any NetworkManaging) {
+    convenience init(authManager: any AuthManaging) {
+        self.init(
+            networkManagerProvider: {
+                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+                NetworkManager(configuration: try AppConfiguration())
+            },
+            authManager: authManager
+        )
+    }
+
+    init(
+        networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
+        authManager: any AuthManaging
+    ) {
+        self.networkManagerProvider = networkManagerProvider
+        self.authManager = authManager
+    }
+
+    convenience init(networkManager: any NetworkManaging) {
+        self.init(networkManager: networkManager, authManager: AuthManager())
+    }
+
+    init(networkManager: any NetworkManaging, authManager: any AuthManaging) {
         // 테스트에서는 실제 URLSession 대신 StubNetworkManager를 주입해 네트워크 없이 흐름을 검증한다.
         networkManagerProvider = {
             networkManager
         }
+        self.authManager = authManager
     }
 
     var isSignUpButtonEnabled: Bool {
@@ -60,6 +87,7 @@ final class SignUpViewModel {
             let networkManager = try networkManagerProvider()
             // Router는 endpoint와 body를, NetworkManager는 URLRequest 생성과 실행을 담당한다.
             let response: JoinResponse = try await networkManager.request(AuthRouter.join(makeJoinRequest()))
+            try authManager.authenticate(with: response.tokens)
             message = .success("\(response.nick)님, 회원가입이 완료됐습니다.")
         } catch {
             message = .error(Self.makeErrorMessage(from: error))
@@ -126,6 +154,8 @@ private extension SignUpViewModel {
         switch error {
         case let error as NetworkError:
             return makeNetworkErrorMessage(from: error)
+        case AuthManagerError.tokenSaveFailed:
+            return "인증 정보를 저장할 수 없습니다."
         case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
             return "API 설정값을 확인해 주세요."
         default:

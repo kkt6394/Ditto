@@ -34,7 +34,8 @@ struct SignUpViewModelTests {
 
     @Test func validInputSendsJoinRequestWithoutDeviceToken() async throws {
         let networkManager = StubNetworkManager()
-        let viewModel = SignUpViewModel(networkManager: networkManager)
+        let authManager = StubSignUpAuthManager()
+        let viewModel = SignUpViewModel(networkManager: networkManager, authManager: authManager)
 
         // 앞뒤 공백과 빈 optional 입력이 request body로 변환될 때 어떻게 정리되는지 검증한다.
         viewModel.email = " ditto@example.com "
@@ -46,6 +47,7 @@ struct SignUpViewModelTests {
         await viewModel.submitSignUp()
 
         #expect(viewModel.message == .success("ditto님, 회원가입이 완료됐습니다."))
+        #expect(authManager.savedTokens == JoinResponse.dummy.tokens)
 
         let router = try #require(networkManager.requestedRouter as? AuthRouter)
 
@@ -75,6 +77,27 @@ struct SignUpViewModelTests {
         await viewModel.submitSignUp()
 
         #expect(viewModel.message == .error("이미 가입된 이메일입니다."))
+    }
+}
+
+@MainActor
+private final class StubSignUpAuthManager: AuthManaging {
+    private(set) var tokens: AuthTokens?
+
+    var isAuthenticated: Bool {
+        tokens != nil
+    }
+
+    var savedTokens: AuthTokens? {
+        tokens
+    }
+
+    func authenticate(with tokens: AuthTokens) throws {
+        self.tokens = tokens
+    }
+
+    func signOut() throws {
+        tokens = nil
     }
 }
 

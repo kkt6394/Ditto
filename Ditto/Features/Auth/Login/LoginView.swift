@@ -8,12 +8,17 @@
 import SwiftUI
 
 struct LoginView: View {
-    let onLoginSuccess: () -> Void
+    private let authManager: any AuthManaging
 
     // 로그인 화면이 직접 소유하는 상태이므로 @State로 ViewModel을 생성한다.
-    @State private var viewModel = LoginViewModel()
+    @State private var viewModel: LoginViewModel
     // enum 기반 focus 관리는 문자열 key보다 오타에 안전하다.
     @FocusState private var focusedField: LoginField?
+
+    init(authManager: any AuthManaging) {
+        self.authManager = authManager
+        _viewModel = State(initialValue: LoginViewModel(authManager: authManager))
+    }
 
     var body: some View {
         ZStack {
@@ -108,11 +113,7 @@ private extension LoginView {
             .focused($focusedField, equals: .password)
             .onSubmit {
                 Task {
-                    let didLogin = await viewModel.submitLogin()
-
-                    if didLogin {
-                        onLoginSuccess()
-                    }
+                    _ = await viewModel.submitLogin()
                 }
             }
 
@@ -126,11 +127,7 @@ private extension LoginView {
         Button {
             Task {
                 // Button action은 동기 클로저이므로 async ViewModel 메서드는 Task로 감싼다.
-                let didLogin = await viewModel.submitLogin()
-
-                if didLogin {
-                    onLoginSuccess()
-                }
+                _ = await viewModel.submitLogin()
             }
         } label: {
             HStack {
@@ -190,7 +187,7 @@ private extension LoginView {
 
             NavigationLink {
                 // NavigationStack은 ContentView에서 제공하므로 여기서는 목적지만 선언하면 된다.
-                SignUpView()
+                SignUpView(authManager: authManager)
             } label: {
                 Text("회원가입")
             }
@@ -209,7 +206,7 @@ private extension LoginView {
 
 #Preview {
     NavigationStack {
-        LoginView(onLoginSuccess: {})
+        LoginView(authManager: AuthManager())
     }
 }
 
@@ -367,5 +364,5 @@ private enum LoginField: Hashable {
 }
 
 #Preview {
-    LoginView(onLoginSuccess: {})
+    LoginView(authManager: AuthManager())
 }
