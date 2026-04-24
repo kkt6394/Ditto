@@ -105,7 +105,9 @@ private extension LoginView {
             )
             .focused($focusedField, equals: .password)
             .onSubmit {
-                viewModel.submitLogin()
+                Task {
+                    await viewModel.submitLogin()
+                }
             }
 
             if let message = viewModel.message {
@@ -116,7 +118,10 @@ private extension LoginView {
 
     var loginButton: some View {
         Button {
-            viewModel.submitLogin()
+            Task {
+                // Button action은 동기 클로저이므로 async ViewModel 메서드는 Task로 감싼다.
+                await viewModel.submitLogin()
+            }
         } label: {
             HStack {
                 Text(viewModel.isSubmitting ? "로그인 중..." : "로그인")
@@ -290,6 +295,8 @@ private struct MessageRow: View {
 
     private var iconName: String {
         switch message {
+        case .success:
+            "checkmark.circle.fill"
         case .info:
             "info.circle.fill"
         case .error:
@@ -299,6 +306,8 @@ private struct MessageRow: View {
 
     private var foregroundColor: Color {
         switch message {
+        case .success:
+            Color(red: 0.08, green: 0.34, blue: 0.30)
         case .info:
             Color(red: 0.08, green: 0.34, blue: 0.30)
         case .error:

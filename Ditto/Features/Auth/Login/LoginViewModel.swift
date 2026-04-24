@@ -9,6 +9,7 @@ import Foundation
 import Observation
 
 // @Observable을 붙이면 SwiftUI View가 이 객체의 저장 프로퍼티 변화를 추적한다.
+@MainActor
 @Observable
 final class LoginViewModel {
     var email = ""
@@ -17,13 +18,28 @@ final class LoginViewModel {
     private(set) var message: LoginMessage?
 
     let socialProviders = SocialLoginProvider.allCases
+    private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
+
+    init(networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging = {
+        // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+        NetworkManager(configuration: try AppConfiguration())
+    }) {
+        self.networkManagerProvider = networkManagerProvider
+    }
+
+    init(networkManager: any NetworkManaging) {
+        // 테스트에서는 StubNetworkManager를 주입해 네트워크 결과를 고정한다.
+        networkManagerProvider = {
+            networkManager
+        }
+    }
 
     var isLoginButtonEnabled: Bool {
         // 버튼 활성화 로직을 ViewModel에 두면 View 테스트 없이도 입력 정책을 검증할 수 있다.
         !trimmedEmail.isEmpty && !password.isEmpty && !isSubmitting
     }
 
-    func submitLogin() {
+    func submitLogin() async {
         message = nil
 
         if let error = validate() {
@@ -31,10 +47,19 @@ final class LoginViewModel {
             return
         }
 
-        // API 연동 전까지는 입력 검증 흐름만 확인한다.
         isSubmitting = true
-        message = .info("로그인 API 연결 전입니다.")
-        isSubmitting = false
+        defer {
+            // 성공/실패와 무관하게 버튼 로딩 상태를 항상 원복한다.
+            isSubmitting = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let response: LoginResponse = try await networkManager.request(AuthRouter.login(makeLoginRequest()))
+            message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
+        } catch {
+            message = .error(Self.makeErrorMessage(from: error))
+        }
     }
 
     func selectSocialLogin(provider: SocialLoginProvider) {
@@ -74,6 +99,40 @@ final class LoginViewModel {
         // 공백만 입력한 이메일은 빈 값과 동일하게 처리한다.
         email.trimmingCharacters(in: .whitespacesAndNewlines)
     }
+
+    func makeLoginRequest() -> LoginRequest {
+        // 화면에서 받지 않는 deviceToken은 nil로 두고, 이메일 공백만 정리해 요청한다.
+        LoginRequest(email: trimmedEmail, password: password)
+    }
+
+    static func makeErrorMessage(from error: Error) -> String {
+        // ViewModel은 네트워크 계층 오류를 사용자 메시지로 번역한다.
+        switch error {
+        case let error as NetworkError:
+            return makeNetworkErrorMessage(from: error)
+        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
+            return "API 설정값을 확인해 주세요."
+        default:
+            return "로그인 요청에 실패했습니다."
+        }
+    }
+
+    static func makeNetworkErrorMessage(from error: NetworkError) -> String {
+        switch error {
+        case .invalidURL:
+            return "요청 주소가 올바르지 않습니다."
+        case .invalidResponse:
+            return "서버 응답을 확인할 수 없습니다."
+        case .statusCode(_, let message, _):
+            return message ?? "로그인 요청에 실패했습니다."
+        case .encodingFailed:
+            return "요청 데이터를 만들 수 없습니다."
+        case .decodingFailed:
+            return "로그인 응답을 해석할 수 없습니다."
+        case .requestFailed:
+            return "네트워크 연결을 확인해 주세요."
+        }
+    }
 }
 
 enum LoginRule {
@@ -104,12 +163,13 @@ enum LoginValidationError: Equatable {
 
 enum LoginMessage: Equatable {
     // 메시지 타입을 나누면 View가 안내/오류의 시각 표현을 분리할 수 있다.
+    case success(String)
     case info(String)
     case error(String)
 
     var text: String {
         switch self {
-        case .info(let text), .error(let text):
+        case .success(let text), .info(let text), .error(let text):
             return text
         }
     }
