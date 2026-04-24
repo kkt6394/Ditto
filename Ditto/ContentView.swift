@@ -8,10 +8,18 @@
 import SwiftUI
 
 struct ContentView: View {
+    @State private var isLoggedIn = false
+
     var body: some View {
-        // 화면 전환이 필요한 기능은 최상위에서 NavigationStack을 감싸야 하위 View가 NavigationLink를 사용할 수 있다.
-        NavigationStack {
-            LoginView()
+        if isLoggedIn {
+            MainView()
+        } else {
+            // 로그인 화면에서만 회원가입 push 이동이 필요하므로 NavigationStack을 이 분기에만 둔다.
+            NavigationStack {
+                LoginView {
+                    isLoggedIn = true
+                }
+            }
         }
     }
 }

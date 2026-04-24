@@ -8,6 +8,8 @@
 import SwiftUI
 
 struct LoginView: View {
+    let onLoginSuccess: () -> Void
+
     // 로그인 화면이 직접 소유하는 상태이므로 @State로 ViewModel을 생성한다.
     @State private var viewModel = LoginViewModel()
     // enum 기반 focus 관리는 문자열 key보다 오타에 안전하다.
@@ -106,7 +108,11 @@ private extension LoginView {
             .focused($focusedField, equals: .password)
             .onSubmit {
                 Task {
-                    await viewModel.submitLogin()
+                    let didLogin = await viewModel.submitLogin()
+
+                    if didLogin {
+                        onLoginSuccess()
+                    }
                 }
             }
 
@@ -120,7 +126,11 @@ private extension LoginView {
         Button {
             Task {
                 // Button action은 동기 클로저이므로 async ViewModel 메서드는 Task로 감싼다.
-                await viewModel.submitLogin()
+                let didLogin = await viewModel.submitLogin()
+
+                if didLogin {
+                    onLoginSuccess()
+                }
             }
         } label: {
             HStack {
@@ -194,6 +204,12 @@ private extension LoginView {
         viewModel.isLoginButtonEnabled
             ? Color(red: 0.08, green: 0.34, blue: 0.30)
             : Color(red: 0.60, green: 0.68, blue: 0.66)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        LoginView(onLoginSuccess: {})
     }
 }
 
@@ -351,5 +367,5 @@ private enum LoginField: Hashable {
 }
 
 #Preview {
-    LoginView()
+    LoginView(onLoginSuccess: {})
 }

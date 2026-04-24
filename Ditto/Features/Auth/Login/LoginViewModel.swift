@@ -39,12 +39,13 @@ final class LoginViewModel {
         !trimmedEmail.isEmpty && !password.isEmpty && !isSubmitting
     }
 
-    func submitLogin() async {
+    @discardableResult
+    func submitLogin() async -> Bool {
         message = nil
 
         if let error = validate() {
             message = .error(error.message)
-            return
+            return false
         }
 
         isSubmitting = true
@@ -57,8 +58,10 @@ final class LoginViewModel {
             let networkManager = try networkManagerProvider()
             let response: LoginResponse = try await networkManager.request(AuthRouter.login(makeLoginRequest()))
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
+            return true
         } catch {
             message = .error(Self.makeErrorMessage(from: error))
+            return false
         }
     }
 
