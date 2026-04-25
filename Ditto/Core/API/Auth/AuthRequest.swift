@@ -46,3 +46,21 @@ struct LoginRequest: Encodable, Equatable {
         self.deviceToken = deviceToken
     }
 }
+
+struct EmailValidationRequest: Encodable, Equatable {
+    let email: String
+}
+
+struct KakaoLoginRequest: Encodable, Equatable {
+    let oauthToken: String
+    let deviceToken: String?
+}
+
+struct AppleLoginRequest: Encodable, Equatable {
+    let idToken: String
+    let deviceToken: String?
+}
+
+struct DeviceTokenRequest: Encodable, Equatable {
+    let deviceToken: String
+}

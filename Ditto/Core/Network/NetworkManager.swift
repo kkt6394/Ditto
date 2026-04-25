@@ -25,7 +25,7 @@ final class NetworkManager: NetworkManaging {
         configuration: AppConfiguration,
         session: URLSession = .shared,
         encoder: JSONEncoder = JSONEncoder(),
-        decoder: JSONDecoder = JSONDecoder()
+        decoder: JSONDecoder = NetworkManager.makeDefaultDecoder()
     ) {
         self.init(
             configuration: configuration,
@@ -41,7 +41,7 @@ final class NetworkManager: NetworkManaging {
         authManager: any AuthManaging,
         session: URLSession = .shared,
         encoder: JSONEncoder = JSONEncoder(),
-        decoder: JSONDecoder = JSONDecoder()
+        decoder: JSONDecoder = NetworkManager.makeDefaultDecoder()
     ) {
         self.configuration = configuration
         self.authManager = authManager
@@ -68,6 +68,13 @@ final class NetworkManager: NetworkManaging {
 }
 
 private extension NetworkManager {
+    static func makeDefaultDecoder() -> JSONDecoder {
+        let decoder = JSONDecoder()
+        // Swagger 응답은 snake_case와 camelCase가 섞여 있어 변환 전략을 기본으로 둔다.
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+        return decoder
+    }
+
     func data(for router: APIRouter) async throws -> Data {
         let request = try makeRequest(from: router)
 
@@ -114,7 +121,14 @@ private extension NetworkManager {
             request.setValue(value, forHTTPHeaderField: key)
         }
 
-        if let body = router.body {
+        if let multipartFormData = router.multipartFormData {
+            let boundary = "Boundary-\(UUID().uuidString)"
+            request.setValue(
+                "multipart/form-data; boundary=\(boundary)",
+                forHTTPHeaderField: "Content-Type"
+            )
+            request.httpBody = multipartFormData.encoded(boundary: boundary)
+        } else if let body = router.body {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.httpBody = try encode(body)
         }

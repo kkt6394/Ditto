@@ -15,6 +15,7 @@ protocol APIRouter {
     var queryItems: [URLQueryItem] { get }
     var headers: [String: String] { get }
     var body: Encodable? { get }
+    var multipartFormData: MultipartFormData? { get }
     var requiresAuthentication: Bool { get }
     var allowsTokenRefreshRetry: Bool { get }
 }
@@ -30,6 +31,10 @@ extension APIRouter {
     }
 
     var body: Encodable? {
+        nil
+    }
+
+    var multipartFormData: MultipartFormData? {
         nil
     }
 

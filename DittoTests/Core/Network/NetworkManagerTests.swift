@@ -5,19 +5,18 @@
 //  Created by 김기태 on 4/24/26.
 //
 
+@testable import Ditto
 import Foundation
 import Testing
-@testable import Ditto
 
 @MainActor
 struct NetworkManagerTests {
     @Test func authenticatedRequestRefreshesTokenOn419AndRetriesOnce() async throws {
-        let configuration = try AppConfiguration(
-            baseURL: #require(URL(string: "https://example.com")),
-            apiKey: "test-key"
-        )
+        let configuration = try makeTestConfiguration()
         let testID = UUID().uuidString
-        let authManager = StubAuthManager(tokens: AuthTokens(accessToken: "expired-access", refreshToken: "refresh-token"))
+        let authManager = StubAuthManager(
+            tokens: AuthTokens(accessToken: "expired-access", refreshToken: "refresh-token")
+        )
         let session = makeSession(testID: testID)
         let networkManager = NetworkManager(configuration: configuration, authManager: authManager, session: session)
         var protectedRequestCount = 0
@@ -71,12 +70,11 @@ struct NetworkManagerTests {
     }
 
     @Test func refreshFailureSignsOutAndKeepsOriginalError() async throws {
-        let configuration = try AppConfiguration(
-            baseURL: #require(URL(string: "https://example.com")),
-            apiKey: "test-key"
-        )
+        let configuration = try makeTestConfiguration()
         let testID = UUID().uuidString
-        let authManager = StubAuthManager(tokens: AuthTokens(accessToken: "expired-access", refreshToken: "refresh-token"))
+        let authManager = StubAuthManager(
+            tokens: AuthTokens(accessToken: "expired-access", refreshToken: "refresh-token")
+        )
         let session = makeSession(testID: testID)
         let networkManager = NetworkManager(configuration: configuration, authManager: authManager, session: session)
         var protectedRequestCount = 0
@@ -119,6 +117,35 @@ struct NetworkManagerTests {
         #expect(protectedRequestCount == 1)
         #expect(authManager.tokens == nil)
     }
+
+    @Test func multipartRequestSetsMultipartContentTypeAndBody() async throws {
+        let configuration = try makeTestConfiguration()
+        let testID = UUID().uuidString
+        let authManager = StubAuthManager(tokens: nil)
+        let session = makeSession(testID: testID)
+        let networkManager = NetworkManager(configuration: configuration, authManager: authManager, session: session)
+        let router = MultipartUploadRouter()
+
+        URLProtocolStub.setRequestHandler(for: testID) { request in
+            let url = try #require(request.url)
+
+            #expect(url.path == "/v1/upload")
+            #expect(request.value(forHTTPHeaderField: "SeSACKey") == "test-key")
+            #expect(request.value(forHTTPHeaderField: "Content-Type")?.contains("multipart/form-data") == true)
+
+            return (
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                try JSONSerialization.data(withJSONObject: ["message": "ok"])
+            )
+        }
+        defer {
+            URLProtocolStub.removeRequestHandler(for: testID)
+        }
+
+        let response: MessageResponseDTO = try await networkManager.request(router)
+
+        #expect(response.message == "ok")
+    }
 }
 
 private struct ProtectedRouter: APIRouter {
@@ -129,6 +156,23 @@ private struct ProtectedRouter: APIRouter {
 
 private struct ProtectedResponse: Codable, Equatable {
     let value: String
+}
+
+private struct MultipartUploadRouter: APIRouter {
+    let path = "v1/upload"
+    let method = HTTPMethod.post
+    let multipartFormData = MultipartFormData(
+        parts: [
+            .file(
+                name: "files",
+                file: MultipartFile(
+                    filename: "sample.jpg",
+                    mimeType: "image/jpeg",
+                    data: Data("hello".utf8)
+                )
+            )
+        ]
+    )
 }
 
 @MainActor
@@ -163,6 +207,13 @@ private func makeSession(testID: String) -> URLSession {
     return URLSession(configuration: configuration)
 }
 
+private func makeTestConfiguration() throws -> AppConfiguration {
+    try AppConfiguration(
+        baseURL: #require(URL(string: "https://example.com")),
+        apiKey: "test-key"
+    )
+}
+
 private func makeErrorResponseData(message: String) throws -> Data {
     try JSONSerialization.data(withJSONObject: ["message": message])
 }
@@ -176,6 +227,7 @@ private func makeRefreshResponseData(accessToken: String, refreshToken: String) 
     )
 }
 
+// swiftlint:disable static_over_final_class
 private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
     fileprivate typealias RequestHandler = (URLRequest) throws -> (HTTPURLResponse, Data)
     private static let lock = NSLock()
@@ -199,7 +251,7 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
         return requestHandlers[testID]
     }
 
-    override class func canInit(with request: URLRequest) -> Bool {
+    override class func canInit(with _: URLRequest) -> Bool {
         true
     }
 
@@ -226,3 +278,4 @@ private final class URLProtocolStub: URLProtocol, @unchecked Sendable {
 
     override func stopLoading() {}
 }
+// swiftlint:enable static_over_final_class
