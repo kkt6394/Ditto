@@ -16,40 +16,48 @@ struct MainView: View {
             MainScreenPalette.background
                 .ignoresSafeArea()
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    MainTopBar()
-                        .padding(.horizontal, 20)
+            VStack(spacing: 0) {
+                fixedHeader
+
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        MainSectionTitleRow(
+                            title: "NEW 액티비티",
+                            trailingTitle: "View All"
+                        )
+                        .padding(.top, 26)
+
+                        NewActivityCarousel(items: MainNewActivity.samples)
                         .padding(.top, 12)
 
-                    CountryFilterCarousel(
-                        items: MainCountryFilter.samples,
-                        selectedID: $selectedCountryID
-                    )
-                    .padding(.top, 8)
-
-                    CategoryFilterCarousel(
-                        items: MainCategoryFilter.samples,
-                        selectedID: $selectedCategoryID
-                    )
-                    .padding(.top, 6)
-
-                    MainSectionTitleRow(
-                        title: "NEW 액티비티",
-                        trailingTitle: "View All"
-                    )
-                    .padding(.top, 20)
-
-                    NewActivityCarousel(items: MainNewActivity.samples)
-                        .padding(.top, 12)
-
-                    ActivityPostsSection(posts: MainActivityPost.samples)
-                        .padding(.top, 24)
+                        ActivityPostsSection(posts: MainActivityPost.samples)
+                            .padding(.top, 24)
+                    }
+                    .padding(.bottom, 110)
                 }
-                .padding(.bottom, 110)
             }
 
             MainBottomTabBar(items: MainTabItem.samples)
+        }
+    }
+
+    private var fixedHeader: some View {
+        VStack(spacing: 0) {
+            MainTopBar()
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
+            CountryFilterCarousel(
+                items: MainCountryFilter.samples,
+                selectedID: $selectedCountryID
+            )
+            .padding(.top, 8)
+
+            CategoryFilterCarousel(
+                items: MainCategoryFilter.samples,
+                selectedID: $selectedCategoryID
+            )
+            .padding(.top, 6)
         }
     }
 }
