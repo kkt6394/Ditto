@@ -121,12 +121,18 @@ struct MainTabItem: Identifiable {
     let id: String
     let systemName: String
     let title: String
-    let isSelected: Bool
 
     static let samples: [MainTabItem] = [
-        .init(id: "home", systemName: "house.fill", title: "홈", isSelected: true),
-        .init(id: "explore", systemName: "safari", title: "탐색", isSelected: false),
-        .init(id: "likes", systemName: "heart", title: "좋아요", isSelected: false),
-        .init(id: "profile", systemName: "person", title: "프로필", isSelected: false)
+        .init(id: MainTab.home.rawValue, systemName: "house.fill", title: "홈"),
+        .init(id: MainTab.explore.rawValue, systemName: "safari", title: "탐색"),
+        .init(id: MainTab.likes.rawValue, systemName: "heart", title: "좋아요"),
+        .init(id: MainTab.profile.rawValue, systemName: "person", title: "프로필")
     ]
+}
+
+enum MainTab: String {
+    case home
+    case explore
+    case likes
+    case profile
 }

@@ -76,6 +76,24 @@ struct AuthRouterTests {
         #expect(router.path == "v1/users/login")
     }
 
+    @Test func kakaoLoginRouterUsesPostMethodAndKakaoLoginPath() {
+        let request = KakaoLoginRequest(oauthToken: "kakao-oauth-token", deviceToken: nil)
+        let router = AuthRouter.loginKakao(request)
+
+        #expect(router.method == .post)
+        #expect(router.path == "v1/users/login/kakao")
+        #expect(!router.requiresAuthentication)
+    }
+
+    @Test func appleLoginRouterUsesPostMethodAndAppleLoginPath() {
+        let request = AppleLoginRequest(idToken: "apple-id-token", deviceToken: nil)
+        let router = AuthRouter.loginApple(request)
+
+        #expect(router.method == .post)
+        #expect(router.path == "v1/users/login/apple")
+        #expect(!router.requiresAuthentication)
+    }
+
     @Test func loginBodyOmitsNilDeviceToken() throws {
         // optional body 값이 nil일 때 JSON에 포함되지 않는지 확인한다.
         let request = LoginRequest(email: "ditto@example.com", password: "password123")

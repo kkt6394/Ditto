@@ -20,6 +20,7 @@ final class LoginViewModel {
     let socialProviders = SocialLoginProvider.allCases
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let authManager: any AuthManaging
+    private let kakaoLoginService: any KakaoLoginServicing
 
     convenience init() {
         let authManager = AuthManager()
@@ -29,7 +30,8 @@ final class LoginViewModel {
                 // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
                 NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
-            authManager: authManager
+            authManager: authManager,
+            kakaoLoginService: KakaoLoginService()
         )
     }
 
@@ -39,16 +41,19 @@ final class LoginViewModel {
                 // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
                 NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
-            authManager: authManager
+            authManager: authManager,
+            kakaoLoginService: KakaoLoginService()
         )
     }
 
     init(
         networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
-        authManager: any AuthManaging
+        authManager: any AuthManaging,
+        kakaoLoginService: any KakaoLoginServicing
     ) {
         self.networkManagerProvider = networkManagerProvider
         self.authManager = authManager
+        self.kakaoLoginService = kakaoLoginService
     }
 
     convenience init(networkManager: any NetworkManaging) {
@@ -61,6 +66,20 @@ final class LoginViewModel {
             networkManager
         }
         self.authManager = authManager
+        kakaoLoginService = KakaoLoginService()
+    }
+
+    init(
+        networkManager: any NetworkManaging,
+        authManager: any AuthManaging,
+        kakaoLoginService: any KakaoLoginServicing
+    ) {
+        // 테스트에서는 StubNetworkManager와 StubKakaoLoginService를 주입해 외부 인증 흐름을 고정한다.
+        networkManagerProvider = {
+            networkManager
+        }
+        self.authManager = authManager
+        self.kakaoLoginService = kakaoLoginService
     }
 
     var isLoginButtonEnabled: Bool {
@@ -97,6 +116,28 @@ final class LoginViewModel {
 
     func selectSocialLogin(provider: SocialLoginProvider) {
         message = .info("\(provider.title) 로그인은 연결 준비 중입니다.")
+    }
+
+    @discardableResult
+    func submitKakaoLogin() async -> Bool {
+        message = nil
+        isSubmitting = true
+        defer {
+            isSubmitting = false
+        }
+
+        do {
+            let oauthToken = try await kakaoLoginService.login()
+            let networkManager = try networkManagerProvider()
+            let request = KakaoLoginRequest(oauthToken: oauthToken, deviceToken: nil)
+            let response: LoginResponse = try await networkManager.request(AuthRouter.loginKakao(request))
+            try authManager.authenticate(with: response.tokens)
+            message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
+            return true
+        } catch {
+            message = .error(Self.makeErrorMessage(from: error))
+            return false
+        }
     }
 
     @discardableResult
@@ -170,6 +211,10 @@ final class LoginViewModel {
             return makeNetworkErrorMessage(from: error)
         case AuthManagerError.tokenSaveFailed:
             return "인증 정보를 저장할 수 없습니다."
+        case KakaoLoginServiceError.missingNativeAppKey:
+            return "카카오 앱 키를 확인해 주세요."
+        case KakaoLoginServiceError.missingOAuthToken:
+            return "카카오 인증 정보를 확인할 수 없습니다."
         case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
             return "API 설정값을 확인해 주세요."
         default:

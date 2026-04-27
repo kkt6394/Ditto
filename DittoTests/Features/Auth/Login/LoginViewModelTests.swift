@@ -94,6 +94,50 @@ struct LoginViewModelTests {
 
         #expect(viewModel.message == .error("이메일 또는 비밀번호를 확인해 주세요."))
     }
+
+    @Test func kakaoLoginSendsOAuthTokenToKakaoLoginAPI() async throws {
+        let networkManager = StubLoginNetworkManager()
+        let authManager = StubLoginAuthManager()
+        let viewModel = LoginViewModel(
+            networkManager: networkManager,
+            authManager: authManager,
+            kakaoLoginService: StubKakaoLoginService(oauthToken: "kakao-oauth-token")
+        )
+
+        await viewModel.submitKakaoLogin()
+
+        #expect(viewModel.message == .success("ditto님, 다시 오신 걸 환영해요."))
+        #expect(authManager.savedTokens == LoginResponse.dummy.tokens)
+
+        let router = try #require(networkManager.requestedRouter as? AuthRouter)
+
+        if case .loginKakao(let request) = router {
+            #expect(request.oauthToken == "kakao-oauth-token")
+            #expect(request.deviceToken == nil)
+        } else {
+            #expect(Bool(false))
+        }
+    }
+
+    @Test func appleLoginSendsIdTokenToAppleLoginAPI() async throws {
+        let networkManager = StubLoginNetworkManager()
+        let authManager = StubLoginAuthManager()
+        let viewModel = LoginViewModel(networkManager: networkManager, authManager: authManager)
+
+        await viewModel.submitAppleLogin(idToken: "apple-id-token")
+
+        #expect(viewModel.message == .success("ditto님, 다시 오신 걸 환영해요."))
+        #expect(authManager.savedTokens == LoginResponse.dummy.tokens)
+
+        let router = try #require(networkManager.requestedRouter as? AuthRouter)
+
+        if case .loginApple(let request) = router {
+            #expect(request.idToken == "apple-id-token")
+            #expect(request.deviceToken == nil)
+        } else {
+            #expect(Bool(false))
+        }
+    }
 }
 
 @MainActor
@@ -142,6 +186,15 @@ private final class StubLoginNetworkManager: NetworkManaging {
 
     func send(_ router: APIRouter) async throws {
         requestedRouter = router
+    }
+}
+
+@MainActor
+private struct StubKakaoLoginService: KakaoLoginServicing {
+    let oauthToken: String
+
+    func login() async throws -> String {
+        oauthToken
     }
 }
 

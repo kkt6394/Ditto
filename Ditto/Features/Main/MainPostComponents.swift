@@ -248,30 +248,39 @@ private struct PostInfoChip: View {
 
 struct MainBottomTabBar: View {
     let items: [MainTabItem]
+    let selectedID: String
+    let selectionAction: (MainTabItem) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 ForEach(items) { item in
-                    VStack(spacing: 6) {
-                        Image(systemName: item.systemName)
-                            .font(.system(size: 20, weight: item.isSelected ? .bold : .medium))
-                            .foregroundStyle(
-                                item.isSelected
-                                    ? MainScreenPalette.textPrimary
-                                    : MainScreenPalette.textMuted
-                            )
+                    Button {
+                        selectionAction(item)
+                    } label: {
+                        let isSelected = item.id == selectedID
 
-                        Text(item.title)
-                            .font(MainScreenTypography.tab)
-                            .foregroundStyle(
-                                item.isSelected
-                                    ? MainScreenPalette.textPrimary
-                                    : MainScreenPalette.textMuted
-                            )
+                        VStack(spacing: 6) {
+                            Image(systemName: item.systemName)
+                                .font(.system(size: 20, weight: isSelected ? .bold : .medium))
+                                .foregroundStyle(
+                                    isSelected
+                                        ? MainScreenPalette.textPrimary
+                                        : MainScreenPalette.textMuted
+                                )
+
+                            Text(item.title)
+                                .font(MainScreenTypography.tab)
+                                .foregroundStyle(
+                                    isSelected
+                                        ? MainScreenPalette.textPrimary
+                                        : MainScreenPalette.textMuted
+                                )
+                        }
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 50)
                     }
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 50)
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 18)
@@ -298,5 +307,65 @@ struct MainBottomTabBar: View {
                 .fill(MainScreenPalette.surface)
                 .shadow(color: MainScreenPalette.shadow, radius: 6, y: -1)
         )
+    }
+}
+
+struct ProfileTabView: View {
+    let signOutMessage: String?
+    let signOutAction: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            MainTopBar()
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
+
+            VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("프로필")
+                        .font(MainFont.pretendard(.bold, size: 24))
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+
+                    Text("로그인 테스트를 위해 현재 인증 정보를 초기화할 수 있습니다.")
+                        .font(MainScreenTypography.body)
+                        .foregroundStyle(MainScreenPalette.textSecondary)
+                }
+
+                if let signOutMessage {
+                    Label(signOutMessage, systemImage: "exclamationmark.circle.fill")
+                        .font(MainFont.pretendard(.semibold, size: 13))
+                        .foregroundStyle(Color(red: 0.72, green: 0.18, blue: 0.14))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .background(
+                            Color(red: 0.72, green: 0.18, blue: 0.14).opacity(0.10),
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        )
+                }
+
+                Button(role: .destructive, action: signOutAction) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "rectangle.portrait.and.arrow.right")
+                            .font(.system(size: 16, weight: .semibold))
+
+                        Text("로그아웃")
+                            .font(MainFont.pretendard(.bold, size: 16))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 50)
+                    .background(
+                        Color(red: 0.72, green: 0.18, blue: 0.14),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+                }
+                .buttonStyle(.plain)
+
+                Spacer()
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 26)
+        }
     }
 }
