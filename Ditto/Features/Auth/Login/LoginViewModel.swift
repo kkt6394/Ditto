@@ -99,6 +99,31 @@ final class LoginViewModel {
         message = .info("\(provider.title) 로그인은 연결 준비 중입니다.")
     }
 
+    @discardableResult
+    func submitAppleLogin(idToken: String) async -> Bool {
+        message = nil
+        isSubmitting = true
+        defer {
+            isSubmitting = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let request = AppleLoginRequest(idToken: idToken, deviceToken: nil)
+            let response: LoginResponse = try await networkManager.request(AuthRouter.loginApple(request))
+            try authManager.authenticate(with: response.tokens)
+            message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
+            return true
+        } catch {
+            message = .error(Self.makeErrorMessage(from: error))
+            return false
+        }
+    }
+
+    func handleAppleLoginFailure(message: String) {
+        self.message = .error(message)
+    }
+
     func selectForgotPassword() {
         message = .info("비밀번호 찾기 화면은 준비 중입니다.")
     }
@@ -216,7 +241,6 @@ enum SocialLoginProvider: String, CaseIterable, Identifiable {
     // CaseIterable은 ForEach로 모든 소셜 로그인 버튼을 렌더링할 때 사용한다.
     case apple
     case kakao
-    case google
 
     var id: String {
         rawValue
@@ -227,9 +251,7 @@ enum SocialLoginProvider: String, CaseIterable, Identifiable {
         case .apple:
             return "Apple"
         case .kakao:
-            return "Kakao"
-        case .google:
-            return "Google"
+            return "카카오"
         }
     }
 
@@ -239,8 +261,6 @@ enum SocialLoginProvider: String, CaseIterable, Identifiable {
             return "apple.logo"
         case .kakao:
             return "message.fill"
-        case .google:
-            return "globe"
         }
     }
 }
