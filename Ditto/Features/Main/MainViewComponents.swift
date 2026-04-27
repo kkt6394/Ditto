@@ -51,7 +51,7 @@ enum MainScreenTypography {
 struct MainTopBar: View {
     var body: some View {
         HStack {
-            Text("SESAC ACTIVITY")
+            Text("DITTO")
                 .font(MainScreenTypography.brand)
                 .foregroundStyle(MainScreenPalette.primaryBlue)
 
@@ -195,106 +195,112 @@ struct MainSectionTitleRow: View {
 
 struct NewActivityCarousel: View {
     let items: [MainNewActivity]
+    private let cardWidth: CGFloat = 316
+    private let cardHeight: CGFloat = 316
+    private let cardSpacing: CGFloat = 4
 
     var body: some View {
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(items) { item in
-                    NewActivityCard(item: item)
+        GeometryReader { proxy in
+            let sideInset = max((proxy.size.width - cardWidth) / 2, 20)
+            let viewportCenterX = proxy.frame(in: .global).midX
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: cardSpacing) {
+                    ForEach(items) { item in
+                        NewActivityCard(item: item)
+                            .frame(width: cardWidth, height: cardHeight)
+                            .visualEffect { content, geometry in
+                                let cardCenterX = geometry.frame(in: .global).midX
+                                let distance = abs(cardCenterX - viewportCenterX)
+                                let progress = min(distance / cardWidth, 1)
+                                let scale = 1 - (progress * 0.133333)
+
+                                return content
+                                    .scaleEffect(scale)
+                                    .opacity(Double(1 - (progress * 0.08)))
+                            }
+                    }
                 }
+                .scrollTargetLayout()
+                .padding(.horizontal, sideInset)
+                .padding(.vertical, 12)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 12)
+            .scrollTargetBehavior(.viewAligned)
         }
-        .frame(height: 324)
+        .frame(height: 340)
     }
 }
 
 private struct NewActivityCard: View {
     let item: MainNewActivity
 
-    private var size: CGSize {
-        switch item.cardStyle {
-        case .compact:
-            return CGSize(width: 260, height: 260)
-        case .featured:
-            return CGSize(width: 300, height: 300)
-        }
-    }
-
     var body: some View {
-        ZStack(alignment: .bottomLeading) {
+        ZStack {
             Image(item.imageName)
                 .resizable()
                 .scaledToFill()
-                .frame(width: size.width, height: size.height)
-                .clipped()
+                .frame(width: 316, height: 474)
+                .offset(y: -31)
+        }
+        .frame(width: 316, height: 316)
+        .clipped()
+        .overlay(alignment: .topLeading) {
+            LocationCapsule(text: item.location)
+                .padding(.top, 16)
+                .padding(.leading, 16)
+        }
+        .overlay(alignment: .bottomLeading) {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(item.title)
+                    .font(MainScreenTypography.activityTitleFeatured)
+                    .foregroundStyle(.white)
+                    .lineLimit(2)
 
-            MainScreenPalette.overlay
-
-            VStack(alignment: .leading, spacing: item.cardStyle == .featured ? 12 : 10) {
-                LocationCapsule(text: item.location, compact: item.cardStyle == .compact)
-
-                Spacer()
-
-                VStack(alignment: .leading, spacing: item.cardStyle == .featured ? 12 : 10) {
-                    Text(item.title)
-                        .font(
-                            item.cardStyle == .featured
-                                ? MainScreenTypography.activityTitleFeatured
-                                : MainScreenTypography.activityTitleCompact
-                        )
+                HStack(spacing: 2) {
+                    Image(systemName: "wonsign.circle.fill")
+                        .font(.system(size: 16))
                         .foregroundStyle(.white)
 
-                    HStack(spacing: 4) {
-                        Image(systemName: "wonsign.circle.fill")
-                            .font(.system(size: item.cardStyle == .featured ? 14 : 12))
-                            .foregroundStyle(.white)
-
-                        Text(item.price)
-                            .font(
-                                item.cardStyle == .featured
-                                    ? MainScreenTypography.activityPriceFeatured
-                                    : MainScreenTypography.activityPriceCompact
-                            )
-                            .foregroundStyle(.white)
-                    }
-
-                    Text(item.summary)
-                        .font(
-                            item.cardStyle == .featured
-                                ? MainScreenTypography.body
-                                : MainScreenTypography.bodyCompact
-                        )
-                        .foregroundStyle(Color.white.opacity(0.88))
-                        .lineSpacing(item.cardStyle == .featured ? 4 : 3)
-                        .lineLimit(item.cardStyle == .featured ? 4 : 5)
+                    Text(item.price)
+                        .font(MainScreenTypography.activityPriceFeatured)
+                        .foregroundStyle(.white)
                 }
+
+                Text(item.summary)
+                    .font(MainScreenTypography.body)
+                    .foregroundStyle(Color.white.opacity(0.92))
+                    .lineSpacing(4)
+                    .lineLimit(3)
+                    .frame(width: 260, alignment: .leading)
             }
-            .padding(item.cardStyle == .featured ? 20 : 17)
-            .frame(width: size.width, height: size.height, alignment: .bottomLeading)
+            .frame(width: 260, alignment: .leading)
+            .padding(.bottom, 20)
+            .padding(.leading, 20)
         }
-        .frame(width: size.width, height: size.height)
-        .clipShape(RoundedRectangle(cornerRadius: item.cardStyle == .featured ? 24 : 22, style: .continuous))
+        .frame(width: 316, height: 316)
+        .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: MainScreenPalette.shadow, radius: 8, y: 4)
     }
 }
 
 private struct LocationCapsule: View {
     let text: String
-    let compact: Bool
 
     var body: some View {
-        HStack(spacing: 3) {
+        HStack(spacing: 2) {
             Image(systemName: "location.fill")
-                .font(.system(size: compact ? 8 : 9, weight: .medium))
+                .font(.system(size: 12, weight: .medium))
 
             Text(text)
-                .font(compact ? MainScreenTypography.activityMetaCompact : MainScreenTypography.activityMetaFeatured)
+                .font(MainScreenTypography.activityMetaCompact)
+                .lineLimit(1)
         }
         .foregroundStyle(.white)
-        .padding(.horizontal, compact ? 6 : 7)
-        .frame(height: compact ? 20 : 22)
-        .background(Color.white.opacity(0.34), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            Color.white.opacity(0.34),
+            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
+        )
     }
 }
