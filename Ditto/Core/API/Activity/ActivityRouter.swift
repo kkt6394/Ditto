@@ -112,10 +112,10 @@ private extension ActivityRouter {
         next: String? = nil
     ) -> [URLQueryItem] {
         [
-            URLQueryItem(name: "country", value: country),
-            URLQueryItem(name: "category", value: category),
+            country.map { URLQueryItem(name: "country", value: $0) },
+            category.map { URLQueryItem(name: "category", value: $0) },
             limit.map { URLQueryItem(name: "limit", value: String($0)) },
-            URLQueryItem(name: "next", value: next)
+            next.map { URLQueryItem(name: "next", value: $0) }
         ]
         .compactMap { $0 }
     }

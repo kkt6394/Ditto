@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 enum MainScreenPalette {
     static let background = Color(red: 0.976, green: 0.976, blue: 0.976)
@@ -231,16 +232,73 @@ struct NewActivityCarousel: View {
     }
 }
 
+struct NewActivityContent: View {
+    let items: [MainNewActivity]
+    let isLoading: Bool
+    let message: String?
+
+    var body: some View {
+        if isLoading && items.isEmpty {
+            NewActivityStateCard(
+                title: "NEW 액티비티를 불러오는 중입니다.",
+                systemName: "arrow.clockwise"
+            )
+            .padding(.horizontal, 20)
+        } else if items.isEmpty {
+            NewActivityStateCard(
+                title: message ?? "선택한 조건의 NEW 액티비티가 없습니다.",
+                subtitle: "다른 나라나 카테고리를 선택해 보세요.",
+                systemName: "magnifyingglass"
+            )
+            .padding(.horizontal, 20)
+        } else {
+            NewActivityCarousel(items: items)
+        }
+    }
+}
+
+private struct NewActivityStateCard: View {
+    let title: String
+    var subtitle: String?
+    let systemName: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemName)
+                .font(.system(size: 24, weight: .semibold))
+                .foregroundStyle(MainScreenPalette.primaryBlue)
+
+            Text(title)
+                .font(MainScreenTypography.sectionTitle)
+                .foregroundStyle(MainScreenPalette.textPrimary)
+                .multilineTextAlignment(.center)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(MainScreenTypography.body)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 180)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(MainScreenPalette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(MainScreenPalette.border, lineWidth: 1)
+        )
+    }
+}
+
 private struct NewActivityCard: View {
     let item: MainNewActivity
 
     var body: some View {
         ZStack {
-            Image(item.imageName)
-                .resizable()
-                .scaledToFill()
-                .frame(width: 316, height: 474)
-                .offset(y: -31)
+            NewActivityImage(item: item)
         }
         .frame(width: 316, height: 316)
         .clipped()
@@ -280,6 +338,60 @@ private struct NewActivityCard: View {
         .frame(width: 316, height: 316)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: MainScreenPalette.shadow, radius: 8, y: 4)
+    }
+}
+
+private struct NewActivityImage: View {
+    let item: MainNewActivity
+    @State private var remoteImage: UIImage?
+    @State private var didFailLoadingRemoteImage = false
+
+    var body: some View {
+        if let remoteImage {
+            fittedImage(Image(uiImage: remoteImage))
+        } else if let imageRequest = item.imageRequest, !didFailLoadingRemoteImage {
+            placeholder
+                .task(id: imageRequest.url?.absoluteString) {
+                    await loadRemoteImage(from: imageRequest)
+                }
+        } else {
+            fallbackImage
+        }
+    }
+
+    private func fittedImage(_ image: Image) -> some View {
+        image
+            .resizable()
+            .scaledToFill()
+            .frame(width: 316, height: 474)
+            .offset(y: -31)
+    }
+
+    private var fallbackImage: some View {
+        fittedImage(Image(item.imageName))
+    }
+
+    private var placeholder: some View {
+        Rectangle()
+            .fill(MainScreenPalette.border)
+            .frame(width: 316, height: 316)
+    }
+
+    private func loadRemoteImage(from request: URLRequest) async {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode),
+                  let image = UIImage(data: data) else {
+                didFailLoadingRemoteImage = true
+                return
+            }
+
+            remoteImage = image
+        } catch {
+            didFailLoadingRemoteImage = true
+        }
     }
 }
 

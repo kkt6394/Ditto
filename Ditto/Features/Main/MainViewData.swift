@@ -42,6 +42,7 @@ struct MainNewActivity: Identifiable {
     let price: String
     let summary: String
     let imageName: String
+    let imageRequest: URLRequest?
 
     static let samples: [MainNewActivity] = [
         .init(
@@ -50,7 +51,8 @@ struct MainNewActivity: Identifiable {
             title: "새싹 스케이트 세션",
             price: "209,000원",
             summary: "초급자 대상 서핑 느낌의 스케이트보드 입문 클래스. 세계적인 본다이 스케이트 파크에서 프로 강사와 함께하는 볼 스케이팅 체험.",
-            imageName: "FigmaMainNewActivity1"
+            imageName: "FigmaMainNewActivity1",
+            imageRequest: nil
         ),
         .init(
             id: "jungfrau",
@@ -58,7 +60,8 @@ struct MainNewActivity: Identifiable {
             title: "겨울 새싹 스키 원정대",
             price: "123,000원",
             summary: "끝없이 펼쳐진 슬로프, 자유롭게 바람을 가르는 시간. 초보자 코스부터 짜릿한 파크존까지, 당신만의 새싹 스키 리듬을 찾아 떠나보세요.",
-            imageName: "FigmaMainNewActivity2"
+            imageName: "FigmaMainNewActivity2",
+            imageRequest: nil
         ),
         .init(
             id: "ubud",
@@ -66,7 +69,8 @@ struct MainNewActivity: Identifiable {
             title: "요가 새싹 선라이즈",
             price: "98,000원",
             summary: "숲의 결을 따라 천천히 호흡을 맞추는 새벽 요가 클래스. 여행 첫날에도 부담 없이 몸을 깨우기 좋은 감도의 웰니스 액티비티입니다.",
-            imageName: "FigmaMainNewActivity3"
+            imageName: "FigmaMainNewActivity3",
+            imageRequest: nil
         )
     ]
 }

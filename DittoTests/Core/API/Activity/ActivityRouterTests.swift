@@ -31,6 +31,23 @@ struct ActivityRouterTests {
         ])
     }
 
+    @Test func newRouterBuildsExpectedQueryItems() {
+        let router = ActivityRouter.new(
+            ActivityPreviewQuery(
+                country: "대한민국",
+                category: "투어"
+            )
+        )
+
+        #expect(router.method == .get)
+        #expect(router.path == "v1/activities/new")
+        #expect(router.requiresAuthentication)
+        #expect(router.queryItems == [
+            URLQueryItem(name: "country", value: "대한민국"),
+            URLQueryItem(name: "category", value: "투어")
+        ])
+    }
+
     @Test func uploadFilesRouterUsesMultipartInsteadOfJSONBody() {
         let file = MultipartFile(
             filename: "sample.jpg",

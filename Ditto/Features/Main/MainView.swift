@@ -10,6 +10,7 @@ import SwiftUI
 struct MainView: View {
     private let authManager: any AuthManaging
 
+    @State private var viewModel: MainViewModel
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
@@ -17,6 +18,7 @@ struct MainView: View {
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
+        _viewModel = State(initialValue: MainViewModel(authManager: authManager))
     }
 
     var body: some View {
@@ -62,13 +64,23 @@ struct MainView: View {
                     )
                     .padding(.top, 26)
 
-                    NewActivityCarousel(items: MainNewActivity.samples)
+                    NewActivityContent(
+                        items: viewModel.newActivities,
+                        isLoading: viewModel.isLoadingNewActivities,
+                        message: viewModel.newActivitiesMessage
+                    )
                         .padding(.top, 12)
 
                     ActivityPostsSection(posts: MainActivityPost.samples)
                         .padding(.top, 24)
                 }
                 .padding(.bottom, 24)
+            }
+            .task(id: newActivitiesQueryID) {
+                await viewModel.loadNewActivities(
+                    country: selectedCountryName,
+                    category: selectedCategoryTitle
+                )
             }
         }
     }
@@ -99,6 +111,18 @@ struct MainView: View {
         } catch {
             signOutMessage = "로그아웃 처리에 실패했습니다."
         }
+    }
+
+    private var selectedCountryName: String? {
+        MainCountryFilter.samples.first { $0.id == selectedCountryID }?.name
+    }
+
+    private var selectedCategoryTitle: String? {
+        MainCategoryFilter.samples.first { $0.id == selectedCategoryID }?.title
+    }
+
+    private var newActivitiesQueryID: String {
+        "\(selectedCountryID)-\(selectedCategoryID)"
     }
 }
 
