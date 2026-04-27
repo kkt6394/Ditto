@@ -10,6 +10,50 @@ import Testing
 @testable import Ditto
 
 struct AuthRouterTests {
+    @Test func joinResponseDecodesUserIdFromSnakeCasePayload() throws {
+        // NetworkManager 기본 decoder는 snake_case를 camelCase로 바꾸므로 모델도 userId를 사용해야 한다.
+        let data = Data(
+            """
+            {
+              "user_id": "user-id",
+              "email": "ditto@example.com",
+              "nick": "ditto",
+              "accessToken": "access-token",
+              "refreshToken": "refresh-token"
+            }
+            """.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let response = try decoder.decode(JoinResponse.self, from: data)
+
+        #expect(response.userId == "user-id")
+        #expect(response.tokens == AuthTokens(accessToken: "access-token", refreshToken: "refresh-token"))
+    }
+
+    @Test func loginResponseDecodesUserIdFromSnakeCasePayload() throws {
+        let data = Data(
+            """
+            {
+              "user_id": "user-id",
+              "email": "ditto@example.com",
+              "nick": "ditto",
+              "accessToken": "access-token",
+              "refreshToken": "refresh-token",
+              "profileImage": null
+            }
+            """.utf8
+        )
+        let decoder = JSONDecoder()
+        decoder.keyDecodingStrategy = .convertFromSnakeCase
+
+        let response = try decoder.decode(LoginResponse.self, from: data)
+
+        #expect(response.userId == "user-id")
+        #expect(response.profileImage == nil)
+    }
+
     @Test func joinRouterUsesPostMethodAndJoinPath() {
         // Router 테스트는 실제 통신이 아니라 endpoint 정의가 맞는지만 빠르게 검증한다.
         let request = JoinRequest(

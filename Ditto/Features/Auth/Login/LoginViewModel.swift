@@ -190,7 +190,7 @@ final class LoginViewModel {
         case .encodingFailed:
             return "요청 데이터를 만들 수 없습니다."
         case .decodingFailed:
-            return "로그인 응답을 해석할 수 없습니다."
+            return "로그인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
         case .requestFailed:
             return "네트워크 연결을 확인해 주세요."
         }

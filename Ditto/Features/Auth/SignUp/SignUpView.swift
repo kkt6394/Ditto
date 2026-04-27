@@ -8,86 +8,67 @@
 import SwiftUI
 
 struct SignUpView: View {
-    private let authManager: any AuthManaging
+    @Environment(\.dismiss) private var dismiss
     // View가 소유하는 화면 상태이므로 @State로 ViewModel 생명주기를 관리한다.
     @State private var viewModel: SignUpViewModel
+    @State private var isPasswordVisible = false
+    @State private var isCompletionAlertPresented = false
     // FocusState를 enum으로 관리하면 다음 입력칸 이동 흐름을 명확하게 표현할 수 있다.
     @FocusState private var focusedField: SignUpField?
 
     init(authManager: any AuthManaging) {
-        self.authManager = authManager
         _viewModel = State(initialValue: SignUpViewModel(authManager: authManager))
     }
 
     var body: some View {
         ZStack {
-            background
+            SignUpColor.background
+                .ignoresSafeArea()
 
             ScrollView {
-                VStack(alignment: .leading, spacing: 28) {
+                VStack(spacing: 24) {
                     headerSection
                     formSection
-                    signUpButton
-                    guideSection
+                    footerSection
                 }
-                .padding(.horizontal, 24)
-                .padding(.vertical, 36)
+                .padding(.horizontal, 20)
+                .padding(.top, 28)
+                .padding(.bottom, 24)
             }
             .scrollIndicators(.hidden)
         }
-        .navigationTitle("회원가입")
-        .navigationBarTitleDisplayMode(.inline)
+        .onChange(of: viewModel.message) { _, message in
+            if case .success = message {
+                isCompletionAlertPresented = true
+            }
+        }
+        .alert("회원가입 완료", isPresented: $isCompletionAlertPresented) {
+            Button("확인") {
+                dismiss()
+            }
+        } message: {
+            Text("로그인 화면에서 다시 로그인해 주세요.")
+        }
     }
 }
 
 private extension SignUpView {
-    var background: some View {
-        // 배경을 별도 computed property로 분리해 body의 화면 구조를 읽기 쉽게 유지한다.
-        LinearGradient(
-            colors: [
-                Color(red: 0.99, green: 0.93, blue: 0.84),
-                Color(red: 0.87, green: 0.96, blue: 0.91),
-                Color(red: 0.78, green: 0.90, blue: 0.98)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
-        .overlay(alignment: .topTrailing) {
-            RoundedRectangle(cornerRadius: 48, style: .continuous)
-                .fill(Color(red: 0.95, green: 0.50, blue: 0.25).opacity(0.28))
-                .frame(width: 210, height: 210)
-                .rotationEffect(.degrees(18))
-                .blur(radius: 24)
-                .offset(x: 76, y: -52)
-        }
-        .overlay(alignment: .bottomLeading) {
-            Circle()
-                .fill(Color(red: 0.08, green: 0.34, blue: 0.30).opacity(0.20))
-                .frame(width: 260, height: 260)
-                .blur(radius: 34)
-                .offset(x: -104, y: 84)
-        }
-    }
-
     var headerSection: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Text("JOIN DITTO")
-                .font(.system(size: 15, weight: .black, design: .rounded))
-                .tracking(3)
-                .foregroundStyle(.secondary)
+        VStack(spacing: 10) {
+            Text("DITTO")
+                .font(MainFont.paperlogyBlack(size: 28))
+                .foregroundStyle(SignUpColor.accent)
 
-            Text("dummy 계정으로\n가입 흐름을 확인해요")
-                .font(.system(size: 34, weight: .black, design: .rounded))
-                .foregroundStyle(Color(red: 0.08, green: 0.12, blue: 0.14))
-                .lineSpacing(4)
+            Text("회원가입")
+                .font(MainFont.pretendard(.bold, size: 26))
+                .foregroundStyle(SignUpColor.primaryText)
 
-            Text("입력값을 검증한 뒤 실제 회원가입 API로 요청을 보냅니다.")
-                .font(.system(size: 15, weight: .medium, design: .rounded))
-                .foregroundStyle(.secondary)
-                .lineSpacing(3)
+            Text("계정 정보를 입력하고 Ditto를 시작해 보세요.")
+                .font(MainFont.pretendard(.medium, size: 14))
+                .foregroundStyle(SignUpColor.secondaryText)
+                .multilineTextAlignment(.center)
         }
-        .padding(.top, 10)
+        .padding(.top, 2)
     }
 
     var formSection: some View {
@@ -95,9 +76,8 @@ private extension SignUpView {
             // 각 입력 컴포넌트는 Binding을 받아 ViewModel 상태를 직접 수정한다.
             SignUpInputField(
                 title: "이메일",
-                placeholder: "dummy@example.com",
+                placeholder: "email@example.com",
                 text: $viewModel.email,
-                systemImage: "envelope.fill",
                 keyboardType: .emailAddress,
                 submitLabel: .next
             )
@@ -108,8 +88,9 @@ private extension SignUpView {
 
             SignUpSecureField(
                 title: "비밀번호",
-                placeholder: "8자 이상 입력",
-                text: $viewModel.password
+                placeholder: "8자 이상 입력해 주세요",
+                text: $viewModel.password,
+                isPasswordVisible: $isPasswordVisible
             )
             .focused($focusedField, equals: .password)
             .onSubmit {
@@ -120,7 +101,6 @@ private extension SignUpView {
                 title: "닉네임",
                 placeholder: "ditto",
                 text: $viewModel.nick,
-                systemImage: "person.fill",
                 keyboardType: .default,
                 submitLabel: .next
             )
@@ -133,17 +113,18 @@ private extension SignUpView {
                 title: "전화번호",
                 placeholder: "01012345678 (선택)",
                 text: $viewModel.phoneNum,
-                systemImage: "phone.fill",
                 keyboardType: .phonePad,
                 submitLabel: .next
             )
             .focused($focusedField, equals: .phoneNum)
+            .onSubmit {
+                focusedField = .introduction
+            }
 
             SignUpInputField(
                 title: "소개",
                 placeholder: "관심 있는 액티비티를 적어보세요 (선택)",
                 text: $viewModel.introduction,
-                systemImage: "sparkles",
                 keyboardType: .default,
                 submitLabel: .done
             )
@@ -157,6 +138,8 @@ private extension SignUpView {
             if let message = viewModel.message {
                 SignUpMessageRow(message: message)
             }
+
+            signUpButton
         }
     }
 
@@ -167,42 +150,35 @@ private extension SignUpView {
                 await viewModel.submitSignUp()
             }
         } label: {
-            HStack {
-                Text(viewModel.isSubmitting ? "가입 요청 중..." : "dummy 회원가입")
-                    .font(.system(size: 17, weight: .bold, design: .rounded))
-                Image(systemName: "arrow.up.right")
-                    .font(.system(size: 15, weight: .bold))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 17)
-            .foregroundStyle(.white)
-            .background(
-                Capsule()
-                    .fill(signUpButtonColor)
-                    .shadow(color: signUpButtonColor.opacity(0.30), radius: 16, y: 8)
-            )
+            Text(viewModel.isSubmitting ? "가입 요청 중..." : "이메일로 가입하기")
+                .font(MainFont.pretendard(.bold, size: 16))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity)
+                .frame(height: 50)
+                .background(SignUpColor.accent.opacity(viewModel.isSignUpButtonEnabled ? 1 : 0.58))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
         }
         .disabled(!viewModel.isSignUpButtonEnabled)
         .animation(.easeInOut(duration: 0.2), value: viewModel.isSignUpButtonEnabled)
     }
 
-    var guideSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            // API optional 필드 처리 방식을 화면에 노출해 테스트용 dummy 화면의 목적을 분명히 한다.
-            Label("전화번호, 소개, deviceToken은 서버 요청에서 선택값으로 처리합니다.", systemImage: "checkmark.seal.fill")
-            Label("빈 선택값은 request body에서 제외됩니다.", systemImage: "tray.and.arrow.up.fill")
-        }
-        .font(.system(size: 13, weight: .semibold, design: .rounded))
-        .foregroundStyle(Color(red: 0.10, green: 0.35, blue: 0.32).opacity(0.82))
-        .padding(18)
-        .background(.white.opacity(0.46), in: RoundedRectangle(cornerRadius: 22, style: .continuous))
+    var footerSection: some View {
+        Text("가입하면 서비스 이용약관과 개인정보 처리방침에 동의하게 됩니다.")
+            .font(MainFont.pretendard(.medium, size: 11))
+            .foregroundStyle(SignUpColor.tertiaryText)
+            .multilineTextAlignment(.center)
     }
+}
 
-    var signUpButtonColor: Color {
-        viewModel.isSignUpButtonEnabled
-            ? Color(red: 0.08, green: 0.34, blue: 0.30)
-            : Color(red: 0.60, green: 0.68, blue: 0.66)
-    }
+private enum SignUpColor {
+    static let background = Color(red: 0.98, green: 0.98, blue: 0.98)
+    static let fieldBackground = Color.white
+    static let accent = Color(red: 0.48, green: 0.71, blue: 0.86)
+    static let primaryText = Color(red: 0.26, green: 0.26, blue: 0.28)
+    static let secondaryText = Color(red: 0.42, green: 0.42, blue: 0.43)
+    static let tertiaryText = Color(red: 0.63, green: 0.63, blue: 0.64)
+    static let border = Color(red: 0.92, green: 0.92, blue: 0.92)
+    static let placeholder = Color(red: 0.48, green: 0.48, blue: 0.50)
 }
 
 private struct SignUpInputField: View {
@@ -210,41 +186,43 @@ private struct SignUpInputField: View {
     let title: String
     let placeholder: String
     @Binding var text: String
-    let systemImage: String
     let keyboardType: UIKeyboardType
     let submitLabel: SubmitLabel
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.secondary)
+                .font(MainFont.pretendard(.bold, size: 13))
+                .foregroundStyle(SignUpColor.primaryText)
 
-            HStack(spacing: 12) {
-                Image(systemName: systemImage)
-                    .foregroundStyle(Color(red: 0.08, green: 0.34, blue: 0.30))
-                    .frame(width: 20)
+            ZStack(alignment: .leading) {
+                if text.isEmpty {
+                    Text(placeholder)
+                        .font(MainFont.pretendard(.medium, size: 15))
+                        .foregroundStyle(SignUpColor.placeholder)
+                }
 
-                TextField(placeholder, text: $text)
+                TextField("", text: $text)
+                    .font(MainFont.pretendard(.medium, size: 15))
+                    .foregroundStyle(SignUpColor.primaryText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .keyboardType(keyboardType)
                     .submitLabel(submitLabel)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 14)
+            .frame(height: 50)
             .background(fieldBackground)
         }
     }
 
     private var fieldBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(.white.opacity(0.82))
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(SignUpColor.fieldBackground)
             .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(.white.opacity(0.72), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(SignUpColor.border, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
     }
 }
 
@@ -252,38 +230,58 @@ private struct SignUpSecureField: View {
     // 비밀번호 입력은 SecureField를 사용해야 입력값이 화면에 노출되지 않는다.
     let title: String
     let placeholder: String
-    @Binding var text: String
+    let text: Binding<String>
+    let isPasswordVisible: Binding<Bool>
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(.system(size: 13, weight: .bold, design: .rounded))
-                .foregroundStyle(.secondary)
+                .font(MainFont.pretendard(.bold, size: 13))
+                .foregroundStyle(SignUpColor.primaryText)
 
             HStack(spacing: 12) {
-                Image(systemName: "lock.fill")
-                    .foregroundStyle(Color(red: 0.08, green: 0.34, blue: 0.30))
-                    .frame(width: 20)
+                ZStack(alignment: .leading) {
+                    if text.wrappedValue.isEmpty {
+                        Text(placeholder)
+                            .font(MainFont.pretendard(.medium, size: 15))
+                            .foregroundStyle(SignUpColor.placeholder)
+                    }
 
-                SecureField(placeholder, text: $text)
+                    Group {
+                        if isPasswordVisible.wrappedValue {
+                            TextField("", text: text)
+                        } else {
+                            SecureField("", text: text)
+                        }
+                    }
+                    .font(MainFont.pretendard(.medium, size: 15))
+                    .foregroundStyle(SignUpColor.primaryText)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
                     .submitLabel(.next)
+                }
+
+                Button {
+                    isPasswordVisible.wrappedValue.toggle()
+                } label: {
+                    Text(isPasswordVisible.wrappedValue ? "숨김" : "보기")
+                        .font(MainFont.pretendard(.bold, size: 13))
+                        .foregroundStyle(SignUpColor.accent)
+                }
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 16)
+            .padding(.horizontal, 14)
+            .frame(height: 50)
             .background(fieldBackground)
         }
     }
 
     private var fieldBackground: some View {
-        RoundedRectangle(cornerRadius: 22, style: .continuous)
-            .fill(.white.opacity(0.82))
+        RoundedRectangle(cornerRadius: 8, style: .continuous)
+            .fill(SignUpColor.fieldBackground)
             .overlay {
-                RoundedRectangle(cornerRadius: 22, style: .continuous)
-                    .stroke(.white.opacity(0.72), lineWidth: 1)
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .stroke(SignUpColor.border, lineWidth: 1)
             }
-            .shadow(color: .black.opacity(0.06), radius: 16, y: 8)
     }
 }
 
@@ -293,12 +291,12 @@ private struct SignUpMessageRow: View {
     var body: some View {
         // 메시지 타입은 ViewModel이 결정하고, View는 타입에 맞는 시각 표현만 담당한다.
         Label(message.text, systemImage: iconName)
-            .font(.system(size: 13, weight: .semibold, design: .rounded))
+            .font(MainFont.pretendard(.semibold, size: 13))
             .foregroundStyle(foregroundColor)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 14)
             .padding(.vertical, 12)
-            .background(backgroundColor, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .background(backgroundColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
     }
 
     private var iconName: String {
@@ -313,7 +311,7 @@ private struct SignUpMessageRow: View {
     private var foregroundColor: Color {
         switch message {
         case .success:
-            Color(red: 0.08, green: 0.34, blue: 0.30)
+            SignUpColor.accent
         case .error:
             Color(red: 0.72, green: 0.18, blue: 0.14)
         }

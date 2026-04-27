@@ -147,7 +147,7 @@ private final class StubLoginNetworkManager: NetworkManaging {
 
 private extension LoginResponse {
     static let dummy = LoginResponse(
-        userID: "user-id",
+        userId: "user-id",
         email: "ditto@example.com",
         nick: "ditto",
         accessToken: "access-token",

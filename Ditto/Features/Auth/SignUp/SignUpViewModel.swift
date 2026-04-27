@@ -22,48 +22,34 @@ final class SignUpViewModel {
     private(set) var message: SignUpMessage?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
-    private let authManager: any AuthManaging
 
     convenience init() {
         let authManager = AuthManager()
 
-        self.init(
-            networkManagerProvider: {
-                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
-            },
-            authManager: authManager
-        )
+        self.init {
+            // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+            NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
+        }
     }
 
     convenience init(authManager: any AuthManaging) {
-        self.init(
-            networkManagerProvider: {
-                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
-            },
-            authManager: authManager
-        )
+        self.init {
+            // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
+            NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
+        }
     }
 
     init(
-        networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
-        authManager: any AuthManaging
+        networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging
     ) {
         self.networkManagerProvider = networkManagerProvider
-        self.authManager = authManager
     }
 
     convenience init(networkManager: any NetworkManaging) {
-        self.init(networkManager: networkManager, authManager: AuthManager())
-    }
-
-    init(networkManager: any NetworkManaging, authManager: any AuthManaging) {
         // 테스트에서는 실제 URLSession 대신 StubNetworkManager를 주입해 네트워크 없이 흐름을 검증한다.
-        networkManagerProvider = {
+        self.init {
             networkManager
         }
-        self.authManager = authManager
     }
 
     var isSignUpButtonEnabled: Bool {
@@ -89,7 +75,6 @@ final class SignUpViewModel {
             let networkManager = try networkManagerProvider()
             // Router는 endpoint와 body를, NetworkManager는 URLRequest 생성과 실행을 담당한다.
             let response: JoinResponse = try await networkManager.request(AuthRouter.join(makeJoinRequest()))
-            try authManager.authenticate(with: response.tokens)
             message = .success("\(response.nick)님, 회원가입이 완료됐습니다.")
         } catch {
             message = .error(Self.makeErrorMessage(from: error))
@@ -112,6 +97,10 @@ final class SignUpViewModel {
 
         if password.count < SignUpRule.minimumPasswordLength {
             return .shortPassword(minLength: SignUpRule.minimumPasswordLength)
+        }
+
+        if !SignUpRule.hasRequiredPasswordCharacters(password) {
+            return .invalidPasswordFormat
         }
 
         if trimmedNick.isEmpty {
@@ -178,7 +167,7 @@ private extension SignUpViewModel {
         case .encodingFailed:
             return "요청 데이터를 만들 수 없습니다."
         case .decodingFailed:
-            return "회원가입 응답을 해석할 수 없습니다."
+            return "회원가입 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
         case .requestFailed:
             return "네트워크 연결을 확인해 주세요."
         }
@@ -189,6 +178,15 @@ enum SignUpRule {
     // 정책 값은 enum namespace에 모아두면 테스트와 ViewModel에서 같은 기준을 공유할 수 있다.
     static let minimumPasswordLength = 8
     static let minimumNickLength = 2
+
+    static func hasRequiredPasswordCharacters(_ password: String) -> Bool {
+        // 서버 비밀번호 규칙과 동일하게 영문, 숫자, 특수문자를 각각 1개 이상 요구한다.
+        let hasLetter = password.range(of: "[A-Za-z]", options: .regularExpression) != nil
+        let hasNumber = password.range(of: "[0-9]", options: .regularExpression) != nil
+        let hasSpecialCharacter = password.range(of: "[@$!%*#?&]", options: .regularExpression) != nil
+
+        return hasLetter && hasNumber && hasSpecialCharacter
+    }
 }
 
 enum SignUpValidationError: Equatable {
@@ -197,6 +195,7 @@ enum SignUpValidationError: Equatable {
     case invalidEmail
     case emptyPassword
     case shortPassword(minLength: Int)
+    case invalidPasswordFormat
     case emptyNick
     case shortNick(minLength: Int)
 
@@ -210,6 +209,8 @@ enum SignUpValidationError: Equatable {
             return "비밀번호를 입력해 주세요."
         case .shortPassword(let minLength):
             return "비밀번호는 \(minLength)자 이상 입력해 주세요."
+        case .invalidPasswordFormat:
+            return "비밀번호는 영문, 숫자, 특수문자를 모두 포함해 주세요."
         case .emptyNick:
             return "닉네임을 입력해 주세요."
         case .shortNick(let minLength):
