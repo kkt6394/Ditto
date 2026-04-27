@@ -271,24 +271,32 @@ struct MainBottomTabBar: View {
                             )
                     }
                     .frame(maxWidth: .infinity)
-                    .frame(height: 56)
+                    .frame(height: 50)
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.top, 4)
-
-            Capsule()
-                .fill(Color.black)
-                .frame(width: 134, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 8)
+            .padding(.top, 6)
         }
+        .padding(.bottom, 2)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 20, style: .continuous)
+            MainScreenPalette.surface
+                .ignoresSafeArea(edges: .bottom)
+        )
+        .background(alignment: .top) {
+            Divider()
+                .overlay(MainScreenPalette.borderBlue.opacity(0.35))
+        }
+        .background(
+            UnevenRoundedRectangle(
+                topLeadingRadius: 20,
+                bottomLeadingRadius: 0,
+                bottomTrailingRadius: 0,
+                topTrailingRadius: 20,
+                style: .continuous
+            )
                 .fill(MainScreenPalette.surface)
                 .shadow(color: MainScreenPalette.shadow, radius: 6, y: -1)
         )
-        .ignoresSafeArea(edges: .bottom)
     }
 }

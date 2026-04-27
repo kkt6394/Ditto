@@ -12,31 +12,31 @@ struct MainView: View {
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
 
     var body: some View {
-        ZStack(alignment: .bottom) {
-            MainScreenPalette.background
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            fixedHeader
 
-            VStack(spacing: 0) {
-                fixedHeader
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    MainSectionTitleRow(
+                        title: "NEW 액티비티",
+                        trailingTitle: "View All"
+                    )
+                    .padding(.top, 26)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        MainSectionTitleRow(
-                            title: "NEW 액티비티",
-                            trailingTitle: "View All"
-                        )
-                        .padding(.top, 26)
-
-                        NewActivityCarousel(items: MainNewActivity.samples)
+                    NewActivityCarousel(items: MainNewActivity.samples)
                         .padding(.top, 12)
 
-                        ActivityPostsSection(posts: MainActivityPost.samples)
-                            .padding(.top, 24)
-                    }
-                    .padding(.bottom, 110)
+                    ActivityPostsSection(posts: MainActivityPost.samples)
+                        .padding(.top, 24)
                 }
+                .padding(.bottom, 24)
             }
-
+        }
+        .background(
+            MainScreenPalette.background
+                .ignoresSafeArea()
+        )
+        .safeAreaInset(edge: .bottom, spacing: 0) {
             MainBottomTabBar(items: MainTabItem.samples)
         }
     }
