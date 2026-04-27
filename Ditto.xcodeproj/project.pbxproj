@@ -6,6 +6,12 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		B847B7B52F99100009F3FB4 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7B92F99100009F3FB4 /* KakaoSDKAuth */; };
+		B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */; };
+		B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BB2F99100009F3FB4 /* KakaoSDKUser */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		B847B7962F98F1D9009F3FB4 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -68,6 +74,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B847B7B52F99100009F3FB4 /* KakaoSDKAuth in Frameworks */,
+				B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */,
+				B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -140,6 +149,9 @@
 			);
 			name = Ditto;
 			packageProductDependencies = (
+				B847B7B92F99100009F3FB4 /* KakaoSDKAuth */,
+				B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */,
+				B847B7BB2F99100009F3FB4 /* KakaoSDKUser */,
 			);
 			productName = Ditto;
 			productReference = B847B7882F98F1D8009F3FB4 /* Ditto.app */;
@@ -225,6 +237,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				B847B7B22F98F39B009F3FB4 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
+				B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B847B7892F98F1D8009F3FB4 /* Products */;
@@ -633,6 +646,14 @@
 				minimumVersion = 0.63.2;
 			};
 		};
+		B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/kakao/kakao-ios-sdk";
+			requirement = {
+				branch = master;
+				kind = branch;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -640,6 +661,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B847B7B22F98F39B009F3FB4 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */;
 			productName = "plugin:SwiftLintBuildToolPlugin";
+		};
+		B847B7B92F99100009F3FB4 /* KakaoSDKAuth */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKAuth;
+		};
+		B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKCommon;
+		};
+		B847B7BB2F99100009F3FB4 /* KakaoSDKUser */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
+			productName = KakaoSDKUser;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

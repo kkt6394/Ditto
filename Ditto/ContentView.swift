@@ -12,7 +12,7 @@ struct ContentView: View {
 
     var body: some View {
         if authManager.isAuthenticated {
-            MainView()
+            MainView(authManager: authManager)
         } else {
             // 로그인 화면에서만 회원가입 push 이동이 필요하므로 NavigationStack을 이 분기에만 둔다.
             NavigationStack {

@@ -126,7 +126,9 @@ private extension LoginView {
                 }
 
                 KakaoLoginButton {
-                    viewModel.selectSocialLogin(provider: .kakao)
+                    Task {
+                        await viewModel.submitKakaoLogin()
+                    }
                 }
             }
         }
