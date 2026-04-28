@@ -10,7 +10,6 @@
 		B847B7B52F99100009F3FB4 /* KakaoSDKAuth in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7B92F99100009F3FB4 /* KakaoSDKAuth */; };
 		B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */; };
 		B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BB2F99100009F3FB4 /* KakaoSDKUser */; };
-		B86549652FA08363004E4F3D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = B86549642FA08363004E4F3D /* FirebaseMessaging */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -75,7 +74,6 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				B86549652FA08363004E4F3D /* FirebaseMessaging in Frameworks */,
 				B847B7B52F99100009F3FB4 /* KakaoSDKAuth in Frameworks */,
 				B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */,
 				B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */,
@@ -154,7 +152,6 @@
 				B847B7B92F99100009F3FB4 /* KakaoSDKAuth */,
 				B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */,
 				B847B7BB2F99100009F3FB4 /* KakaoSDKUser */,
-				B86549642FA08363004E4F3D /* FirebaseMessaging */,
 			);
 			productName = Ditto;
 			productReference = B847B7882F98F1D8009F3FB4 /* Ditto.app */;
@@ -241,7 +238,6 @@
 			packageReferences = (
 				B847B7B22F98F39B009F3FB4 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
 				B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
-				B86549632FA08363004E4F3D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B847B7892F98F1D8009F3FB4 /* Products */;
@@ -658,14 +654,6 @@
 				kind = branch;
 			};
 		};
-		B86549632FA08363004E4F3D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/firebase/firebase-ios-sdk";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 12.12.1;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -688,11 +676,6 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */;
 			productName = KakaoSDKUser;
-		};
-		B86549642FA08363004E4F3D /* FirebaseMessaging */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = B86549632FA08363004E4F3D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
-			productName = FirebaseMessaging;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
