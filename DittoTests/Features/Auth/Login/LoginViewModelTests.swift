@@ -60,7 +60,11 @@ struct LoginViewModelTests {
     @Test func validInputSendsLoginRequestWithoutDeviceToken() async throws {
         let networkManager = StubLoginNetworkManager()
         let authManager = StubLoginAuthManager()
-        let viewModel = LoginViewModel(networkManager: networkManager, authManager: authManager)
+        let viewModel = LoginViewModel(
+            networkManager: networkManager,
+            authManager: authManager,
+            pushTokenStore: StubPushTokenStore()
+        )
 
         viewModel.email = " ditto@example.com "
         viewModel.password = "password123"
@@ -76,6 +80,35 @@ struct LoginViewModelTests {
             #expect(request.email == "ditto@example.com")
             #expect(request.password == "password123")
             #expect(request.deviceToken == nil)
+        } else {
+            #expect(Bool(false))
+        }
+    }
+
+    @Test func loginSuccessUpdatesDeviceTokenWhenFCMTokenExists() async throws {
+        let networkManager = StubLoginNetworkManager()
+        let authManager = StubLoginAuthManager()
+        let viewModel = LoginViewModel(
+            networkManager: networkManager,
+            authManager: authManager,
+            pushTokenStore: StubPushTokenStore(currentToken: "fcm-token")
+        )
+
+        viewModel.email = "ditto@example.com"
+        viewModel.password = "password123"
+
+        await viewModel.submitLogin()
+
+        #expect(viewModel.message == .success("ditto님, 다시 오신 걸 환영해요."))
+        #expect(authManager.savedTokens == LoginResponse.dummy.tokens)
+        #expect(networkManager.requestedRouters.count == 2)
+
+        let loginRouter = try #require(networkManager.requestedRouters.first as? AuthRouter)
+        let deviceTokenRouter = try #require(networkManager.requestedRouters.last as? AuthRouter)
+
+        if case .login = loginRouter,
+           case .updateDeviceToken(let request) = deviceTokenRouter {
+            #expect(request.deviceToken == "fcm-token")
         } else {
             #expect(Bool(false))
         }
@@ -101,7 +134,8 @@ struct LoginViewModelTests {
         let viewModel = LoginViewModel(
             networkManager: networkManager,
             authManager: authManager,
-            kakaoLoginService: StubKakaoLoginService(oauthToken: "kakao-oauth-token")
+            kakaoLoginService: StubKakaoLoginService(oauthToken: "kakao-oauth-token"),
+            pushTokenStore: StubPushTokenStore()
         )
 
         await viewModel.submitKakaoLogin()
@@ -122,7 +156,11 @@ struct LoginViewModelTests {
     @Test func appleLoginSendsIdTokenToAppleLoginAPI() async throws {
         let networkManager = StubLoginNetworkManager()
         let authManager = StubLoginAuthManager()
-        let viewModel = LoginViewModel(networkManager: networkManager, authManager: authManager)
+        let viewModel = LoginViewModel(
+            networkManager: networkManager,
+            authManager: authManager,
+            pushTokenStore: StubPushTokenStore()
+        )
 
         await viewModel.submitAppleLogin(idToken: "apple-id-token")
 
@@ -164,6 +202,7 @@ private final class StubLoginAuthManager: AuthManaging {
 @MainActor
 private final class StubLoginNetworkManager: NetworkManaging {
     private(set) var requestedRouter: APIRouter?
+    private(set) var requestedRouters: [APIRouter] = []
     private let result: Result<LoginResponse, Error>
 
     init(result: Result<LoginResponse, Error> = .success(.dummy)) {
@@ -172,6 +211,7 @@ private final class StubLoginNetworkManager: NetworkManaging {
 
     func request<T: Decodable>(_ router: APIRouter) async throws -> T {
         requestedRouter = router
+        requestedRouters.append(router)
 
         switch result {
         case .success(let response):
@@ -186,6 +226,19 @@ private final class StubLoginNetworkManager: NetworkManaging {
 
     func send(_ router: APIRouter) async throws {
         requestedRouter = router
+        requestedRouters.append(router)
+    }
+}
+
+private final class StubPushTokenStore: PushNotificationTokenStoring {
+    private(set) var currentToken: String?
+
+    init(currentToken: String? = nil) {
+        self.currentToken = currentToken
+    }
+
+    func save(_ token: String) {
+        currentToken = token
     }
 }
 

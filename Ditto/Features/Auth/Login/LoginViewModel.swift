@@ -21,6 +21,7 @@ final class LoginViewModel {
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let authManager: any AuthManaging
     private let kakaoLoginService: any KakaoLoginServicing
+    private let pushTokenStore: any PushNotificationTokenStoring
 
     convenience init() {
         let authManager = AuthManager()
@@ -31,7 +32,8 @@ final class LoginViewModel {
                 NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
             authManager: authManager,
-            kakaoLoginService: KakaoLoginService()
+            kakaoLoginService: KakaoLoginService(),
+            pushTokenStore: PushNotificationTokenStore.shared
         )
     }
 
@@ -42,37 +44,46 @@ final class LoginViewModel {
                 NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
             },
             authManager: authManager,
-            kakaoLoginService: KakaoLoginService()
+            kakaoLoginService: KakaoLoginService(),
+            pushTokenStore: PushNotificationTokenStore.shared
         )
     }
 
     init(
         networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
         authManager: any AuthManaging,
-        kakaoLoginService: any KakaoLoginServicing
+        kakaoLoginService: any KakaoLoginServicing,
+        pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared
     ) {
         self.networkManagerProvider = networkManagerProvider
         self.authManager = authManager
         self.kakaoLoginService = kakaoLoginService
+        self.pushTokenStore = pushTokenStore
     }
 
     convenience init(networkManager: any NetworkManaging) {
         self.init(networkManager: networkManager, authManager: AuthManager())
     }
 
-    init(networkManager: any NetworkManaging, authManager: any AuthManaging) {
+    init(
+        networkManager: any NetworkManaging,
+        authManager: any AuthManaging,
+        pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared
+    ) {
         // 테스트에서는 StubNetworkManager를 주입해 네트워크 결과를 고정한다.
         networkManagerProvider = {
             networkManager
         }
         self.authManager = authManager
         kakaoLoginService = KakaoLoginService()
+        self.pushTokenStore = pushTokenStore
     }
 
     init(
         networkManager: any NetworkManaging,
         authManager: any AuthManaging,
-        kakaoLoginService: any KakaoLoginServicing
+        kakaoLoginService: any KakaoLoginServicing,
+        pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared
     ) {
         // 테스트에서는 StubNetworkManager와 StubKakaoLoginService를 주입해 외부 인증 흐름을 고정한다.
         networkManagerProvider = {
@@ -80,6 +91,7 @@ final class LoginViewModel {
         }
         self.authManager = authManager
         self.kakaoLoginService = kakaoLoginService
+        self.pushTokenStore = pushTokenStore
     }
 
     var isLoginButtonEnabled: Bool {
@@ -106,6 +118,7 @@ final class LoginViewModel {
             let networkManager = try networkManagerProvider()
             let response: LoginResponse = try await networkManager.request(AuthRouter.login(makeLoginRequest()))
             try authManager.authenticate(with: response.tokens)
+            await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
         } catch {
@@ -132,6 +145,7 @@ final class LoginViewModel {
             let request = KakaoLoginRequest(oauthToken: oauthToken, deviceToken: nil)
             let response: LoginResponse = try await networkManager.request(AuthRouter.loginKakao(request))
             try authManager.authenticate(with: response.tokens)
+            await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
         } catch {
@@ -153,6 +167,7 @@ final class LoginViewModel {
             let request = AppleLoginRequest(idToken: idToken, deviceToken: nil)
             let response: LoginResponse = try await networkManager.request(AuthRouter.loginApple(request))
             try authManager.authenticate(with: response.tokens)
+            await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
         } catch {
@@ -202,6 +217,21 @@ final class LoginViewModel {
     func makeLoginRequest() -> LoginRequest {
         // 화면에서 받지 않는 deviceToken은 nil로 두고, 이메일 공백만 정리해 요청한다.
         LoginRequest(email: trimmedEmail, password: password)
+    }
+
+    func updateDeviceTokenIfNeeded(using networkManager: any NetworkManaging) async {
+        guard let deviceToken = pushTokenStore.currentToken else {
+            return
+        }
+
+        do {
+            try await networkManager.send(AuthRouter.updateDeviceToken(DeviceTokenRequest(deviceToken: deviceToken)))
+        } catch {
+            // 디바이스 토큰 갱신 실패는 로그인 자체를 막지 않고, 다음 로그인/토큰 갱신 때 다시 시도한다.
+            #if DEBUG
+            print("Device token update failed: \(error)")
+            #endif
+        }
     }
 
     static func makeErrorMessage(from error: Error) -> String {

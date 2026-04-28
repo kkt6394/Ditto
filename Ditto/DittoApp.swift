@@ -11,6 +11,8 @@ import SwiftUI
 
 @main
 struct DittoApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     init() {
         if let kakaoNativeAppKey = Bundle.main.kakaoNativeAppKey {
             KakaoSDK.initSDK(appKey: kakaoNativeAppKey)
