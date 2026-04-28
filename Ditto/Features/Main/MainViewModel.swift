@@ -14,6 +14,12 @@ final class MainViewModel {
     private(set) var newActivities = MainNewActivity.samples
     private(set) var isLoadingNewActivities = false
     private(set) var newActivitiesMessage: String?
+    private(set) var mainBanners: [MainBanner] = []
+    private(set) var isLoadingMainBanners = false
+    private(set) var mainBannersMessage: String?
+    private(set) var activityPosts = MainActivityPost.samples
+    private(set) var isLoadingActivityPosts = false
+    private(set) var activityPostsMessage: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
@@ -91,6 +97,91 @@ final class MainViewModel {
         }
     }
 
+    func loadMainBanners() async {
+        isLoadingMainBanners = true
+        mainBannersMessage = nil
+        defer {
+            isLoadingMainBanners = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let configuration = try configurationProvider()
+            let response: BannerListResponseDTO = try await networkManager.request(BannerRouter.main)
+            mainBanners = response.data.enumerated().map { index, banner in
+                Self.makeMainBanner(
+                    from: banner,
+                    fallbackIndex: index,
+                    configuration: configuration,
+                    accessToken: authManager?.tokens?.accessToken
+                )
+            }
+
+            if mainBanners.isEmpty {
+                mainBannersMessage = "표시할 배너가 없습니다."
+            }
+        } catch {
+            mainBannersMessage = Self.makeBannerErrorMessage(from: error)
+        }
+    }
+
+    func loadActivityPosts(
+        country: String?,
+        category: String?,
+        coordinate: UserCoordinate? = nil,
+        maxDistanceMeters: Int? = nil
+    ) async {
+        isLoadingActivityPosts = true
+        activityPostsMessage = nil
+        defer {
+            isLoadingActivityPosts = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let configuration = try configurationProvider()
+            let query = PostGeolocationQuery(
+                country: country,
+                category: category,
+                longitude: coordinate?.longitude,
+                latitude: coordinate?.latitude,
+                maxDistance: coordinate == nil ? nil : maxDistanceMeters,
+                limit: 5,
+                next: nil,
+                orderBy: "createdAt"
+            )
+            let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
+                PostRouter.geolocation(query)
+            )
+            let mappedPosts = response.data.enumerated().map { index, post in
+                Self.makeActivityPost(
+                    from: post,
+                    fallbackIndex: index,
+                    configuration: configuration,
+                    accessToken: authManager?.tokens?.accessToken
+                )
+            }
+
+            if mappedPosts.isEmpty {
+                activityPosts = []
+                activityPostsMessage = "선택한 조건의 액티비티 포스트가 없습니다."
+            } else {
+                activityPosts = mappedPosts
+            }
+        } catch {
+            activityPostsMessage = Self.makeActivityPostErrorMessage(from: error)
+        }
+    }
+
+    func loadActivityPosts(country: String?, category: String?) async {
+        await loadActivityPosts(
+            country: country,
+            category: category,
+            coordinate: nil,
+            maxDistanceMeters: nil
+        )
+    }
+
     static func makeNewActivity(
         from response: ActivitySummaryResponseDTO,
         fallbackIndex: Int,
@@ -128,6 +219,71 @@ final class MainViewModel {
         default:
             return "NEW 액티비티를 불러오지 못했습니다."
         }
+    }
+
+    static func makeBannerErrorMessage(from error: Error) -> String {
+        switch error {
+        case let error as NetworkError:
+            return makeNetworkErrorMessage(from: error, fallbackMessage: "배너를 불러오지 못했습니다.")
+        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
+            return "API 설정값을 확인해 주세요."
+        default:
+            return "배너를 불러오지 못했습니다."
+        }
+    }
+
+    static func makeMainBanner(
+        from response: BannerResponseDTO,
+        fallbackIndex: Int,
+        configuration: AppConfiguration,
+        accessToken: String?
+    ) -> MainBanner {
+        MainBanner(
+            id: "\(response.payload.type)-\(response.payload.value)-\(fallbackIndex)",
+            name: response.name,
+            imageRequest: makeImageRequest(
+                from: response.imageUrl,
+                configuration: configuration,
+                accessToken: accessToken
+            ),
+            payloadType: response.payload.type,
+            payloadValue: response.payload.value
+        )
+    }
+
+    static func makeActivityPost(
+        from response: PostSummaryResponseDTO,
+        fallbackIndex: Int,
+        configuration: AppConfiguration,
+        accessToken: String?
+    ) -> MainActivityPost {
+        let fallback = MainActivityPost.samples[fallbackIndex % MainActivityPost.samples.count]
+        let imageRequests = imagePaths(from: response.files).map {
+            makeImageRequest(from: $0, configuration: configuration, accessToken: accessToken)
+        }
+
+        return MainActivityPost(
+            id: response.postId,
+            author: response.creator.nick,
+            timeText: makeRelativeTimeText(from: response.createdAt),
+            title: response.title,
+            body: response.content,
+            location: makeLocationText(country: response.country, category: nil),
+            category: response.activity?.title ?? response.category,
+            profileImageName: fallback.profileImageName,
+            profileImageRequest: makeImageRequest(
+                from: response.creator.profileImage,
+                configuration: configuration,
+                accessToken: accessToken
+            ),
+            mainImageName: fallback.mainImageName,
+            mainImageRequest: imageRequests[safe: 0] ?? nil,
+            subImageTopName: fallback.subImageTopName,
+            subImageTopRequest: imageRequests[safe: 1] ?? nil,
+            subImageBottomName: fallback.subImageBottomName,
+            subImageBottomRequest: imageRequests[safe: 2] ?? nil,
+            isLiked: response.isLike
+        )
     }
 }
 
@@ -182,11 +338,19 @@ private extension MainViewModel {
 
     static func firstImageThumbnail(from thumbnails: [String]) -> String? {
         thumbnails.first { thumbnail in
-            let lowercasedThumbnail = thumbnail.lowercased()
+            isImagePath(thumbnail)
+        }
+    }
 
-            return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
-                lowercasedThumbnail.hasSuffix(imageExtension)
-            }
+    static func imagePaths(from paths: [String]) -> [String] {
+        paths.filter { isImagePath($0) }
+    }
+
+    static func isImagePath(_ path: String) -> Bool {
+        let lowercasedPath = path.lowercased()
+
+        return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
+            lowercasedPath.hasSuffix(imageExtension)
         }
     }
 
@@ -210,15 +374,19 @@ private extension MainViewModel {
     }
 
     static func makeNetworkErrorMessage(from error: NetworkError) -> String {
+        makeNetworkErrorMessage(from: error, fallbackMessage: "NEW 액티비티를 불러오지 못했습니다.")
+    }
+
+    static func makeNetworkErrorMessage(from error: NetworkError, fallbackMessage: String) -> String {
         switch error {
         case .missingAuthenticationToken:
             return "로그인이 필요합니다."
         case .statusCode(_, let message, _):
-            return message ?? "NEW 액티비티를 불러오지 못했습니다."
+            return message ?? fallbackMessage
         case .requestFailed:
             return "네트워크 연결을 확인해 주세요."
         case .decodingFailed:
-            return "액티비티 정보를 읽는 중 문제가 발생했습니다."
+            return fallbackMessage
         case .invalidURL:
             return "요청 주소가 올바르지 않습니다."
         case .invalidResponse:
@@ -227,10 +395,48 @@ private extension MainViewModel {
             return "요청 데이터를 만들 수 없습니다."
         }
     }
+
+    static func makeActivityPostErrorMessage(from error: Error) -> String {
+        switch error {
+        case let error as NetworkError:
+            return makeNetworkErrorMessage(from: error, fallbackMessage: "액티비티 포스트를 불러오지 못했습니다.")
+        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
+            return "API 설정값을 확인해 주세요."
+        default:
+            return "액티비티 포스트를 불러오지 못했습니다."
+        }
+    }
+
+    static func makeRelativeTimeText(from createdAt: String) -> String {
+        guard let date = ISO8601DateFormatter.full.date(from: createdAt) else {
+            return createdAt
+        }
+
+        let formatter = RelativeDateTimeFormatter()
+        formatter.locale = Locale(identifier: "ko_KR")
+        formatter.unitsStyle = .full
+
+        return formatter.localizedString(for: date, relativeTo: Date())
+    }
 }
 
 private extension String {
     func ifEmpty(_ fallback: String) -> String {
         isEmpty ? fallback : self
     }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
+    }
+}
+
+private extension ISO8601DateFormatter {
+    static let full: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+
+        return formatter
+    }()
 }

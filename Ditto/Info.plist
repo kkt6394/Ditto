@@ -55,6 +55,8 @@
 			</dict>
 		</dict>
 	</dict>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>현재 위치를 기준으로 가까운 액티비티 포스트를 보여주기 위해 위치 권한이 필요합니다.</string>
 	<key>UIAppFonts</key>
 	<array>
 		<string>Paperlogy-9Black.ttf</string>

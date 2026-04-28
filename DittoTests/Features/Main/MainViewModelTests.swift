@@ -97,6 +97,60 @@ struct MainViewModelTests {
         #expect(viewModel.newActivitiesMessage == "선택한 조건의 NEW 액티비티가 없습니다.")
     }
 
+    @Test func loadActivityPostsSendsGeolocationRouterWithSelectedFilters() async throws {
+        let networkManager = StubMainNetworkManager()
+        let viewModel = MainViewModel(
+            networkManager: networkManager,
+            configuration: try makeConfiguration(),
+            authManager: StubMainAuthManager()
+        )
+
+        await viewModel.loadActivityPosts(
+            country: "대한민국",
+            category: "관광",
+            coordinate: UserCoordinate(latitude: 37.5, longitude: 127.0),
+            maxDistanceMeters: 3_000
+        )
+
+        let router = try #require(networkManager.requestedRouter as? PostRouter)
+
+        if case .geolocation(let query) = router {
+            #expect(query.country == "대한민국")
+            #expect(query.category == "관광")
+            #expect(query.longitude == 127.0)
+            #expect(query.latitude == 37.5)
+            #expect(query.maxDistance == 3_000)
+            #expect(query.limit == 5)
+            #expect(query.orderBy == "createdAt")
+        } else {
+            #expect(Bool(false))
+        }
+    }
+
+    @Test func loadActivityPostsMapsPostSummaryResponseToMainPost() async throws {
+        let networkManager = StubMainNetworkManager()
+        let viewModel = MainViewModel(
+            networkManager: networkManager,
+            configuration: try makeConfiguration(),
+            authManager: StubMainAuthManager()
+        )
+
+        await viewModel.loadActivityPosts(country: "대한민국", category: "관광")
+
+        let post = try #require(viewModel.activityPosts.first)
+        #expect(post.id == "post-id")
+        #expect(post.author == "새싹 여행자")
+        #expect(post.title == "한강 러닝 후기")
+        #expect(post.body == "오전 러닝 코스가 좋았습니다.")
+        #expect(post.location == "대한민국")
+        #expect(post.category == "한강 러닝 클래스")
+        #expect(post.profileImageRequest?.url == URL(string: "https://example.com/v1/data/users/profile.jpg"))
+        #expect(post.mainImageRequest?.url == URL(string: "https://example.com/v1/data/posts/main.jpg"))
+        #expect(post.subImageTopRequest?.url == URL(string: "https://example.com/v1/data/posts/sub.jpg"))
+        #expect(post.subImageBottomRequest == nil)
+        #expect(post.isLiked)
+    }
+
     private func makeConfiguration() throws -> AppConfiguration {
         try AppConfiguration(baseURL: URL(string: "https://example.com")!, apiKey: "api-key")
     }
@@ -106,22 +160,41 @@ struct MainViewModelTests {
 private final class StubMainNetworkManager: NetworkManaging {
     private(set) var requestedRouter: APIRouter?
     private let result: Result<ActivitySummaryArrayResponseDTO, Error>
+    private let postResult: Result<PostSummaryPaginationResponseDTO, Error>
 
-    init(result: Result<ActivitySummaryArrayResponseDTO, Error> = .success(.dummy)) {
+    init(
+        result: Result<ActivitySummaryArrayResponseDTO, Error> = .success(.dummy),
+        postResult: Result<PostSummaryPaginationResponseDTO, Error> = .success(.dummy)
+    ) {
         self.result = result
+        self.postResult = postResult
     }
 
     func request<T: Decodable>(_ router: APIRouter) async throws -> T {
         requestedRouter = router
 
-        switch result {
-        case .success(let response):
-            guard let typedResponse = response as? T else {
-                throw StubMainNetworkError.typeMismatch
+        if router is ActivityRouter {
+            switch result {
+            case .success(let response):
+                guard let typedResponse = response as? T else {
+                    throw StubMainNetworkError.typeMismatch
+                }
+                return typedResponse
+            case .failure(let error):
+                throw error
             }
-            return typedResponse
-        case .failure(let error):
-            throw error
+        } else if router is PostRouter {
+            switch postResult {
+            case .success(let response):
+                guard let typedResponse = response as? T else {
+                    throw StubMainNetworkError.typeMismatch
+                }
+                return typedResponse
+            case .failure(let error):
+                throw error
+            }
+        } else {
+            throw StubMainNetworkError.typeMismatch
         }
     }
 
@@ -188,6 +261,51 @@ private extension ActivitySummaryArrayResponseDTO {
                 keepCount: 1
             )
         ]
+    )
+}
+
+private extension PostSummaryPaginationResponseDTO {
+    static let dummy = PostSummaryPaginationResponseDTO(
+        data: [
+            PostSummaryResponseDTO(
+                postId: "post-id",
+                country: "대한민국",
+                category: "관광",
+                title: "한강 러닝 후기",
+                content: "오전 러닝 코스가 좋았습니다.",
+                activity: ActivitySummaryPostResponseDTO(
+                    id: "activity-id",
+                    title: "한강 러닝 클래스",
+                    country: "대한민국",
+                    category: "관광",
+                    thumbnails: [],
+                    geolocation: ActivityGeolocationDTO(longitude: 127.0, latitude: 37.5),
+                    price: ActivityPriceDTO(original: 20_000, final: 15_000),
+                    tags: [],
+                    pointReward: nil,
+                    isAdvertisement: false,
+                    isKeep: false,
+                    keepCount: 0
+                ),
+                geolocation: Geolocation(longitude: 127.0, latitude: 37.5),
+                creator: UserInfoResponseDTO(
+                    userId: "user-id",
+                    nick: "새싹 여행자",
+                    profileImage: "/data/users/profile.jpg",
+                    introduction: nil
+                ),
+                files: [
+                    "/data/posts/main.jpg",
+                    "/data/posts/video.mp4",
+                    "/data/posts/sub.jpg"
+                ],
+                isLike: true,
+                likeCount: 12,
+                createdAt: "2026-04-28T08:00:00.000Z",
+                updatedAt: "2026-04-28T08:00:00.000Z"
+            )
+        ],
+        nextCursor: "0"
     )
 }
 

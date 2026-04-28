@@ -75,6 +75,14 @@ struct MainNewActivity: Identifiable {
     ]
 }
 
+struct MainBanner: Identifiable {
+    let id: String
+    let name: String
+    let imageRequest: URLRequest?
+    let payloadType: String
+    let payloadValue: String
+}
+
 struct MainActivityPost: Identifiable {
     let id: String
     let author: String
@@ -84,9 +92,13 @@ struct MainActivityPost: Identifiable {
     let location: String
     let category: String
     let profileImageName: String
+    let profileImageRequest: URLRequest?
     let mainImageName: String
+    let mainImageRequest: URLRequest?
     let subImageTopName: String
+    let subImageTopRequest: URLRequest?
     let subImageBottomName: String
+    let subImageBottomRequest: URLRequest?
     let isLiked: Bool
 
     static let samples: [MainActivityPost] = [
@@ -99,9 +111,13 @@ struct MainActivityPost: Identifiable {
             location: "대만 타이페이",
             category: "타이페이 스노쿨링 초보자 스쿨 2기",
             profileImageName: "FigmaMainPostProfile2",
+            profileImageRequest: nil,
             mainImageName: "FigmaMainPostHero1",
+            mainImageRequest: nil,
             subImageTopName: "FigmaMainPostSub11",
+            subImageTopRequest: nil,
             subImageBottomName: "FigmaMainPostSub12",
+            subImageBottomRequest: nil,
             isLiked: false
         ),
         .init(
@@ -113,9 +129,13 @@ struct MainActivityPost: Identifiable {
             location: "스위스 인터라켄",
             category: "알프스 설산 글라이딩 초보자 가이드",
             profileImageName: "FigmaMainPostProfile1",
+            profileImageRequest: nil,
             mainImageName: "FigmaMainPostHero2",
+            mainImageRequest: nil,
             subImageTopName: "FigmaMainPostSub21",
+            subImageTopRequest: nil,
             subImageBottomName: "FigmaMainPostSub22",
+            subImageBottomRequest: nil,
             isLiked: true
         )
     ]

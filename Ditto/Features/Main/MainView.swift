@@ -14,6 +14,8 @@ struct MainView: View {
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
+    @State private var locationManager = UserLocationManager()
+    @State private var activityPostDistanceKilometers = 3.0
     @State private var signOutMessage: String?
 
     init(authManager: any AuthManaging) {
@@ -71,15 +73,49 @@ struct MainView: View {
                     )
                         .padding(.top, 12)
 
-                    ActivityPostsSection(posts: MainActivityPost.samples)
+                    MainBannerContent(
+                        banners: viewModel.mainBanners,
+                        isLoading: viewModel.isLoadingMainBanners,
+                        message: viewModel.mainBannersMessage
+                    )
+                    .padding(.top, 16)
+
+                    ActivityPostsSection(
+                        posts: viewModel.activityPosts,
+                        isLoading: viewModel.isLoadingActivityPosts,
+                        message: viewModel.activityPostsMessage,
+                        distanceKilometers: $activityPostDistanceKilometers,
+                        locationMessage: locationManager.locationMessage
+                    )
                         .padding(.top, 24)
                 }
                 .padding(.bottom, 24)
+            }
+            .task {
+                locationManager.requestCurrentLocation()
             }
             .task(id: newActivitiesQueryID) {
                 await viewModel.loadNewActivities(
                     country: selectedCountryName,
                     category: selectedCategoryTitle
+                )
+            }
+            .task {
+                await viewModel.loadMainBanners()
+            }
+            .task(id: activityPostsQueryID) {
+                // 슬라이더 조작 중에는 이전 task가 취소되므로, 멈춘 뒤 한 번만 조회한다.
+                do {
+                    try await Task.sleep(for: .milliseconds(500))
+                } catch {
+                    return
+                }
+
+                await viewModel.loadActivityPosts(
+                    country: selectedCountryName,
+                    category: selectedCategoryTitle,
+                    coordinate: locationManager.currentCoordinate,
+                    maxDistanceMeters: selectedDistanceMeters
                 )
             }
         }
@@ -123,6 +159,24 @@ struct MainView: View {
 
     private var newActivitiesQueryID: String {
         "\(selectedCountryID)-\(selectedCategoryID)"
+    }
+
+    private var activityPostsQueryID: String {
+        "\(newActivitiesQueryID)-\(selectedDistanceMeters)-\(locationCoordinateID)"
+    }
+
+    private var selectedDistanceMeters: Int {
+        Int(activityPostDistanceKilometers.rounded()) * 1_000
+    }
+
+    private var locationCoordinateID: String {
+        guard let coordinate = locationManager.currentCoordinate else {
+            return "no-location"
+        }
+
+        let latitude = Int((coordinate.latitude * 10_000).rounded())
+        let longitude = Int((coordinate.longitude * 10_000).rounded())
+        return "\(latitude)-\(longitude)"
     }
 }
 

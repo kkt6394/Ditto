@@ -6,9 +6,14 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct ActivityPostsSection: View {
     let posts: [MainActivityPost]
+    let isLoading: Bool
+    let message: String?
+    @Binding var distanceKilometers: Double
+    let locationMessage: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -35,17 +40,37 @@ struct ActivityPostsSection: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
 
-            DistanceSliderCard()
+            DistanceSliderCard(
+                distanceKilometers: $distanceKilometers,
+                locationMessage: locationMessage
+            )
                 .padding(.horizontal, 20)
                 .padding(.bottom, 8)
 
-            ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                ActivityPostCard(post: post)
+            if isLoading && posts.isEmpty {
+                ActivityPostStateCard(
+                    title: "액티비티 포스트를 불러오는 중입니다.",
+                    systemName: "arrow.clockwise"
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            } else if posts.isEmpty {
+                ActivityPostStateCard(
+                    title: message ?? "액티비티 포스트가 없습니다.",
+                    subtitle: "다른 나라나 카테고리를 선택해 보세요.",
+                    systemName: "text.bubble"
+                )
+                .padding(.horizontal, 20)
+                .padding(.bottom, 20)
+            } else {
+                ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
+                    ActivityPostCard(post: post)
 
-                if index != posts.indices.last {
-                    Divider()
-                        .padding(.horizontal, 20)
-                        .overlay(MainScreenPalette.border)
+                    if index != posts.indices.last {
+                        Divider()
+                            .padding(.horizontal, 20)
+                            .overlay(MainScreenPalette.border)
+                    }
                 }
             }
         }
@@ -54,7 +79,46 @@ struct ActivityPostsSection: View {
     }
 }
 
+private struct ActivityPostStateCard: View {
+    let title: String
+    var subtitle: String?
+    let systemName: String
+
+    var body: some View {
+        VStack(spacing: 10) {
+            Image(systemName: systemName)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(MainScreenPalette.primaryBlue)
+
+            Text(title)
+                .font(MainScreenTypography.sectionTitle)
+                .foregroundStyle(MainScreenPalette.textPrimary)
+                .multilineTextAlignment(.center)
+
+            if let subtitle {
+                Text(subtitle)
+                    .font(MainScreenTypography.body)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .multilineTextAlignment(.center)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 140)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(MainScreenPalette.background)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MainScreenPalette.border, lineWidth: 1)
+        )
+    }
+}
+
 private struct DistanceSliderCard: View {
+    @Binding var distanceKilometers: Double
+    let locationMessage: String?
+
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
@@ -62,35 +126,19 @@ private struct DistanceSliderCard: View {
                     .font(MainScreenTypography.distance)
                     .foregroundStyle(MainScreenPalette.textMuted)
 
-                Text("3KM")
+                Text("\(Int(distanceKilometers.rounded()))KM")
                     .font(MainScreenTypography.distance)
                     .foregroundStyle(MainScreenPalette.primaryBlue)
             }
 
-            ZStack(alignment: .leading) {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .fill(MainScreenPalette.background)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8, style: .continuous)
-                            .stroke(MainScreenPalette.border, lineWidth: 1)
-                    )
-                    .frame(height: 36)
+            Slider(value: $distanceKilometers, in: 1...50, step: 1)
+                .tint(MainScreenPalette.primaryBlue)
 
-                Capsule()
-                    .fill(Color(red: 0.918, green: 0.918, blue: 0.918))
-                    .frame(height: 10)
-                    .padding(.horizontal, 12)
-
-                Capsule()
-                    .fill(MainScreenPalette.primaryBlue)
-                    .frame(width: 140, height: 10)
-                    .padding(.leading, 12)
-
-                Circle()
-                    .fill(MainScreenPalette.surface)
-                    .overlay(Circle().stroke(MainScreenPalette.primaryBlue, lineWidth: 2))
-                    .frame(width: 14, height: 14)
-                    .offset(x: 146)
+            if let locationMessage {
+                Text(locationMessage)
+                    .font(MainScreenTypography.timestamp)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .lineLimit(2)
             }
         }
         .padding(.top, 4)
@@ -104,11 +152,13 @@ private struct ActivityPostCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 8) {
-                Image(post.profileImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                ActivityPostRemoteImage(
+                    request: post.profileImageRequest,
+                    fallbackImageName: post.profileImageName,
+                    width: 32,
+                    height: 32,
+                    cornerRadius: 16
+                )
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(post.author)
@@ -152,12 +202,13 @@ private struct ActivityPostImageCollage: View {
     var body: some View {
         HStack(spacing: 4) {
             ZStack {
-                Image(post.mainImageName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 226, height: 160)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                ActivityPostRemoteImage(
+                    request: post.mainImageRequest,
+                    fallbackImageName: post.mainImageName,
+                    width: 226,
+                    height: 160,
+                    cornerRadius: 18
+                )
 
                 VStack {
                     HStack {
@@ -172,20 +223,80 @@ private struct ActivityPostImageCollage: View {
             }
 
             VStack(spacing: 4) {
-                Image(post.subImageTopName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 120, height: 78)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                ActivityPostRemoteImage(
+                    request: post.subImageTopRequest,
+                    fallbackImageName: post.subImageTopName,
+                    width: 120,
+                    height: 78,
+                    cornerRadius: 14
+                )
 
-                Image(post.subImageBottomName)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(width: 120, height: 78)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                ActivityPostRemoteImage(
+                    request: post.subImageBottomRequest,
+                    fallbackImageName: post.subImageBottomName,
+                    width: 120,
+                    height: 78,
+                    cornerRadius: 14
+                )
             }
+        }
+    }
+}
+
+private struct ActivityPostRemoteImage: View {
+    let request: URLRequest?
+    let fallbackImageName: String
+    let width: CGFloat
+    let height: CGFloat
+    let cornerRadius: CGFloat
+
+    @State private var remoteImage: UIImage?
+    @State private var didFailLoadingRemoteImage = false
+
+    var body: some View {
+        fittedImage
+            .frame(width: width, height: height)
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+    }
+
+    @ViewBuilder
+    private var fittedImage: some View {
+        if let remoteImage {
+            Image(uiImage: remoteImage)
+                .resizable()
+                .scaledToFill()
+        } else if let request, !didFailLoadingRemoteImage {
+            Rectangle()
+                .fill(MainScreenPalette.border)
+                .overlay {
+                    ProgressView()
+                        .tint(MainScreenPalette.primaryBlue)
+                }
+                .task(id: request.url?.absoluteString) {
+                    await loadRemoteImage(from: request)
+                }
+        } else {
+            Image(fallbackImageName)
+                .resizable()
+                .scaledToFill()
+        }
+    }
+
+    private func loadRemoteImage(from request: URLRequest) async {
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200..<300).contains(httpResponse.statusCode),
+                  let image = UIImage(data: data) else {
+                didFailLoadingRemoteImage = true
+                return
+            }
+
+            remoteImage = image
+        } catch {
+            didFailLoadingRemoteImage = true
         }
     }
 }
