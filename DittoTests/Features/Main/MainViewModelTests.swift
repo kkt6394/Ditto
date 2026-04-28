@@ -139,6 +139,8 @@ struct MainViewModelTests {
 
         let post = try #require(viewModel.activityPosts.first)
         #expect(post.id == "post-id")
+        #expect(post.activityId == "activity-id")
+        #expect(post.creatorId == "user-id")
         #expect(post.author == "새싹 여행자")
         #expect(post.title == "한강 러닝 후기")
         #expect(post.body == "오전 러닝 코스가 좋았습니다.")
@@ -148,7 +150,32 @@ struct MainViewModelTests {
         #expect(post.mainImageRequest?.url == URL(string: "https://example.com/v1/data/posts/main.jpg"))
         #expect(post.subImageTopRequest?.url == URL(string: "https://example.com/v1/data/posts/sub.jpg"))
         #expect(post.subImageBottomRequest == nil)
+        #expect(post.media.count == 3)
+        #expect(post.media[0].kind == .image)
+        #expect(post.media[1].kind == .video)
+        #expect(post.media[1].request?.url == URL(string: "https://example.com/v1/data/posts/video.mp4"))
+        #expect(post.media[2].kind == .image)
         #expect(post.isLiked)
+    }
+
+    @Test func createChatRoomSendsChatRouterWithCreatorId() async throws {
+        let networkManager = StubMainNetworkManager()
+        let viewModel = MainViewModel(
+            networkManager: networkManager,
+            configuration: try makeConfiguration(),
+            authManager: StubMainAuthManager()
+        )
+
+        let room = await viewModel.createChatRoom(opponentId: "user-id")
+        let router = try #require(networkManager.requestedRouter as? ChatRouter)
+
+        if case .createRoom(let request) = router {
+            #expect(request.opponentId == "user-id")
+        } else {
+            #expect(Bool(false))
+        }
+
+        #expect(room?.roomId == "room-id")
     }
 
     private func makeConfiguration() throws -> AppConfiguration {
@@ -161,13 +188,16 @@ private final class StubMainNetworkManager: NetworkManaging {
     private(set) var requestedRouter: APIRouter?
     private let result: Result<ActivitySummaryArrayResponseDTO, Error>
     private let postResult: Result<PostSummaryPaginationResponseDTO, Error>
+    private let chatRoomResult: Result<ChatRoomResponseDTO, Error>
 
     init(
         result: Result<ActivitySummaryArrayResponseDTO, Error> = .success(.dummy),
-        postResult: Result<PostSummaryPaginationResponseDTO, Error> = .success(.dummy)
+        postResult: Result<PostSummaryPaginationResponseDTO, Error> = .success(.dummy),
+        chatRoomResult: Result<ChatRoomResponseDTO, Error> = .success(.dummy)
     ) {
         self.result = result
         self.postResult = postResult
+        self.chatRoomResult = chatRoomResult
     }
 
     func request<T: Decodable>(_ router: APIRouter) async throws -> T {
@@ -185,6 +215,16 @@ private final class StubMainNetworkManager: NetworkManaging {
             }
         } else if router is PostRouter {
             switch postResult {
+            case .success(let response):
+                guard let typedResponse = response as? T else {
+                    throw StubMainNetworkError.typeMismatch
+                }
+                return typedResponse
+            case .failure(let error):
+                throw error
+            }
+        } else if router is ChatRouter {
+            switch chatRoomResult {
             case .success(let response):
                 guard let typedResponse = response as? T else {
                     throw StubMainNetworkError.typeMismatch
@@ -306,6 +346,23 @@ private extension PostSummaryPaginationResponseDTO {
             )
         ],
         nextCursor: "0"
+    )
+}
+
+private extension ChatRoomResponseDTO {
+    static let dummy = ChatRoomResponseDTO(
+        roomId: "room-id",
+        createdAt: "2026-04-28T08:00:00.000Z",
+        updatedAt: "2026-04-28T08:00:00.000Z",
+        participants: [
+            UserInfoResponseDTO(
+                userId: "user-id",
+                nick: "새싹 여행자",
+                profileImage: "/data/users/profile.jpg",
+                introduction: nil
+            )
+        ],
+        lastChat: nil
     )
 }
 

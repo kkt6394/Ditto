@@ -20,6 +20,7 @@ final class MainViewModel {
     private(set) var activityPosts = MainActivityPost.samples
     private(set) var isLoadingActivityPosts = false
     private(set) var activityPostsMessage: String?
+    private(set) var chatStartMessage: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
@@ -264,6 +265,8 @@ final class MainViewModel {
 
         return MainActivityPost(
             id: response.postId,
+            activityId: response.activity?.id,
+            creatorId: response.creator.userId,
             author: response.creator.nick,
             timeText: makeRelativeTimeText(from: response.createdAt),
             title: response.title,
@@ -282,8 +285,27 @@ final class MainViewModel {
             subImageTopRequest: imageRequests[safe: 1] ?? nil,
             subImageBottomName: fallback.subImageBottomName,
             subImageBottomRequest: imageRequests[safe: 2] ?? nil,
+            media: makePostMedia(
+                from: response.files,
+                fallback: fallback,
+                configuration: configuration,
+                accessToken: accessToken
+            ),
             isLiked: response.isLike
         )
+    }
+
+    func createChatRoom(opponentId: String) async -> ChatRoomResponseDTO? {
+        chatStartMessage = nil
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let request = ChatRoomCreateRequestDTO(opponentId: opponentId)
+            return try await networkManager.request(ChatRouter.createRoom(request))
+        } catch {
+            chatStartMessage = Self.makeChatStartErrorMessage(from: error)
+            return nil
+        }
     }
 }
 
@@ -346,12 +368,79 @@ private extension MainViewModel {
         paths.filter { isImagePath($0) }
     }
 
+    static func makePostMedia(
+        from paths: [String],
+        fallback: MainActivityPost,
+        configuration: AppConfiguration,
+        accessToken: String?
+    ) -> [MainPostMedia] {
+        let fallbackNames = [
+            fallback.mainImageName,
+            fallback.subImageTopName,
+            fallback.subImageBottomName
+        ]
+
+        let media = paths.enumerated().compactMap { index, path -> MainPostMedia? in
+            let fallbackName = fallbackNames[index % fallbackNames.count]
+
+            if isImagePath(path) {
+                let request = makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+                return .image(id: "\(path)-\(index)", request: request, fallbackImageName: fallbackName)
+            }
+
+            if isVideoPath(path) {
+                let videoId = videoId(from: path)
+                let request = videoId == nil
+                    ? makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+                    : nil
+
+                return .video(
+                    id: "\(path)-\(index)",
+                    request: request,
+                    fallbackImageName: fallbackName,
+                    videoId: videoId
+                )
+            }
+
+            return nil
+        }
+
+        if media.isEmpty {
+            return fallback.media
+        }
+
+        return media
+    }
+
     static func isImagePath(_ path: String) -> Bool {
         let lowercasedPath = path.lowercased()
 
         return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
             lowercasedPath.hasSuffix(imageExtension)
         }
+    }
+
+    static func isVideoPath(_ path: String) -> Bool {
+        let lowercasedPath = path.lowercased()
+
+        if lowercasedPath.hasPrefix("video://") {
+            return true
+        }
+
+        return [".mp4", ".mov", ".m4v", ".m3u8"].contains { videoExtension in
+            lowercasedPath.hasSuffix(videoExtension)
+        }
+    }
+
+    static func videoId(from path: String) -> String? {
+        guard path.hasPrefix("video://") else {
+            return nil
+        }
+
+        let videoId = String(path.dropFirst("video://".count))
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return videoId.isEmpty ? nil : videoId
     }
 
     static func makeImageURL(from thumbnailPath: String, baseURL: URL) -> URL? {
@@ -404,6 +493,17 @@ private extension MainViewModel {
             return "API 설정값을 확인해 주세요."
         default:
             return "액티비티 포스트를 불러오지 못했습니다."
+        }
+    }
+
+    static func makeChatStartErrorMessage(from error: Error) -> String {
+        switch error {
+        case let error as NetworkError:
+            return makeNetworkErrorMessage(from: error, fallbackMessage: "채팅방을 만들지 못했습니다.")
+        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
+            return "API 설정값을 확인해 주세요."
+        default:
+            return "채팅방을 만들지 못했습니다."
         }
     }
 

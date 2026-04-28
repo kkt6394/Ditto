@@ -14,6 +14,9 @@ struct ActivityPostsSection: View {
     let message: String?
     @Binding var distanceKilometers: Double
     let locationMessage: String?
+    let mediaAction: (MainPostMedia) -> Void
+    let detailAction: (MainActivityPost) -> Void
+    let chatAction: (MainActivityPost) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -64,7 +67,12 @@ struct ActivityPostsSection: View {
                 .padding(.bottom, 20)
             } else {
                 ForEach(Array(posts.enumerated()), id: \.element.id) { index, post in
-                    ActivityPostCard(post: post)
+                    ActivityPostCard(
+                        post: post,
+                        mediaAction: mediaAction,
+                        detailAction: detailAction,
+                        chatAction: chatAction
+                    )
 
                     if index != posts.indices.last {
                         Divider()
@@ -148,48 +156,61 @@ private struct DistanceSliderCard: View {
 
 private struct ActivityPostCard: View {
     let post: MainActivityPost
+    let mediaAction: (MainPostMedia) -> Void
+    let detailAction: (MainActivityPost) -> Void
+    let chatAction: (MainActivityPost) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack(spacing: 8) {
-                ActivityPostRemoteImage(
-                    request: post.profileImageRequest,
-                    fallbackImageName: post.profileImageName,
-                    width: 32,
-                    height: 32,
-                    cornerRadius: 16
-                )
+            Button {
+                chatAction(post)
+            } label: {
+                HStack(spacing: 8) {
+                    ActivityPostRemoteImage(
+                        request: post.profileImageRequest,
+                        fallbackImageName: post.profileImageName,
+                        width: 32,
+                        height: 32,
+                        cornerRadius: 16
+                    )
 
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(post.author)
-                        .font(MainScreenTypography.author)
-                        .foregroundStyle(MainScreenPalette.textPrimary)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(post.author)
+                            .font(MainScreenTypography.author)
+                            .foregroundStyle(MainScreenPalette.textPrimary)
 
-                    Text(post.timeText)
-                        .font(MainScreenTypography.timestamp)
-                        .foregroundStyle(MainScreenPalette.textSecondary)
+                        Text(post.timeText)
+                            .font(MainScreenTypography.timestamp)
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                    }
                 }
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 22)
 
-            ActivityPostImageCollage(post: post)
+            ActivityPostImageCollage(post: post, mediaAction: mediaAction)
                 .padding(.horizontal, 20)
 
-            VStack(alignment: .leading, spacing: 8) {
-                Text(post.title)
-                    .font(MainScreenTypography.postTitle)
-                    .foregroundStyle(MainScreenPalette.textPrimary)
+            Button {
+                detailAction(post)
+            } label: {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(post.title)
+                        .font(MainScreenTypography.postTitle)
+                        .foregroundStyle(MainScreenPalette.textPrimary)
 
-                Text(post.body)
-                    .font(MainScreenTypography.postBody)
-                    .foregroundStyle(MainScreenPalette.textSecondary)
-                    .lineSpacing(4)
+                    Text(post.body)
+                        .font(MainScreenTypography.postBody)
+                        .foregroundStyle(MainScreenPalette.textSecondary)
+                        .lineSpacing(4)
 
-                HStack(spacing: 10) {
-                    PostInfoChip(text: post.location, showsIcon: true)
-                    PostInfoChip(text: post.category, showsIcon: false)
+                    HStack(spacing: 10) {
+                        PostInfoChip(text: post.location, showsIcon: true)
+                        PostInfoChip(text: post.category, showsIcon: false)
+                    }
                 }
             }
+            .buttonStyle(.plain)
             .padding(.horizontal, 22)
         }
         .padding(.vertical, 20)
@@ -198,48 +219,90 @@ private struct ActivityPostCard: View {
 
 private struct ActivityPostImageCollage: View {
     let post: MainActivityPost
+    let mediaAction: (MainPostMedia) -> Void
 
     var body: some View {
         HStack(spacing: 4) {
-            ZStack {
-                ActivityPostRemoteImage(
-                    request: post.mainImageRequest,
-                    fallbackImageName: post.mainImageName,
+            if let mainMedia = post.media[safe: 0] {
+                ActivityPostMediaButton(
+                    media: mainMedia,
                     width: 226,
                     height: 160,
-                    cornerRadius: 18
+                    cornerRadius: 18,
+                    showsLikeBadge: true,
+                    isLiked: post.isLiked,
+                    action: mediaAction
                 )
-
-                VStack {
-                    HStack {
-                        LikeBadge(isLiked: post.isLiked)
-                        Spacer()
-                    }
-                    Spacer()
-                }
-                .padding(10)
-
-                PlayBadge()
             }
 
             VStack(spacing: 4) {
-                ActivityPostRemoteImage(
-                    request: post.subImageTopRequest,
-                    fallbackImageName: post.subImageTopName,
-                    width: 120,
-                    height: 78,
-                    cornerRadius: 14
-                )
+                if let topMedia = post.media[safe: 1] {
+                    ActivityPostMediaButton(
+                        media: topMedia,
+                        width: 120,
+                        height: 78,
+                        cornerRadius: 14,
+                        showsLikeBadge: false,
+                        isLiked: post.isLiked,
+                        action: mediaAction
+                    )
+                }
 
-                ActivityPostRemoteImage(
-                    request: post.subImageBottomRequest,
-                    fallbackImageName: post.subImageBottomName,
-                    width: 120,
-                    height: 78,
-                    cornerRadius: 14
-                )
+                if let bottomMedia = post.media[safe: 2] {
+                    ActivityPostMediaButton(
+                        media: bottomMedia,
+                        width: 120,
+                        height: 78,
+                        cornerRadius: 14,
+                        showsLikeBadge: false,
+                        isLiked: post.isLiked,
+                        action: mediaAction
+                    )
+                }
             }
         }
+    }
+}
+
+private struct ActivityPostMediaButton: View {
+    let media: MainPostMedia
+    let width: CGFloat
+    let height: CGFloat
+    let cornerRadius: CGFloat
+    let showsLikeBadge: Bool
+    let isLiked: Bool
+    let action: (MainPostMedia) -> Void
+
+    var body: some View {
+        Button {
+            action(media)
+        } label: {
+            ZStack {
+                ActivityPostRemoteImage(
+                    request: media.kind == .image ? media.request : nil,
+                    fallbackImageName: media.fallbackImageName,
+                    width: width,
+                    height: height,
+                    cornerRadius: cornerRadius
+                )
+
+                if showsLikeBadge {
+                    VStack {
+                        HStack {
+                            LikeBadge(isLiked: isLiked)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                    .padding(10)
+                }
+
+                if media.kind == .video {
+                    PlayBadge()
+                }
+            }
+        }
+        .buttonStyle(.plain)
     }
 }
 
@@ -354,6 +417,12 @@ private struct PostInfoChip: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .stroke(MainScreenPalette.borderBlue, lineWidth: 1)
         )
+    }
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }
 

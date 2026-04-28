@@ -18,6 +18,8 @@ struct MainView: View {
     @State private var locationManager = UserLocationManager()
     @State private var activityPostDistanceKilometers = 3.0
     @State private var signOutMessage: String?
+    @State private var navigationPath = NavigationPath()
+    @State private var selectedMedia: MainPostMedia?
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -25,13 +27,21 @@ struct MainView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            content
+        NavigationStack(path: $navigationPath) {
+            VStack(spacing: 0) {
+                content
+            }
+            .background(
+                MainScreenPalette.background
+                    .ignoresSafeArea()
+            )
+            .navigationDestination(for: MainRoute.self) { route in
+                destination(for: route)
+            }
         }
-        .background(
-            MainScreenPalette.background
-                .ignoresSafeArea()
-        )
+        .fullScreenCover(item: $selectedMedia) { media in
+            ActivityPostMediaViewer(media: media, authManager: authManager)
+        }
         .safeAreaInset(edge: .bottom, spacing: 0) {
             MainBottomTabBar(
                 items: MainTabItem.samples,
@@ -89,9 +99,26 @@ struct MainView: View {
                         isLoading: viewModel.isLoadingActivityPosts,
                         message: viewModel.activityPostsMessage,
                         distanceKilometers: $activityPostDistanceKilometers,
-                        locationMessage: locationManager.locationMessage
+                        locationMessage: locationManager.locationMessage,
+                        mediaAction: { media in
+                            selectedMedia = media
+                        },
+                        detailAction: { post in
+                            openActivityDetail(for: post)
+                        },
+                        chatAction: { post in
+                            startChat(with: post)
+                        }
                     )
                         .padding(.top, 24)
+
+                    if let chatStartMessage = viewModel.chatStartMessage {
+                        Text(chatStartMessage)
+                            .font(MainScreenTypography.body)
+                            .foregroundStyle(Color(red: 0.72, green: 0.18, blue: 0.14))
+                            .padding(.horizontal, 20)
+                            .padding(.top, 8)
+                    }
                 }
                 .padding(.bottom, 24)
             }
@@ -161,6 +188,31 @@ struct MainView: View {
         selectedTabID = item.id
     }
 
+    @ViewBuilder
+    private func destination(for route: MainRoute) -> some View {
+        switch route {
+        case .activityDetail(let activityId):
+            ActivityDetailView(activityId: activityId, authManager: authManager)
+        case .chat(let roomId, let opponentNick):
+            ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
+        }
+    }
+
+    private func openActivityDetail(for post: MainActivityPost) {
+        // 포스트가 액티비티 ID를 포함하지 않는 경우, 요청된 디자인 Node ID 상세로 연결한다.
+        navigationPath.append(MainRoute.activityDetail(activityId: post.activityId ?? "DXWNE"))
+    }
+
+    private func startChat(with post: MainActivityPost) {
+        Task {
+            guard let room = await viewModel.createChatRoom(opponentId: post.creatorId) else {
+                return
+            }
+
+            navigationPath.append(MainRoute.chat(roomId: room.roomId, opponentNick: post.author))
+        }
+    }
+
     private var selectedCountryName: String? {
         MainCountryFilter.samples.first { $0.id == selectedCountryID }?.name
     }
@@ -190,6 +242,11 @@ struct MainView: View {
         let longitude = Int((coordinate.longitude * 10_000).rounded())
         return "\(latitude)-\(longitude)"
     }
+}
+
+private enum MainRoute: Hashable {
+    case activityDetail(activityId: String)
+    case chat(roomId: String, opponentNick: String)
 }
 
 #Preview {
