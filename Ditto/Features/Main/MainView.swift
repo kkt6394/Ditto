@@ -14,6 +14,7 @@ struct MainView: View {
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
+    @State private var searchViewResetID = UUID()
     @State private var locationManager = UserLocationManager()
     @State private var activityPostDistanceKilometers = 3.0
     @State private var signOutMessage: String?
@@ -36,7 +37,7 @@ struct MainView: View {
                 items: MainTabItem.samples,
                 selectedID: selectedTabID
             ) { item in
-                selectedTabID = item.id
+                selectTab(item)
             }
         }
     }
@@ -44,6 +45,9 @@ struct MainView: View {
     @ViewBuilder
     private var content: some View {
         switch MainTab(rawValue: selectedTabID) {
+        case .explore:
+            SearchView(authManager: authManager)
+                .id(searchViewResetID)
         case .profile:
             ProfileTabView(
                 signOutMessage: signOutMessage,
@@ -147,6 +151,14 @@ struct MainView: View {
         } catch {
             signOutMessage = "로그아웃 처리에 실패했습니다."
         }
+    }
+
+    private func selectTab(_ item: MainTabItem) {
+        if selectedTabID == item.id, MainTab(rawValue: item.id) == .explore {
+            searchViewResetID = UUID()
+        }
+
+        selectedTabID = item.id
     }
 
     private var selectedCountryName: String? {
