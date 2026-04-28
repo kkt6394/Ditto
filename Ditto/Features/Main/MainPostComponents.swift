@@ -464,9 +464,9 @@ struct MainBottomTabBar: View {
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.top, 6)
+            .padding(.top, 10)
         }
-        .padding(.bottom, 2)
+        .padding(.bottom, 0)
         .frame(maxWidth: .infinity)
         .background(
             MainScreenPalette.surface

@@ -20,6 +20,7 @@ struct MainView: View {
     @State private var signOutMessage: String?
     @State private var navigationPath = NavigationPath()
     @State private var selectedMedia: MainPostMedia?
+    @State private var homeScrollToTopTrigger = false
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -54,73 +55,96 @@ struct MainView: View {
 
     @ViewBuilder
     private var content: some View {
-        switch MainTab(rawValue: selectedTabID) {
-        case .explore:
+        TabView(selection: $selectedTabID) {
+            homeTab
+                .tag(MainTab.home.rawValue)
+
             SearchView(authManager: authManager)
                 .id(searchViewResetID)
-        case .profile:
+                .tag(MainTab.explore.rawValue)
+
+            VStack {
+                Spacer()
+                Text("좋아요 탭 준비 중")
+                    .font(MainScreenTypography.sectionTitle)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                Spacer()
+            }
+            .tag(MainTab.likes.rawValue)
+
             ProfileTabView(
                 signOutMessage: signOutMessage,
                 signOutAction: signOut
             )
-        default:
-            homeTab
+            .tag(MainTab.profile.rawValue)
         }
+        .tabViewStyle(.page(indexDisplayMode: .never))
     }
 
     private var homeTab: some View {
         VStack(spacing: 0) {
             fixedHeader
 
-            ScrollView(showsIndicators: false) {
-                VStack(spacing: 0) {
-                    MainSectionTitleRow(
-                        title: "NEW 액티비티",
-                        trailingTitle: "View All"
-                    )
-                    .padding(.top, 26)
+            ScrollViewReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 0) {
+                        Color.clear
+                            .frame(height: 0)
+                            .id("homeTop")
 
-                    NewActivityContent(
-                        items: viewModel.newActivities,
-                        isLoading: viewModel.isLoadingNewActivities,
-                        message: viewModel.newActivitiesMessage
-                    )
+                        MainSectionTitleRow(
+                            title: "NEW 액티비티",
+                            trailingTitle: "View All"
+                        )
+                        .padding(.top, 26)
+
+                        NewActivityContent(
+                            items: viewModel.newActivities,
+                            isLoading: viewModel.isLoadingNewActivities,
+                            message: viewModel.newActivitiesMessage
+                        )
                         .padding(.top, 12)
 
-                    MainBannerContent(
-                        banners: viewModel.mainBanners,
-                        isLoading: viewModel.isLoadingMainBanners,
-                        message: viewModel.mainBannersMessage
-                    )
-                    .padding(.top, 16)
+                        MainBannerContent(
+                            banners: viewModel.mainBanners,
+                            isLoading: viewModel.isLoadingMainBanners,
+                            message: viewModel.mainBannersMessage
+                        )
+                        .padding(.top, 16)
 
-                    ActivityPostsSection(
-                        posts: viewModel.activityPosts,
-                        isLoading: viewModel.isLoadingActivityPosts,
-                        message: viewModel.activityPostsMessage,
-                        distanceKilometers: $activityPostDistanceKilometers,
-                        locationMessage: locationManager.locationMessage,
-                        mediaAction: { media in
-                            selectedMedia = media
-                        },
-                        detailAction: { post in
-                            openActivityDetail(for: post)
-                        },
-                        chatAction: { post in
-                            startChat(with: post)
-                        }
-                    )
+                        ActivityPostsSection(
+                            posts: viewModel.activityPosts,
+                            isLoading: viewModel.isLoadingActivityPosts,
+                            message: viewModel.activityPostsMessage,
+                            distanceKilometers: $activityPostDistanceKilometers,
+                            locationMessage: locationManager.locationMessage,
+                            mediaAction: { media in
+                                selectedMedia = media
+                            },
+                            detailAction: { post in
+                                openActivityDetail(for: post)
+                            },
+                            chatAction: { post in
+                                startChat(with: post)
+                            }
+                        )
                         .padding(.top, 24)
 
-                    if let chatStartMessage = viewModel.chatStartMessage {
-                        Text(chatStartMessage)
-                            .font(MainScreenTypography.body)
-                            .foregroundStyle(Color(red: 0.72, green: 0.18, blue: 0.14))
-                            .padding(.horizontal, 20)
-                            .padding(.top, 8)
+                        if let chatStartMessage = viewModel.chatStartMessage {
+                            Text(chatStartMessage)
+                                .font(MainScreenTypography.body)
+                                .foregroundStyle(Color(red: 0.72, green: 0.18, blue: 0.14))
+                                .padding(.horizontal, 20)
+                                .padding(.top, 8)
+                        }
+                    }
+                    .padding(.bottom, 100)
+                }
+                .onChange(of: homeScrollToTopTrigger) {
+                    withAnimation {
+                        proxy.scrollTo("homeTop", anchor: .top)
                     }
                 }
-                .padding(.bottom, 24)
             }
             .task {
                 locationManager.requestCurrentLocation()
@@ -181,8 +205,12 @@ struct MainView: View {
     }
 
     private func selectTab(_ item: MainTabItem) {
-        if selectedTabID == item.id, MainTab(rawValue: item.id) == .explore {
-            searchViewResetID = UUID()
+        if selectedTabID == item.id {
+            if MainTab(rawValue: item.id) == .explore {
+                searchViewResetID = UUID()
+            } else if MainTab(rawValue: item.id) == .home {
+                homeScrollToTopTrigger.toggle()
+            }
         }
 
         selectedTabID = item.id
