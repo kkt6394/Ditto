@@ -85,6 +85,8 @@ struct MainBanner: Identifiable {
 
 struct MainActivityPost: Identifiable {
     let id: String
+    let activityId: String?
+    let creatorId: String
     let author: String
     let timeText: String
     let title: String
@@ -99,11 +101,14 @@ struct MainActivityPost: Identifiable {
     let subImageTopRequest: URLRequest?
     let subImageBottomName: String
     let subImageBottomRequest: URLRequest?
+    let media: [MainPostMedia]
     let isLiked: Bool
 
     static let samples: [MainActivityPost] = [
         .init(
             id: "taipei-snorkeling",
+            activityId: "DXWNE",
+            creatorId: "sample-user-1",
             author: "씩씩한 새싹이",
             timeText: "1시간 34분 전",
             title: "타이페이 스노쿨링 여행",
@@ -118,10 +123,17 @@ struct MainActivityPost: Identifiable {
             subImageTopRequest: nil,
             subImageBottomName: "FigmaMainPostSub12",
             subImageBottomRequest: nil,
+            media: [
+                .image(id: "taipei-snorkeling-0", request: nil, fallbackImageName: "FigmaMainPostHero1"),
+                .image(id: "taipei-snorkeling-1", request: nil, fallbackImageName: "FigmaMainPostSub11"),
+                .image(id: "taipei-snorkeling-2", request: nil, fallbackImageName: "FigmaMainPostSub12")
+            ],
             isLiked: false
         ),
         .init(
             id: "interlaken-paragliding",
+            activityId: "DXWNE",
+            creatorId: "sample-user-2",
             author: "하늘색 새싹",
             timeText: "3시간 50분 전",
             title: "하늘을 나는 새싹 패러글라이딩",
@@ -136,9 +148,52 @@ struct MainActivityPost: Identifiable {
             subImageTopRequest: nil,
             subImageBottomName: "FigmaMainPostSub22",
             subImageBottomRequest: nil,
+            media: [
+                .image(id: "interlaken-paragliding-0", request: nil, fallbackImageName: "FigmaMainPostHero2"),
+                .image(id: "interlaken-paragliding-1", request: nil, fallbackImageName: "FigmaMainPostSub21"),
+                .image(id: "interlaken-paragliding-2", request: nil, fallbackImageName: "FigmaMainPostSub22")
+            ],
             isLiked: true
         )
     ]
+}
+
+struct MainPostMedia: Identifiable {
+    enum Kind: Equatable {
+        case image
+        case video
+    }
+
+    let id: String
+    let kind: Kind
+    let request: URLRequest?
+    let fallbackImageName: String
+    let videoId: String?
+
+    static func image(id: String, request: URLRequest?, fallbackImageName: String) -> MainPostMedia {
+        MainPostMedia(
+            id: id,
+            kind: .image,
+            request: request,
+            fallbackImageName: fallbackImageName,
+            videoId: nil
+        )
+    }
+
+    static func video(
+        id: String,
+        request: URLRequest?,
+        fallbackImageName: String,
+        videoId: String? = nil
+    ) -> MainPostMedia {
+        MainPostMedia(
+            id: id,
+            kind: .video,
+            request: request,
+            fallbackImageName: fallbackImageName,
+            videoId: videoId
+        )
+    }
 }
 
 struct MainTabItem: Identifiable {
