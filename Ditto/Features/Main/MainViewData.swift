@@ -37,7 +37,10 @@ struct MainCategoryFilter: Identifiable {
 
 struct MainNewActivity: Identifiable {
     let id: String
-    let location: String
+    let countryName: String?
+    let latitude: Double?
+    let longitude: Double?
+    var location: String
     let title: String
     let price: String
     let summary: String
@@ -47,6 +50,9 @@ struct MainNewActivity: Identifiable {
     static let samples: [MainNewActivity] = [
         .init(
             id: "venice",
+            countryName: "캘리포니아",
+            latitude: nil,
+            longitude: nil,
             location: "캘리포니아, 베니스 비치",
             title: "새싹 스케이트 세션",
             price: "209,000원",
@@ -56,6 +62,9 @@ struct MainNewActivity: Identifiable {
         ),
         .init(
             id: "jungfrau",
+            countryName: "스위스",
+            latitude: nil,
+            longitude: nil,
             location: "스위스 융프라우",
             title: "겨울 새싹 스키 원정대",
             price: "123,000원",
@@ -65,6 +74,9 @@ struct MainNewActivity: Identifiable {
         ),
         .init(
             id: "ubud",
+            countryName: "인도네시아",
+            latitude: nil,
+            longitude: nil,
             location: "인도네시아, 발리 우붓",
             title: "요가 새싹 선라이즈",
             price: "98,000원",

@@ -92,6 +92,7 @@ final class MainViewModel {
                 newActivitiesMessage = "선택한 조건의 NEW 액티비티가 없습니다."
             } else {
                 newActivities = mappedActivities
+                scheduleCityNameResolution(for: mappedActivities)
             }
         } catch {
             newActivitiesMessage = Self.makeErrorMessage(from: error)
@@ -198,7 +199,10 @@ final class MainViewModel {
 
         return MainNewActivity(
             id: response.activityId,
-            location: makeLocationText(country: response.country, category: response.category),
+            countryName: response.country,
+            latitude: response.geolocation.latitude,
+            longitude: response.geolocation.longitude,
+            location: makeLocationText(country: response.country),
             title: title,
             price: makePriceText(response.price.final),
             summary: summary,
@@ -271,7 +275,7 @@ final class MainViewModel {
             timeText: makeRelativeTimeText(from: response.createdAt),
             title: response.title,
             body: response.content,
-            location: makeLocationText(country: response.country, category: nil),
+            location: makeLocationText(country: response.country),
             category: response.activity?.title ?? response.category,
             profileImageName: fallback.profileImageName,
             profileImageRequest: makeImageRequest(
@@ -335,11 +339,44 @@ final class MainViewModel {
 }
 
 private extension MainViewModel {
-    static func makeLocationText(country: String?, category: String?) -> String {
-        [country, category]
+    // 도시명 reverse geocoding 결과를 비동기로 받아 카드의 location을 "국가, 도시" 형태로 갱신한다.
+    func scheduleCityNameResolution(for snapshot: [MainNewActivity]) {
+        Task { [weak self] in
+            await self?.resolveCityNames(for: snapshot)
+        }
+    }
+
+    func resolveCityNames(for snapshot: [MainNewActivity]) async {
+        for activity in snapshot {
+            guard
+                let latitude = activity.latitude,
+                let longitude = activity.longitude
+            else { continue }
+
+            guard let city = await CityResolver.shared.city(
+                latitude: latitude,
+                longitude: longitude
+            ) else { continue }
+
+            let combined = Self.combineCountryAndCity(country: activity.countryName, city: city)
+            guard !combined.isEmpty else { continue }
+
+            // 도시명을 받아오는 사이 배열이 갱신될 수 있어 ID로 다시 찾아 갱신한다.
+            if let index = newActivities.firstIndex(where: { $0.id == activity.id }) {
+                newActivities[index].location = combined
+            }
+        }
+    }
+
+    static func combineCountryAndCity(country: String?, city: String) -> String {
+        [country, city]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
+    }
+
+    static func makeLocationText(country: String?) -> String {
+        (country ?? "")
             .ifEmpty("위치 정보 없음")
     }
 

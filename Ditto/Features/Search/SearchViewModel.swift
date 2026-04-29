@@ -11,7 +11,10 @@ import Observation
 struct SearchActivity: Identifiable {
     let id: String
     let title: String
-    let location: String
+    let countryName: String?
+    let latitude: Double?
+    let longitude: Double?
+    var location: String
     let status: String
     let statusDetail: String
     let summary: String
@@ -98,6 +101,8 @@ final class SearchViewModel {
 
             if recommendedActivities.isEmpty {
                 recommendedActivitiesMessage = "추천 액티비티가 없습니다."
+            } else {
+                scheduleCityNameResolution(for: recommendedActivities, target: .recommended)
             }
         } catch {
             recommendedActivitiesMessage = Self.makeErrorMessage(from: error)
@@ -120,6 +125,8 @@ final class SearchViewModel {
 
             if categoryActivities.isEmpty {
                 categoryActivitiesMessage = "\(category) 액티비티가 없습니다."
+            } else {
+                scheduleCityNameResolution(for: categoryActivities, target: .category)
             }
         } catch {
             categoryActivitiesMessage = Self.makeErrorMessage(from: error)
@@ -174,6 +181,8 @@ final class SearchViewModel {
 
             if nearbyActivities.isEmpty {
                 nearbyActivitiesMessage = "근처에 액티비티가 없습니다. 거리를 늘려 보세요."
+            } else {
+                scheduleCityNameResolution(for: nearbyActivities, target: .nearby)
             }
         } catch {
             nearbyActivitiesMessage = Self.makeErrorMessage(from: error)
@@ -193,6 +202,58 @@ final class SearchViewModel {
             )
         }
     }
+
+    // 도시명 reverse geocoding 결과를 비동기로 받아 카드의 location을 "국가, 도시" 형태로 갱신한다.
+    fileprivate func scheduleCityNameResolution(
+        for snapshot: [SearchActivity],
+        target: SearchActivityListTarget
+    ) {
+        Task { [weak self] in
+            await self?.resolveCityNames(for: snapshot, target: target)
+        }
+    }
+
+    fileprivate func resolveCityNames(
+        for snapshot: [SearchActivity],
+        target: SearchActivityListTarget
+    ) async {
+        for activity in snapshot {
+            guard
+                let latitude = activity.latitude,
+                let longitude = activity.longitude
+            else { continue }
+
+            guard let city = await CityResolver.shared.city(
+                latitude: latitude,
+                longitude: longitude
+            ) else { continue }
+
+            let combined = Self.combineCountryAndCity(country: activity.countryName, city: city)
+            guard !combined.isEmpty else { continue }
+
+            // 도시명을 받아오는 사이 배열이 갱신될 수 있어 ID로 다시 찾아 갱신한다.
+            switch target {
+            case .recommended:
+                if let index = recommendedActivities.firstIndex(where: { $0.id == activity.id }) {
+                    recommendedActivities[index].location = combined
+                }
+            case .category:
+                if let index = categoryActivities.firstIndex(where: { $0.id == activity.id }) {
+                    categoryActivities[index].location = combined
+                }
+            case .nearby:
+                if let index = nearbyActivities.firstIndex(where: { $0.id == activity.id }) {
+                    nearbyActivities[index].location = combined
+                }
+            }
+        }
+    }
+}
+
+enum SearchActivityListTarget {
+    case recommended
+    case category
+    case nearby
 }
 
 private extension SearchViewModel {
@@ -210,7 +271,10 @@ private extension SearchViewModel {
         return SearchActivity(
             id: response.activityId,
             title: response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티",
-            location: makeLocationText(country: response.country, category: response.category),
+            countryName: response.country,
+            latitude: response.geolocation.latitude,
+            longitude: response.geolocation.longitude,
+            location: makeLocationText(country: response.country),
             status: makeStatus(isAdvertisement: response.isAdvertisement),
             statusDetail: makeStatusDetail(isAdvertisement: response.isAdvertisement),
             summary: makeSummary(tags: response.tags, category: response.category),
@@ -244,7 +308,10 @@ private extension SearchViewModel {
         return SearchActivity(
             id: response.id,
             title: response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티",
-            location: makeLocationText(country: response.country, category: response.category),
+            countryName: response.country,
+            latitude: response.geolocation.latitude,
+            longitude: response.geolocation.longitude,
+            location: makeLocationText(country: response.country),
             status: makeStatus(isAdvertisement: response.isAdvertisement),
             statusDetail: makeStatusDetail(isAdvertisement: response.isAdvertisement),
             summary: makeSummary(tags: response.tags, category: response.category),
@@ -281,12 +348,16 @@ private extension SearchViewModel {
         isAdvertisement ? "액티비티 오픈할인" : "인기 액티비티"
     }
 
-    static func makeLocationText(country: String?, category: String?) -> String {
-        [country, category]
+    static func makeLocationText(country: String?) -> String {
+        (country ?? "")
+            .ifEmpty("위치 정보 없음")
+    }
+
+    static func combineCountryAndCity(country: String?, city: String) -> String {
+        [country, city]
             .compactMap { $0 }
             .filter { !$0.isEmpty }
             .joined(separator: ", ")
-            .ifEmpty("위치 정보 없음")
     }
 
     static func makeSummary(tags: [String], category: String?) -> String {
