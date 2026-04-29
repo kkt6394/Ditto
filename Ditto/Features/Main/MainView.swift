@@ -21,6 +21,7 @@ struct MainView: View {
     @State private var navigationPath = NavigationPath()
     @State private var selectedMedia: MainPostMedia?
     @State private var homeScrollToTopTrigger = false
+    @State private var pendingChatOpponentIDs: Set<String> = []
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -44,11 +45,13 @@ struct MainView: View {
             ActivityPostMediaViewer(media: media, authManager: authManager)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            MainBottomTabBar(
-                items: MainTabItem.samples,
-                selectedID: selectedTabID
-            ) { item in
-                selectTab(item)
+            if navigationPath.isEmpty {
+                MainBottomTabBar(
+                    items: MainTabItem.samples,
+                    selectedID: selectedTabID
+                ) { item in
+                    selectTab(item)
+                }
             }
         }
     }
@@ -205,6 +208,8 @@ struct MainView: View {
     }
 
     private func selectTab(_ item: MainTabItem) {
+        navigationPath = NavigationPath()
+
         if selectedTabID == item.id {
             if MainTab(rawValue: item.id) == .explore {
                 searchViewResetID = UUID()
@@ -232,7 +237,15 @@ struct MainView: View {
     }
 
     private func startChat(with post: MainActivityPost) {
-        Task {
+        guard pendingChatOpponentIDs.insert(post.creatorId).inserted else {
+            return
+        }
+
+        Task { @MainActor in
+            defer {
+                pendingChatOpponentIDs.remove(post.creatorId)
+            }
+
             guard let room = await viewModel.createChatRoom(opponentId: post.creatorId) else {
                 return
             }

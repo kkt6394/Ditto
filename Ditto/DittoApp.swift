@@ -7,6 +7,7 @@
 
 import KakaoSDKAuth
 import KakaoSDKCommon
+import SwiftData
 import SwiftUI
 
 @main
@@ -28,6 +29,7 @@ struct DittoApp: App {
                         _ = AuthController.handleOpenUrl(url: url)
                     }
                 }
+                .modelContainer(for: ChatMessageEntity.self)
         }
     }
 }

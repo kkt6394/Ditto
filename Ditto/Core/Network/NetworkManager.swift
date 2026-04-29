@@ -65,6 +65,10 @@ final class NetworkManager: NetworkManaging {
         // 응답 body가 필요 없는 API는 성공 여부만 검증한다.
         _ = try await data(for: router)
     }
+
+    static func makeChatSocketDecoder() -> JSONDecoder {
+        makeDefaultDecoder()
+    }
 }
 
 private extension NetworkManager {

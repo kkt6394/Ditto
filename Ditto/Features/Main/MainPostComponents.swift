@@ -184,12 +184,16 @@ private struct ActivityPostCard: View {
                             .foregroundStyle(MainScreenPalette.textSecondary)
                     }
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 22)
+            .zIndex(1)
 
             ActivityPostImageCollage(post: post, mediaAction: mediaAction)
                 .padding(.horizontal, 20)
+                .zIndex(0)
 
             Button {
                 detailAction(post)
@@ -301,6 +305,7 @@ private struct ActivityPostMediaButton: View {
                     PlayBadge()
                 }
             }
+            .contentShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
         }
         .buttonStyle(.plain)
     }
