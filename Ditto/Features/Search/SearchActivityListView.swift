@@ -10,6 +10,7 @@ import SwiftUI
 struct SearchCategoryActivityListView: View {
     let category: SearchCategory
     let viewModel: SearchViewModel
+    let activityDetailAction: (String) -> Void
 
     var body: some View {
         VStack(spacing: 0) {
@@ -21,7 +22,8 @@ struct SearchCategoryActivityListView: View {
             SearchCategoryActivityContent(
                 items: viewModel.categoryActivities,
                 isLoading: viewModel.isLoadingCategoryActivities,
-                message: viewModel.categoryActivitiesMessage
+                message: viewModel.categoryActivitiesMessage,
+                activityDetailAction: activityDetailAction
             )
             .padding(.top, 8)
         }
@@ -71,6 +73,7 @@ private struct SearchCategoryActivityContent: View {
     let items: [SearchActivity]
     let isLoading: Bool
     let message: String?
+    let activityDetailAction: (String) -> Void
 
     var body: some View {
         if isLoading && items.isEmpty {
@@ -87,7 +90,12 @@ private struct SearchCategoryActivityContent: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        SearchActivityListCard(item: item)
+                        Button {
+                            activityDetailAction(item.id)
+                        } label: {
+                            SearchActivityListCard(item: item)
+                        }
+                        .buttonStyle(.plain)
 
                         if index != items.indices.last {
                             Divider()
@@ -107,39 +115,42 @@ private struct SearchActivityListCard: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ZStack(alignment: .topLeading) {
-                SearchRemoteImage(
-                    request: item.imageRequest,
-                    fallbackImageName: item.fallbackImageName,
-                    width: 350,
-                    height: 180,
-                    cornerRadius: 12
-                )
+            GeometryReader { proxy in
+                ZStack(alignment: .topLeading) {
+                    SearchRemoteImage(
+                        request: item.imageRequest,
+                        fallbackImageName: item.fallbackImageName,
+                        width: proxy.size.width,
+                        height: 180,
+                        cornerRadius: 12
+                    )
 
-                HStack {
-                    LikeCircle(isSelected: item.isKeep)
-                    Spacer()
-                    SearchLocationTag(text: item.location)
+                    HStack {
+                        LikeCircle(isSelected: item.isKeep)
+                        Spacer()
+                        SearchLocationTag(text: item.location)
+                    }
+                    .padding(.top, 8)
+                    .padding(.horizontal, 12)
+
+                    if item.isAdvertisement {
+                        Text("AD")
+                            .font(MainScreenTypography.activityMetaCompact)
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .frame(height: 16)
+                            .background(Color.white.opacity(0.16), in: Capsule())
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 8)
+                    }
+
+                    SearchStatusBanner(status: item.status, detail: item.statusDetail)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .offset(y: 8)
                 }
-                .padding(.top, 8)
-                .padding(.horizontal, 12)
-
-                if item.isAdvertisement {
-                    Text("AD")
-                        .font(MainScreenTypography.activityMetaCompact)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 8)
-                        .frame(height: 16)
-                        .background(Color.white.opacity(0.16), in: Capsule())
-                        .padding(.top, 156)
-                        .padding(.leading, 300)
-                }
-
-                SearchStatusBanner(status: item.status, detail: item.statusDetail)
-                    .padding(.top, 164)
-                    .frame(maxWidth: .infinity, alignment: .center)
             }
-            .frame(maxWidth: .infinity)
+            .frame(height: 188)
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 12) {

@@ -13,9 +13,17 @@ struct ActivityDetailView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var viewModel: ActivityDetailViewModel
+    @State private var pendingChatOpponentIDs: Set<String> = []
 
-    init(activityId: String, authManager: any AuthManaging) {
+    private let onStartChat: (String, String) -> Void
+
+    init(
+        activityId: String,
+        authManager: any AuthManaging,
+        onStartChat: @escaping (String, String) -> Void = { _, _ in }
+    ) {
         _viewModel = State(initialValue: ActivityDetailViewModel(activityId: activityId, authManager: authManager))
+        self.onStartChat = onStartChat
     }
 
     var body: some View {
@@ -40,6 +48,9 @@ struct ActivityDetailView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task(id: viewModel.activityId) {
             await viewModel.loadDetail()
+        }
+        .task(id: viewModel.activityId) {
+            await viewModel.loadReviews()
         }
     }
 
@@ -72,47 +83,91 @@ struct ActivityDetailView: View {
     }
 
     private func detailContent(_ activity: ActivityResponseDTO) -> some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 20) {
-                ActivityDetailRemoteImage(
-                    request: viewModel.heroImageRequest,
-                    fallbackImageName: "FigmaMainNewActivity2"
-                )
-
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(activity.title ?? "제목 없는 액티비티")
-                        .font(MainFont.paperlogyBlack(size: 26))
-                        .foregroundStyle(MainScreenPalette.textPrimary)
-
-                    Text(activity.description ?? "상세 설명이 없습니다.")
-                        .font(MainScreenTypography.postBody)
-                        .foregroundStyle(MainScreenPalette.textSecondary)
-                        .lineSpacing(5)
-
-                    ActivityDetailBadgeGroup(activity: activity)
-                }
-                .padding(.horizontal, 20)
-
-                ActivityPricePanel(
-                    originalPrice: viewModel.priceText(activity.price.original),
-                    finalPrice: viewModel.priceText(activity.price.final),
-                    discountRate: viewModel.discountRateText(
-                        originalPrice: activity.price.original,
-                        finalPrice: activity.price.final
+        GeometryReader { proxy in
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 20) {
+                    ActivityDetailRemoteImage(
+                        request: viewModel.heroImageRequest,
+                        fallbackImageName: "FigmaMainNewActivity2"
                     )
-                )
-                .padding(.horizontal, 20)
 
-                ActivityLimitPanel(activity: activity)
+                    VStack(alignment: .leading, spacing: 14) {
+                        Text(activity.title ?? "제목 없는 액티비티")
+                            .font(MainFont.paperlogyBlack(size: 26))
+                            .foregroundStyle(MainScreenPalette.textPrimary)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        Text(activity.description ?? "상세 설명이 없습니다.")
+                            .font(MainScreenTypography.postBody)
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                            .lineSpacing(5)
+                            .fixedSize(horizontal: false, vertical: true)
+
+                        ActivityDetailBadgeGroup(activity: activity)
+                    }
                     .padding(.horizontal, 20)
 
-                if let schedule = activity.schedule, !schedule.isEmpty {
-                    ActivitySchedulePanel(schedule: schedule)
+                    ActivityPricePanel(
+                        originalPrice: viewModel.priceText(activity.price.original),
+                        finalPrice: viewModel.priceText(activity.price.final),
+                        discountRate: viewModel.discountRateText(
+                            originalPrice: activity.price.original,
+                            finalPrice: activity.price.final
+                        )
+                    )
+                    .padding(.horizontal, 20)
+
+                    ActivityLimitPanel(activity: activity)
+                        .padding(.horizontal, 20)
+
+                    if let schedule = activity.schedule, !schedule.isEmpty {
+                        ActivitySchedulePanel(schedule: schedule)
+                            .padding(.horizontal, 20)
+                    }
+
+                    reviewSection
                         .padding(.horizontal, 20)
                 }
+                .frame(width: proxy.size.width, alignment: .leading)
+                .padding(.bottom, SearchLayout.tabBarContentPadding)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, SearchLayout.tabBarContentPadding)
+        }
+    }
+
+    private var reviewSection: some View {
+        ReviewSection(
+            reviews: viewModel.reviews,
+            isLoading: viewModel.isLoadingReviews,
+            message: viewModel.reviewsMessage,
+            currentUserId: viewModel.currentUserId,
+            chatStartMessage: viewModel.chatStartMessage,
+            imageRequestProvider: { path in
+                viewModel.reviewImageRequest(for: path)
+            },
+            chatAction: { review in
+                startChat(with: review)
+            }
+        )
+    }
+
+    private func startChat(with review: ReviewResponseDTO) {
+        let opponentId = review.creator.userId
+        let opponentNick = review.creator.nick
+
+        guard pendingChatOpponentIDs.insert(opponentId).inserted else {
+            return
+        }
+
+        Task { @MainActor in
+            defer {
+                pendingChatOpponentIDs.remove(opponentId)
+            }
+
+            guard let room = await viewModel.createChatRoom(opponentId: opponentId) else {
+                return
+            }
+
+            onStartChat(room.roomId, opponentNick)
         }
     }
 }
@@ -125,6 +180,11 @@ final class ActivityDetailViewModel {
     private(set) var heroImageRequest: URLRequest?
     private(set) var isLoading = false
     private(set) var message: String?
+    private(set) var reviews: [ReviewResponseDTO] = []
+    private(set) var isLoadingReviews = false
+    private(set) var reviewsMessage: String?
+    private(set) var chatStartMessage: String?
+    private(set) var currentUserId: String?
 
     private let authManager: any AuthManaging
 
@@ -153,6 +213,81 @@ final class ActivityDetailViewModel {
             )
         } catch {
             message = Self.makeErrorMessage(from: error)
+        }
+    }
+
+    // 리뷰 목록과 내 user_id를 병렬로 불러온다. 내 리뷰일 때 채팅 버튼을 숨기기 위함.
+    func loadReviews() async {
+        isLoadingReviews = true
+        reviewsMessage = nil
+        defer {
+            isLoadingReviews = false
+        }
+
+        do {
+            let networkManager = try makeNetworkManager()
+
+            let response: ReviewListResponseDTO = try await networkManager.request(
+                ReviewRouter.list(ReviewListQuery(activityId: activityId, next: nil, limit: nil, orderBy: nil))
+            )
+            reviews = response.data
+
+            if let myInfo: MyInfoResponseDTO = try? await networkManager.request(UserRouter.myProfile) {
+                currentUserId = myInfo.userId
+            }
+        } catch {
+            reviewsMessage = Self.makeReviewsErrorMessage(from: error)
+        }
+    }
+
+    func createChatRoom(opponentId: String) async -> ChatRoomResponseDTO? {
+        chatStartMessage = nil
+
+        do {
+            let networkManager = try makeNetworkManager()
+            let request = ChatRoomCreateRequestDTO(opponentId: opponentId)
+            return try await networkManager.request(ChatRouter.createRoom(request))
+        } catch {
+            do {
+                let networkManager = try makeNetworkManager()
+                if let existingRoom = try await existingChatRoom(
+                    opponentId: opponentId,
+                    networkManager: networkManager
+                ) {
+                    return existingRoom
+                }
+            } catch {
+                // 새 방 생성 실패 원인이 기존 방인 경우가 있어, 목록 조회 실패보다 원래 오류 메시지를 우선 보여준다.
+            }
+
+            chatStartMessage = Self.makeChatStartErrorMessage(from: error)
+            return nil
+        }
+    }
+
+    func reviewImageRequest(for path: String) -> URLRequest? {
+        guard let configuration = try? AppConfiguration() else {
+            return nil
+        }
+
+        return makeImageRequest(from: path, configuration: configuration)
+    }
+
+    private func makeNetworkManager() throws -> any NetworkManaging {
+        let configuration = try AppConfiguration()
+        return NetworkManager(configuration: configuration, authManager: authManager)
+    }
+
+    private func existingChatRoom(
+        opponentId: String,
+        networkManager: any NetworkManaging
+    ) async throws -> ChatRoomResponseDTO? {
+        let response: ChatRoomListResponseDTO = try await networkManager.request(ChatRouter.rooms)
+
+        return response.data.first { room in
+            room.participants.contains { participant in
+                participant.userId == opponentId
+            }
         }
     }
 
@@ -221,22 +356,34 @@ final class ActivityDetailViewModel {
     }
 
     private static func makeErrorMessage(from error: Error) -> String {
+        Self.makeMessage(from: error, fallback: "액티비티 정보를 불러오지 못했습니다.")
+    }
+
+    private static func makeReviewsErrorMessage(from error: Error) -> String {
+        Self.makeMessage(from: error, fallback: "리뷰를 불러오지 못했습니다.")
+    }
+
+    private static func makeChatStartErrorMessage(from error: Error) -> String {
+        Self.makeMessage(from: error, fallback: "채팅방을 만들지 못했습니다.")
+    }
+
+    private static func makeMessage(from error: Error, fallback: String) -> String {
         switch error {
         case let error as NetworkError:
             switch error {
             case .missingAuthenticationToken:
                 return "로그인이 필요합니다."
             case .statusCode(_, let message, _):
-                return message ?? "액티비티 정보를 불러오지 못했습니다."
+                return message ?? fallback
             case .requestFailed:
                 return "네트워크 연결을 확인해 주세요."
             default:
-                return "액티비티 정보를 불러오지 못했습니다."
+                return fallback
             }
         case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
             return "API 설정값을 확인해 주세요."
         default:
-            return "액티비티 정보를 불러오지 못했습니다."
+            return fallback
         }
     }
 }
@@ -333,9 +480,12 @@ private struct ActivityPricePanel: View {
     private var priceTexts: some View {
         Text("판매가")
         Text(finalPrice)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
         if let discountRate {
             Text(discountRate)
                 .foregroundStyle(MainScreenPalette.primaryBlue)
+                .lineLimit(1)
         }
     }
 }
@@ -439,6 +589,7 @@ private struct PostInfoBadge: View {
             .font(MainScreenTypography.chip)
             .foregroundStyle(MainScreenPalette.primaryBlue)
             .lineLimit(1)
+            .truncationMode(.tail)
             .padding(.horizontal, 10)
             .frame(height: 24)
             .background(

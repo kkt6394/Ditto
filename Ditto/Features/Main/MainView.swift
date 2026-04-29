@@ -62,7 +62,9 @@ struct MainView: View {
             homeTab
                 .tag(MainTab.home.rawValue)
 
-            SearchView(authManager: authManager)
+            SearchView(authManager: authManager) { activityId in
+                openActivityDetail(activityId: activityId)
+            }
                 .id(searchViewResetID)
                 .tag(MainTab.explore.rawValue)
 
@@ -225,7 +227,9 @@ struct MainView: View {
     private func destination(for route: MainRoute) -> some View {
         switch route {
         case .activityDetail(let activityId):
-            ActivityDetailView(activityId: activityId, authManager: authManager)
+            ActivityDetailView(activityId: activityId, authManager: authManager) { roomId, opponentNick in
+                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
+            }
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
         }
@@ -234,6 +238,10 @@ struct MainView: View {
     private func openActivityDetail(for post: MainActivityPost) {
         // 포스트가 액티비티 ID를 포함하지 않는 경우, 요청된 디자인 Node ID 상세로 연결한다.
         navigationPath.append(MainRoute.activityDetail(activityId: post.activityId ?? "DXWNE"))
+    }
+
+    private func openActivityDetail(activityId: String) {
+        navigationPath.append(MainRoute.activityDetail(activityId: activityId))
     }
 
     private func startChat(with post: MainActivityPost) {
