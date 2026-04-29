@@ -41,7 +41,7 @@ final class UserLocationManager: NSObject {
             locationManager.requestLocation()
         case .denied, .restricted:
             currentCoordinate = nil
-            locationMessage = "위치 권한을 허용하면 거리 기반 포스트를 볼 수 있습니다."
+            locationMessage = "위치 권한을 허용하면 거리 기반 액티비티를 볼 수 있습니다."
         @unknown default:
             currentCoordinate = nil
             locationMessage = "현재 위치를 확인할 수 없습니다."
@@ -57,7 +57,7 @@ extension UserLocationManager: CLLocationManagerDelegate {
             manager.requestLocation()
         case .denied, .restricted:
             currentCoordinate = nil
-            locationMessage = "위치 권한을 허용하면 거리 기반 포스트를 볼 수 있습니다."
+            locationMessage = "위치 권한을 허용하면 거리 기반 액티비티를 볼 수 있습니다."
         case .notDetermined:
             break
         @unknown default:
@@ -76,7 +76,7 @@ extension UserLocationManager: CLLocationManagerDelegate {
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude
         )
-        locationMessage = "현재 위치 기준으로 포스트를 찾고 있습니다."
+        locationMessage = "현재 위치 기준으로 액티비티를 찾고 있습니다."
     }
 
     func locationManager(_ _: CLLocationManager, didFailWithError _: Error) {

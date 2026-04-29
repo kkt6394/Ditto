@@ -168,6 +168,37 @@ struct SearchStateCard: View {
     }
 }
 
+struct SearchDistanceSliderCard: View {
+    @Binding var distanceKilometers: Double
+    let locationMessage: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 4) {
+                Text("Distance")
+                    .font(MainScreenTypography.distance)
+                    .foregroundStyle(MainScreenPalette.textMuted)
+
+                Text("\(Int(distanceKilometers.rounded()))KM")
+                    .font(MainScreenTypography.distance)
+                    .foregroundStyle(MainScreenPalette.primaryBlue)
+            }
+
+            Slider(value: $distanceKilometers, in: 1...50, step: 1)
+                .tint(MainScreenPalette.primaryBlue)
+
+            if let locationMessage {
+                Text(locationMessage)
+                    .font(MainScreenTypography.timestamp)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .lineLimit(2)
+            }
+        }
+        .padding(.top, 4)
+        .padding(.bottom, 12)
+    }
+}
+
 struct SearchStatusTag: View {
     let text: String
 

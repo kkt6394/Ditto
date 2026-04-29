@@ -12,6 +12,8 @@ struct SearchView: View {
 
     @State private var searchText = ""
     @State private var viewModel: SearchViewModel
+    @State private var locationManager = UserLocationManager()
+    @State private var distanceKilometers = 3.0
 
     init(authManager: any AuthManaging, activityDetailAction: @escaping (String) -> Void) {
         self.activityDetailAction = activityDetailAction
@@ -39,6 +41,24 @@ struct SearchView: View {
                         SearchCategoryGrid(items: SearchCategory.samples)
                             .padding(.top, 10)
 
+                        SearchSectionHeader(title: "내 주변 액티비티")
+                            .padding(.top, 28)
+
+                        SearchDistanceSliderCard(
+                            distanceKilometers: $distanceKilometers,
+                            locationMessage: locationManager.locationMessage
+                        )
+                            .padding(.horizontal, 20)
+                            .padding(.top, 10)
+
+                        SearchRecommendationContent(
+                            items: viewModel.nearbyActivities,
+                            isLoading: viewModel.isLoadingNearbyActivities,
+                            message: viewModel.nearbyActivitiesMessage,
+                            activityDetailAction: activityDetailAction
+                        )
+                        .padding(.top, 4)
+
                         SearchSectionHeader(title: "추천 액티비티")
                             .padding(.top, 28)
 
@@ -63,7 +83,41 @@ struct SearchView: View {
             .task {
                 await viewModel.loadRecommendedActivities()
             }
+            .task {
+                locationManager.requestCurrentLocation()
+            }
+            .task(id: nearbyQueryID) {
+                // 슬라이더 조작 중에는 이전 task가 취소되므로, 멈춘 뒤 한 번만 조회한다.
+                do {
+                    try await Task.sleep(for: .milliseconds(500))
+                } catch {
+                    return
+                }
+
+                await viewModel.loadNearbyActivities(
+                    coordinate: locationManager.currentCoordinate,
+                    maxDistanceMeters: selectedDistanceMeters
+                )
+            }
         }
+    }
+
+    private var nearbyQueryID: String {
+        "\(selectedDistanceMeters)-\(locationCoordinateID)"
+    }
+
+    private var selectedDistanceMeters: Int {
+        Int(distanceKilometers.rounded()) * 1_000
+    }
+
+    private var locationCoordinateID: String {
+        guard let coordinate = locationManager.currentCoordinate else {
+            return "no-location"
+        }
+
+        let latitude = Int((coordinate.latitude * 10_000).rounded())
+        let longitude = Int((coordinate.longitude * 10_000).rounded())
+        return "\(latitude)-\(longitude)"
     }
 
     private var titleRow: some View {

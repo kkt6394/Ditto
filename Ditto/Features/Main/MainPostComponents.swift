@@ -12,8 +12,6 @@ struct ActivityPostsSection: View {
     let posts: [MainActivityPost]
     let isLoading: Bool
     let message: String?
-    @Binding var distanceKilometers: Double
-    let locationMessage: String?
     let mediaAction: (MainPostMedia) -> Void
     let detailAction: (MainActivityPost) -> Void
     let chatAction: (MainActivityPost) -> Void
@@ -42,13 +40,6 @@ struct ActivityPostsSection: View {
             }
             .padding(.horizontal, 20)
             .padding(.vertical, 12)
-
-            DistanceSliderCard(
-                distanceKilometers: $distanceKilometers,
-                locationMessage: locationMessage
-            )
-                .padding(.horizontal, 20)
-                .padding(.bottom, 8)
 
             if isLoading && posts.isEmpty {
                 ActivityPostStateCard(
@@ -120,37 +111,6 @@ private struct ActivityPostStateCard: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .stroke(MainScreenPalette.border, lineWidth: 1)
         )
-    }
-}
-
-private struct DistanceSliderCard: View {
-    @Binding var distanceKilometers: Double
-    let locationMessage: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 4) {
-                Text("Distance")
-                    .font(MainScreenTypography.distance)
-                    .foregroundStyle(MainScreenPalette.textMuted)
-
-                Text("\(Int(distanceKilometers.rounded()))KM")
-                    .font(MainScreenTypography.distance)
-                    .foregroundStyle(MainScreenPalette.primaryBlue)
-            }
-
-            Slider(value: $distanceKilometers, in: 1...50, step: 1)
-                .tint(MainScreenPalette.primaryBlue)
-
-            if let locationMessage {
-                Text(locationMessage)
-                    .font(MainScreenTypography.timestamp)
-                    .foregroundStyle(MainScreenPalette.textSecondary)
-                    .lineLimit(2)
-            }
-        }
-        .padding(.top, 4)
-        .padding(.bottom, 12)
     }
 }
 

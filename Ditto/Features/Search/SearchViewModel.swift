@@ -31,10 +31,13 @@ struct SearchActivity: Identifiable {
 final class SearchViewModel {
     private(set) var recommendedActivities: [SearchActivity] = []
     private(set) var categoryActivities: [SearchActivity] = []
+    private(set) var nearbyActivities: [SearchActivity] = []
     private(set) var isLoadingRecommendedActivities = false
     private(set) var isLoadingCategoryActivities = false
+    private(set) var isLoadingNearbyActivities = false
     private(set) var recommendedActivitiesMessage: String?
     private(set) var categoryActivitiesMessage: String?
+    private(set) var nearbyActivitiesMessage: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
@@ -123,6 +126,60 @@ final class SearchViewModel {
         }
     }
 
+    func loadNearbyActivities(coordinate: UserCoordinate?, maxDistanceMeters: Int?) async {
+        isLoadingNearbyActivities = true
+        nearbyActivitiesMessage = nil
+        defer {
+            isLoadingNearbyActivities = false
+        }
+
+        guard let coordinate else {
+            nearbyActivities = []
+            nearbyActivitiesMessage = "위치 권한을 허용하면 거리 기반 액티비티를 볼 수 있습니다."
+            return
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let configuration = try configurationProvider()
+            let query = PostGeolocationQuery(
+                country: nil,
+                category: nil,
+                longitude: coordinate.longitude,
+                latitude: coordinate.latitude,
+                maxDistance: maxDistanceMeters,
+                limit: 30,
+                next: nil,
+                orderBy: "createdAt"
+            )
+            let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
+                PostRouter.geolocation(query)
+            )
+
+            // 같은 액티비티가 여러 포스트에 묶여 있을 수 있어 id 기준으로 중복 제거한다.
+            var seenIds = Set<String>()
+            let uniqueActivities = response.data.compactMap { post -> ActivitySummaryPostResponseDTO? in
+                guard let activity = post.activity else { return nil }
+                return seenIds.insert(activity.id).inserted ? activity : nil
+            }
+
+            nearbyActivities = uniqueActivities.enumerated().map { index, activity in
+                Self.makeNearbyActivity(
+                    from: activity,
+                    fallbackIndex: index,
+                    configuration: configuration,
+                    accessToken: authManager?.tokens?.accessToken
+                )
+            }
+
+            if nearbyActivities.isEmpty {
+                nearbyActivitiesMessage = "근처에 액티비티가 없습니다. 거리를 늘려 보세요."
+            }
+        } catch {
+            nearbyActivitiesMessage = Self.makeErrorMessage(from: error)
+        }
+    }
+
     private func mapActivities(
         _ responses: [ActivitySummaryResponseDTO],
         configuration: AppConfiguration
@@ -152,6 +209,40 @@ private extension SearchViewModel {
 
         return SearchActivity(
             id: response.activityId,
+            title: response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티",
+            location: makeLocationText(country: response.country, category: response.category),
+            status: makeStatus(isAdvertisement: response.isAdvertisement),
+            statusDetail: makeStatusDetail(isAdvertisement: response.isAdvertisement),
+            summary: makeSummary(tags: response.tags, category: response.category),
+            originalPrice: discountRate == nil ? nil : makePriceText(originalPrice),
+            finalPrice: makePriceText(finalPrice),
+            discountRate: discountRate,
+            keepCount: "\(response.keepCount)개",
+            pointText: makePointText(response.pointReward),
+            fallbackImageName: fallback,
+            imageRequest: makeImageRequest(
+                from: firstImageThumbnail(from: response.thumbnails),
+                configuration: configuration,
+                accessToken: accessToken
+            ),
+            isAdvertisement: response.isAdvertisement,
+            isKeep: response.isKeep
+        )
+    }
+
+    static func makeNearbyActivity(
+        from response: ActivitySummaryPostResponseDTO,
+        fallbackIndex: Int,
+        configuration: AppConfiguration,
+        accessToken: String?
+    ) -> SearchActivity {
+        let fallback = fallbackImageNames[fallbackIndex % fallbackImageNames.count]
+        let originalPrice = response.price.original
+        let finalPrice = response.price.final
+        let discountRate = makeDiscountRate(originalPrice: originalPrice, finalPrice: finalPrice)
+
+        return SearchActivity(
+            id: response.id,
             title: response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티",
             location: makeLocationText(country: response.country, category: response.category),
             status: makeStatus(isAdvertisement: response.isAdvertisement),
