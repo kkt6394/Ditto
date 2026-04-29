@@ -11,6 +11,7 @@
 		B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */; };
 		B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */ = {isa = PBXBuildFile; productRef = B847B7BB2F99100009F3FB4 /* KakaoSDKUser */; };
 		B8654CF32FA09451004E4F3D /* FirebaseMessaging in Frameworks */ = {isa = PBXBuildFile; productRef = B8654CF22FA09451004E4F3D /* FirebaseMessaging */; };
+		B8A4C1012FA1000000C0DE01 /* SocketIO in Frameworks */ = {isa = PBXBuildFile; productRef = B8A4C1022FA1000000C0DE01 /* SocketIO */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -76,6 +77,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B8654CF32FA09451004E4F3D /* FirebaseMessaging in Frameworks */,
+				B8A4C1012FA1000000C0DE01 /* SocketIO in Frameworks */,
 				B847B7B52F99100009F3FB4 /* KakaoSDKAuth in Frameworks */,
 				B847B7B62F99100009F3FB4 /* KakaoSDKCommon in Frameworks */,
 				B847B7B72F99100009F3FB4 /* KakaoSDKUser in Frameworks */,
@@ -155,6 +157,7 @@
 				B847B7BA2F99100009F3FB4 /* KakaoSDKCommon */,
 				B847B7BB2F99100009F3FB4 /* KakaoSDKUser */,
 				B8654CF22FA09451004E4F3D /* FirebaseMessaging */,
+				B8A4C1022FA1000000C0DE01 /* SocketIO */,
 			);
 			productName = Ditto;
 			productReference = B847B7882F98F1D8009F3FB4 /* Ditto.app */;
@@ -242,6 +245,7 @@
 				B847B7B22F98F39B009F3FB4 /* XCRemoteSwiftPackageReference "SwiftLintPlugins" */,
 				B847B7B82F99100009F3FB4 /* XCRemoteSwiftPackageReference "kakao-ios-sdk" */,
 				B8654CF12FA09451004E4F3D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */,
+				B8A4C1002FA1000000C0DE01 /* XCRemoteSwiftPackageReference "socket" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = B847B7892F98F1D8009F3FB4 /* Products */;
@@ -666,6 +670,14 @@
 				minimumVersion = 12.12.1;
 			};
 		};
+		B8A4C1002FA1000000C0DE01 /* XCRemoteSwiftPackageReference "socket" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/socketio/socket.io-client-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 16.1.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -693,6 +705,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = B8654CF12FA09451004E4F3D /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseMessaging;
+		};
+		B8A4C1022FA1000000C0DE01 /* SocketIO */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = B8A4C1002FA1000000C0DE01 /* XCRemoteSwiftPackageReference "socket" */;
+			productName = SocketIO;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
