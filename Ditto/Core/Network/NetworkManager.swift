@@ -205,6 +205,16 @@ private extension NetworkManager {
         do {
             // URLSession은 Data와 URLResponse를 함께 반환하므로, HTTP status 검증은 별도로 해야 한다.
             let (data, response) = try await session.data(for: request)
+            #if DEBUG
+            // 비-2xx 응답은 원인 추적을 위해 statusCode와 본문을 콘솔에 남긴다. 정식 배포 전에 제거할 수 있다.
+            if let httpResponse = response as? HTTPURLResponse,
+               !(200..<300).contains(httpResponse.statusCode) {
+                let urlString = request.url?.absoluteString ?? "?"
+                let bodyText = String(data: data, encoding: .utf8) ?? "<non-utf8 \(data.count) bytes>"
+                print("[NetworkManager] \(httpResponse.statusCode) \(request.httpMethod ?? "?") \(urlString)")
+                print("[NetworkManager] response body: \(bodyText)")
+            }
+            #endif
             try validate(response: response, data: data)
             return data
         } catch let error as NetworkError {

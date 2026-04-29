@@ -22,6 +22,7 @@ struct MainView: View {
     @State private var selectedMedia: MainPostMedia?
     @State private var homeScrollToTopTrigger = false
     @State private var pendingChatOpponentIDs: Set<String> = []
+    @State private var isPresentingPostComposer = false
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -29,31 +30,70 @@ struct MainView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            VStack(spacing: 0) {
-                content
-            }
-            .background(
-                MainScreenPalette.background
-                    .ignoresSafeArea()
-            )
-            .navigationDestination(for: MainRoute.self) { route in
-                destination(for: route)
-            }
-        }
-        .fullScreenCover(item: $selectedMedia) { media in
-            ActivityPostMediaViewer(media: media, authManager: authManager)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if navigationPath.isEmpty {
-                MainBottomTabBar(
-                    items: MainTabItem.samples,
-                    selectedID: selectedTabID
-                ) { item in
-                    selectTab(item)
+        ZStack(alignment: .bottomTrailing) {
+            NavigationStack(path: $navigationPath) {
+                VStack(spacing: 0) {
+                    content
+                }
+                .background(
+                    MainScreenPalette.background
+                        .ignoresSafeArea()
+                )
+                .navigationDestination(for: MainRoute.self) { route in
+                    destination(for: route)
                 }
             }
+            .fullScreenCover(item: $selectedMedia) { media in
+                ActivityPostMediaViewer(media: media, authManager: authManager)
+            }
+            .sheet(isPresented: $isPresentingPostComposer) {
+                PostComposeView(
+                    initialContext: makeComposerContext(),
+                    authManager: authManager
+                ) {
+                    Task { await reloadActivityPostsAfterCompose() }
+                }
+            }
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if navigationPath.isEmpty {
+                    MainBottomTabBar(
+                        items: MainTabItem.samples,
+                        selectedID: selectedTabID
+                    ) { item in
+                        selectTab(item)
+                    }
+                }
+            }
+
+            if shouldShowComposerButton {
+                PostComposeFloatingButton {
+                    isPresentingPostComposer = true
+                }
+                .padding(.trailing, 20)
+                .padding(.bottom, 88)
+            }
         }
+    }
+
+    private var shouldShowComposerButton: Bool {
+        navigationPath.isEmpty && selectedTabID == MainTab.home.rawValue
+    }
+
+    private func makeComposerContext() -> PostComposeInitialContext {
+        PostComposeInitialContext(
+            country: selectedCountryName ?? MainCountryFilter.samples[0].name,
+            category: selectedCategoryTitle ?? MainCategoryFilter.samples[0].title,
+            coordinate: locationManager.currentCoordinate
+        )
+    }
+
+    private func reloadActivityPostsAfterCompose() async {
+        await viewModel.loadActivityPosts(
+            country: selectedCountryName,
+            category: selectedCategoryTitle,
+            coordinate: locationManager.currentCoordinate,
+            maxDistanceMeters: selectedDistanceMeters
+        )
     }
 
     @ViewBuilder
