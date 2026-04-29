@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "search-category-random.jpg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

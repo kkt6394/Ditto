@@ -26,10 +26,30 @@ final class DittoUITests: XCTestCase {
     }
 
     @MainActor
+    func testSearchCategoryButtonNavigatesToCategoryActivityListWhenAuthenticated() throws {
+        let app = XCUIApplication()
+        app.launch()
+
+        tap(app, normalizedX: 0.38, normalizedY: 0.93)
+        XCTAssertTrue(app.staticTexts["카테고리"].waitForExistence(timeout: 3))
+
+        tap(app, normalizedX: 0.23, normalizedY: 0.23)
+        XCTAssertTrue(app.staticTexts["SIGHTSEEING"].waitForExistence(timeout: 3))
+    }
+
+    @MainActor
     func testLaunchPerformance() throws {
         // launch performance는 앱 시작 시간이 과도하게 늘어나는 회귀를 잡기 위한 기본 성능 테스트다.
         measure(metrics: [XCTApplicationLaunchMetric()]) {
             XCUIApplication().launch()
         }
+    }
+
+    @MainActor
+    private func tap(_ app: XCUIApplication, normalizedX: CGFloat, normalizedY: CGFloat) {
+        let coordinate = app.coordinate(
+            withNormalizedOffset: CGVector(dx: normalizedX, dy: normalizedY)
+        )
+        coordinate.tap()
     }
 }
