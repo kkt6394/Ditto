@@ -178,6 +178,36 @@ struct MainViewModelTests {
         #expect(room?.roomId == "room-id")
     }
 
+    @Test func createChatRoomReturnsExistingRoomWhenCreateFails() async throws {
+        let networkManager = StubMainNetworkManager(
+            chatRoomResult: .failure(NetworkError.statusCode(409, message: "이미 생성된 채팅방입니다.", data: Data())),
+            chatRoomListResult: .success(.withExistingRoom)
+        )
+        let viewModel = MainViewModel(
+            networkManager: networkManager,
+            configuration: try makeConfiguration(),
+            authManager: StubMainAuthManager()
+        )
+
+        let room = await viewModel.createChatRoom(opponentId: "existing-user-id")
+        let chatRouters = networkManager.requestedRouters.compactMap { $0 as? ChatRouter }
+        let createRouter = try #require(chatRouters.first)
+        let roomsRouter = try #require(chatRouters.dropFirst().first)
+
+        #expect(chatRouters.count == 2)
+        if case .createRoom = createRouter {
+            #expect(Bool(true))
+        } else {
+            #expect(Bool(false))
+        }
+        if case .rooms = roomsRouter {
+            #expect(Bool(true))
+        } else {
+            #expect(Bool(false))
+        }
+        #expect(room?.roomId == "existing-room-id")
+    }
+
     private func makeConfiguration() throws -> AppConfiguration {
         try AppConfiguration(baseURL: URL(string: "https://example.com")!, apiKey: "api-key")
     }
@@ -186,22 +216,27 @@ struct MainViewModelTests {
 @MainActor
 private final class StubMainNetworkManager: NetworkManaging {
     private(set) var requestedRouter: APIRouter?
+    private(set) var requestedRouters: [APIRouter] = []
     private let result: Result<ActivitySummaryArrayResponseDTO, Error>
     private let postResult: Result<PostSummaryPaginationResponseDTO, Error>
     private let chatRoomResult: Result<ChatRoomResponseDTO, Error>
+    private let chatRoomListResult: Result<ChatRoomListResponseDTO, Error>
 
     init(
         result: Result<ActivitySummaryArrayResponseDTO, Error> = .success(.dummy),
         postResult: Result<PostSummaryPaginationResponseDTO, Error> = .success(.dummy),
-        chatRoomResult: Result<ChatRoomResponseDTO, Error> = .success(.dummy)
+        chatRoomResult: Result<ChatRoomResponseDTO, Error> = .success(.dummy),
+        chatRoomListResult: Result<ChatRoomListResponseDTO, Error> = .success(.empty)
     ) {
         self.result = result
         self.postResult = postResult
         self.chatRoomResult = chatRoomResult
+        self.chatRoomListResult = chatRoomListResult
     }
 
     func request<T: Decodable>(_ router: APIRouter) async throws -> T {
         requestedRouter = router
+        requestedRouters.append(router)
 
         if router is ActivityRouter {
             switch result {
@@ -223,15 +258,30 @@ private final class StubMainNetworkManager: NetworkManaging {
             case .failure(let error):
                 throw error
             }
-        } else if router is ChatRouter {
-            switch chatRoomResult {
-            case .success(let response):
-                guard let typedResponse = response as? T else {
-                    throw StubMainNetworkError.typeMismatch
+        } else if let chatRouter = router as? ChatRouter {
+            switch chatRouter {
+            case .createRoom:
+                switch chatRoomResult {
+                case .success(let response):
+                    guard let typedResponse = response as? T else {
+                        throw StubMainNetworkError.typeMismatch
+                    }
+                    return typedResponse
+                case .failure(let error):
+                    throw error
                 }
-                return typedResponse
-            case .failure(let error):
-                throw error
+            case .rooms:
+                switch chatRoomListResult {
+                case .success(let response):
+                    guard let typedResponse = response as? T else {
+                        throw StubMainNetworkError.typeMismatch
+                    }
+                    return typedResponse
+                case .failure(let error):
+                    throw error
+                }
+            case .send, .messages, .uploadFiles:
+                throw StubMainNetworkError.typeMismatch
             }
         } else {
             throw StubMainNetworkError.typeMismatch
@@ -240,6 +290,7 @@ private final class StubMainNetworkManager: NetworkManaging {
 
     func send(_ router: APIRouter) async throws {
         requestedRouter = router
+        requestedRouters.append(router)
     }
 }
 
@@ -364,6 +415,32 @@ private extension ChatRoomResponseDTO {
         ],
         lastChat: nil
     )
+
+    static let existing = ChatRoomResponseDTO(
+        roomId: "existing-room-id",
+        createdAt: "2026-04-28T08:00:00.000Z",
+        updatedAt: "2026-04-28T08:00:00.000Z",
+        participants: [
+            UserInfoResponseDTO(
+                userId: "me",
+                nick: "나",
+                profileImage: nil,
+                introduction: nil
+            ),
+            UserInfoResponseDTO(
+                userId: "existing-user-id",
+                nick: "기존 새싹",
+                profileImage: nil,
+                introduction: nil
+            )
+        ],
+        lastChat: nil
+    )
+}
+
+private extension ChatRoomListResponseDTO {
+    static let empty = ChatRoomListResponseDTO(data: [])
+    static let withExistingRoom = ChatRoomListResponseDTO(data: [.existing])
 }
 
 private enum StubMainNetworkError: Error {

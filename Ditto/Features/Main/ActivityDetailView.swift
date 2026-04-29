@@ -89,10 +89,7 @@ struct ActivityDetailView: View {
                         .foregroundStyle(MainScreenPalette.textSecondary)
                         .lineSpacing(5)
 
-                    HStack(spacing: 10) {
-                        PostInfoBadge(text: activity.country ?? "위치 정보 없음", systemName: "location.fill")
-                        PostInfoBadge(text: activity.category ?? "액티비티", systemName: "tag.fill")
-                    }
+                    ActivityDetailBadgeGroup(activity: activity)
                 }
                 .padding(.horizontal, 20)
 
@@ -114,6 +111,7 @@ struct ActivityDetailView: View {
                         .padding(.horizontal, 20)
                 }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, SearchLayout.tabBarContentPadding)
         }
     }
@@ -310,12 +308,13 @@ private struct ActivityPricePanel: View {
                 .foregroundStyle(MainScreenPalette.textMuted)
                 .strikethrough()
 
-            HStack(spacing: 8) {
-                Text("판매가")
-                Text(finalPrice)
-                if let discountRate {
-                    Text(discountRate)
-                        .foregroundStyle(MainScreenPalette.primaryBlue)
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    priceTexts
+                }
+
+                VStack(alignment: .leading, spacing: 4) {
+                    priceTexts
                 }
             }
             .font(MainFont.paperlogyBlack(size: 22))
@@ -329,17 +328,30 @@ private struct ActivityPricePanel: View {
                 .stroke(MainScreenPalette.border, lineWidth: 1)
         )
     }
+
+    @ViewBuilder
+    private var priceTexts: some View {
+        Text("판매가")
+        Text(finalPrice)
+        if let discountRate {
+            Text(discountRate)
+                .foregroundStyle(MainScreenPalette.primaryBlue)
+        }
+    }
 }
 
 private struct ActivityLimitPanel: View {
     let activity: ActivityResponseDTO
 
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 8), count: 3)
+
     var body: some View {
-        HStack(spacing: 8) {
+        LazyVGrid(columns: columns, spacing: 8) {
             ActivityLimitItem(title: "최소 키", value: "\(Int(activity.restrictions.minHeight))cm")
             ActivityLimitItem(title: "최소 나이", value: "\(Int(activity.restrictions.minAge))세")
             ActivityLimitItem(title: "최대 인원", value: "\(Int(activity.restrictions.maxParticipants))명")
         }
+        .frame(maxWidth: .infinity)
         .padding(16)
         .background(MainScreenPalette.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
         .overlay(
@@ -362,8 +374,32 @@ private struct ActivityLimitItem: View {
             Text(value)
                 .font(MainFont.pretendard(.bold, size: 14))
                 .foregroundStyle(MainScreenPalette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+private struct ActivityDetailBadgeGroup: View {
+    let activity: ActivityResponseDTO
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 10) {
+                badges
+            }
+
+            VStack(alignment: .leading, spacing: 8) {
+                badges
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var badges: some View {
+        PostInfoBadge(text: activity.country ?? "위치 정보 없음", systemName: "location.fill")
+        PostInfoBadge(text: activity.category ?? "액티비티", systemName: "tag.fill")
     }
 }
 

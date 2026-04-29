@@ -303,8 +303,33 @@ final class MainViewModel {
             let request = ChatRoomCreateRequestDTO(opponentId: opponentId)
             return try await networkManager.request(ChatRouter.createRoom(request))
         } catch {
+            do {
+                let networkManager = try networkManagerProvider()
+                if let existingRoom = try await existingChatRoom(
+                    opponentId: opponentId,
+                    networkManager: networkManager
+                ) {
+                    return existingRoom
+                }
+            } catch {
+                // 새 방 생성 실패 원인이 기존 방인 경우가 있어, 목록 조회 실패보다 원래 오류 메시지를 우선 보여준다.
+            }
+
             chatStartMessage = Self.makeChatStartErrorMessage(from: error)
             return nil
+        }
+    }
+
+    private func existingChatRoom(
+        opponentId: String,
+        networkManager: any NetworkManaging
+    ) async throws -> ChatRoomResponseDTO? {
+        let response: ChatRoomListResponseDTO = try await networkManager.request(ChatRouter.rooms)
+
+        return response.data.first { room in
+            room.participants.contains { participant in
+                participant.userId == opponentId
+            }
         }
     }
 }
