@@ -17,7 +17,7 @@ struct MainView: View {
     @State private var searchViewResetID = UUID()
     @State private var locationManager = UserLocationManager()
     @State private var signOutMessage: String?
-    @State private var navigationPath = NavigationPath()
+    @State private var navigationPath: [MainRoute] = []
     @State private var selectedMedia: MainPostMedia?
     @State private var homeScrollToTopTrigger = false
     @State private var pendingChatOpponentIDs: Set<String> = []
@@ -54,7 +54,7 @@ struct MainView: View {
                 }
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
-                if navigationPath.isEmpty {
+                if shouldShowTabBar {
                     MainBottomTabBar(
                         items: MainTabItem.samples,
                         selectedID: selectedTabID
@@ -93,6 +93,19 @@ struct MainView: View {
         navigationPath.isEmpty && selectedTabID == MainTab.home.rawValue
     }
 
+    // 카테고리 리스트 화면도 검색 탭의 연장으로 보고 탭바를 유지한다.
+    private var shouldShowTabBar: Bool {
+        guard let last = navigationPath.last else {
+            return true
+        }
+
+        if case .searchCategory = last {
+            return true
+        }
+
+        return false
+    }
+
     private func makeComposerContext() -> PostComposeInitialContext {
         PostComposeInitialContext(
             country: selectedCountryName ?? MainCountryFilter.samples[0].name,
@@ -114,9 +127,15 @@ struct MainView: View {
             homeTab
                 .tag(MainTab.home.rawValue)
 
-            SearchView(authManager: authManager) { activityId in
-                openActivityDetail(activityId: activityId)
-            }
+            SearchView(
+                authManager: authManager,
+                activityDetailAction: { activityId in
+                    openActivityDetail(activityId: activityId)
+                },
+                categorySelectedAction: { category in
+                    navigationPath.append(MainRoute.searchCategory(category))
+                }
+            )
                 .id(searchViewResetID)
                 .tag(MainTab.explore.rawValue)
 
@@ -256,7 +275,7 @@ struct MainView: View {
     }
 
     private func selectTab(_ item: MainTabItem) {
-        navigationPath = NavigationPath()
+        navigationPath = []
 
         if selectedTabID == item.id {
             if MainTab(rawValue: item.id) == .explore {
@@ -278,6 +297,14 @@ struct MainView: View {
             }
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
+        case .searchCategory(let category):
+            SearchCategoryActivityListView(
+                category: category,
+                authManager: authManager,
+                activityDetailAction: { activityId in
+                    openActivityDetail(activityId: activityId)
+                }
+            )
         }
     }
 
@@ -324,6 +351,7 @@ struct MainView: View {
 private enum MainRoute: Hashable {
     case activityDetail(activityId: String)
     case chat(roomId: String, opponentNick: String)
+    case searchCategory(SearchCategory)
 }
 
 #Preview {

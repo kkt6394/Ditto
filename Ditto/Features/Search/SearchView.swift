@@ -9,96 +9,96 @@ import SwiftUI
 
 struct SearchView: View {
     private let activityDetailAction: (String) -> Void
+    private let categorySelectedAction: (SearchCategory) -> Void
 
     @State private var searchText = ""
     @State private var viewModel: SearchViewModel
     @State private var locationManager = UserLocationManager()
     @State private var distanceKilometers = 3.0
 
-    init(authManager: any AuthManaging, activityDetailAction: @escaping (String) -> Void) {
+    init(
+        authManager: any AuthManaging,
+        activityDetailAction: @escaping (String) -> Void,
+        categorySelectedAction: @escaping (SearchCategory) -> Void
+    ) {
         self.activityDetailAction = activityDetailAction
+        self.categorySelectedAction = categorySelectedAction
         _viewModel = State(initialValue: SearchViewModel(authManager: authManager))
     }
 
     var body: some View {
-        NavigationStack {
-            VStack(spacing: 0) {
-                MainTopBar()
-                    .padding(.horizontal, 20)
-                    .padding(.top, 12)
+        VStack(spacing: 0) {
+            MainTopBar()
+                .padding(.horizontal, 20)
+                .padding(.top, 12)
 
-                titleRow
-                    .padding(.top, 2)
+            titleRow
+                .padding(.top, 2)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 0) {
-                        SearchInputField(text: $searchText)
-                            .padding(.top, 8)
+            ScrollView(showsIndicators: false) {
+                VStack(spacing: 0) {
+                    SearchInputField(text: $searchText)
+                        .padding(.top, 8)
 
-                        SearchSectionHeader(title: "카테고리")
-                            .padding(.top, 18)
+                    SearchSectionHeader(title: "카테고리")
+                        .padding(.top, 18)
 
-                        SearchCategoryGrid(items: SearchCategory.samples)
-                            .padding(.top, 10)
-
-                        SearchSectionHeader(title: "내 주변 액티비티")
-                            .padding(.top, 28)
-
-                        SearchDistanceSliderCard(
-                            distanceKilometers: $distanceKilometers,
-                            locationMessage: locationManager.locationMessage
-                        )
-                            .padding(.horizontal, 20)
-                            .padding(.top, 10)
-
-                        SearchRecommendationContent(
-                            items: viewModel.nearbyActivities,
-                            isLoading: viewModel.isLoadingNearbyActivities,
-                            message: viewModel.nearbyActivitiesMessage,
-                            activityDetailAction: activityDetailAction
-                        )
-                        .padding(.top, 4)
-
-                        SearchSectionHeader(title: "추천 액티비티")
-                            .padding(.top, 28)
-
-                        SearchRecommendationContent(
-                            items: viewModel.recommendedActivities,
-                            isLoading: viewModel.isLoadingRecommendedActivities,
-                            message: viewModel.recommendedActivitiesMessage,
-                            activityDetailAction: activityDetailAction
-                        )
+                    SearchCategoryGrid(
+                        items: SearchCategory.samples,
+                        onSelect: categorySelectedAction
+                    )
                         .padding(.top, 10)
-                    }
-                    .padding(.bottom, SearchLayout.tabBarContentPadding)
-                }
-            }
-            .navigationDestination(for: SearchCategory.self) { category in
-                SearchCategoryActivityListView(
-                    category: category,
-                    viewModel: viewModel,
-                    activityDetailAction: activityDetailAction
-                )
-            }
-            .task {
-                await viewModel.loadRecommendedActivities()
-            }
-            .task {
-                locationManager.requestCurrentLocation()
-            }
-            .task(id: nearbyQueryID) {
-                // 슬라이더 조작 중에는 이전 task가 취소되므로, 멈춘 뒤 한 번만 조회한다.
-                do {
-                    try await Task.sleep(for: .milliseconds(500))
-                } catch {
-                    return
-                }
 
-                await viewModel.loadNearbyActivities(
-                    coordinate: locationManager.currentCoordinate,
-                    maxDistanceMeters: selectedDistanceMeters
-                )
+                    SearchSectionHeader(title: "내 주변 액티비티")
+                        .padding(.top, 28)
+
+                    SearchDistanceSliderCard(
+                        distanceKilometers: $distanceKilometers,
+                        locationMessage: locationManager.locationMessage
+                    )
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+
+                    SearchRecommendationContent(
+                        items: viewModel.nearbyActivities,
+                        isLoading: viewModel.isLoadingNearbyActivities,
+                        message: viewModel.nearbyActivitiesMessage,
+                        activityDetailAction: activityDetailAction
+                    )
+                    .padding(.top, 4)
+
+                    SearchSectionHeader(title: "추천 액티비티")
+                        .padding(.top, 28)
+
+                    SearchRecommendationContent(
+                        items: viewModel.recommendedActivities,
+                        isLoading: viewModel.isLoadingRecommendedActivities,
+                        message: viewModel.recommendedActivitiesMessage,
+                        activityDetailAction: activityDetailAction
+                    )
+                    .padding(.top, 10)
+                }
+                .padding(.bottom, SearchLayout.tabBarContentPadding)
             }
+        }
+        .task {
+            await viewModel.loadRecommendedActivities()
+        }
+        .task {
+            locationManager.requestCurrentLocation()
+        }
+        .task(id: nearbyQueryID) {
+            // 슬라이더 조작 중에는 이전 task가 취소되므로, 멈춘 뒤 한 번만 조회한다.
+            do {
+                try await Task.sleep(for: .milliseconds(500))
+            } catch {
+                return
+            }
+
+            await viewModel.loadNearbyActivities(
+                coordinate: locationManager.currentCoordinate,
+                maxDistanceMeters: selectedDistanceMeters
+            )
         }
     }
 
@@ -184,6 +184,7 @@ struct SearchSectionHeader: View {
 
 private struct SearchCategoryGrid: View {
     let items: [SearchCategory]
+    let onSelect: (SearchCategory) -> Void
     private let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
@@ -192,7 +193,9 @@ private struct SearchCategoryGrid: View {
     var body: some View {
         LazyVGrid(columns: columns, spacing: 10) {
             ForEach(items) { item in
-                NavigationLink(value: item) {
+                Button {
+                    onSelect(item)
+                } label: {
                     SearchCategoryCard(item: item)
                 }
                 .buttonStyle(.plain)
@@ -427,5 +430,9 @@ struct SearchCategory: Identifiable, Hashable {
 }
 
 #Preview {
-    SearchView(authManager: AuthManager()) { _ in }
+    SearchView(
+        authManager: AuthManager(),
+        activityDetailAction: { _ in },
+        categorySelectedAction: { _ in }
+    )
 }

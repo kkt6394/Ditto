@@ -9,8 +9,19 @@ import SwiftUI
 
 struct SearchCategoryActivityListView: View {
     let category: SearchCategory
-    let viewModel: SearchViewModel
     let activityDetailAction: (String) -> Void
+
+    @State private var viewModel: SearchViewModel
+
+    init(
+        category: SearchCategory,
+        authManager: any AuthManaging,
+        activityDetailAction: @escaping (String) -> Void
+    ) {
+        self.category = category
+        self.activityDetailAction = activityDetailAction
+        _viewModel = State(initialValue: SearchViewModel(authManager: authManager))
+    }
 
     var body: some View {
         VStack(spacing: 0) {
