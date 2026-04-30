@@ -43,7 +43,8 @@ struct ChatListView: View {
             content
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
-        .task {
+        .task(id: ChatPresence.shared.pushReceivedTick) {
+            // 첫 진입 시 1회 + 채팅 푸시 도착 시마다 자동 재로드한다.
             await viewModel.load()
         }
         .refreshable {

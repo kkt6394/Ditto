@@ -75,30 +75,18 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) async -> UNNotificationPresentationOptions {
         let userInfo = notification.request.content.userInfo
 
-        #if DEBUG
-        print("[Push:Foreground] userInfo=\(userInfo)")
-        #endif
-
         // 채팅 푸시는 room_id 키를 통해 식별한다. 그 외 푸시는 항상 표시한다.
         guard let roomId = userInfo["room_id"] as? String else {
             return [.banner, .badge, .sound]
         }
 
         let shouldSilence = await MainActor.run {
-            ChatPresence.shared.shouldSilencePush(roomId: roomId)
+            // 옵저빙 중인 채팅 목록이 즉시 갱신되도록 트리거를 발행한 뒤 무음 여부를 결정한다.
+            ChatPresence.shared.notifyChatPushReceived()
+            return ChatPresence.shared.shouldSilencePush(roomId: roomId)
         }
 
         return shouldSilence ? [] : [.banner, .badge, .sound]
-    }
-
-    func userNotificationCenter(
-        _: UNUserNotificationCenter,
-        didReceive response: UNNotificationResponse
-    ) async {
-        // 사용자가 푸시를 탭하여 앱을 연 시점의 페이로드 (백그라운드 진단용 임시 로그)
-        #if DEBUG
-        print("[Push:Tapped] userInfo=\(response.notification.request.content.userInfo)")
-        #endif
     }
 }
 

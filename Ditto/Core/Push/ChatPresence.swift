@@ -6,13 +6,16 @@
 //
 
 import Foundation
+import Observation
 
+@Observable
 @MainActor
 final class ChatPresence {
     static let shared = ChatPresence()
 
     var isOnChatList = false
     var activeRoomId: String?
+    private(set) var pushReceivedTick = 0
 
     private init() {}
 
@@ -27,5 +30,10 @@ final class ChatPresence {
         }
 
         return false
+    }
+
+    // 채팅 푸시 도착을 옵저빙 중인 화면(채팅 목록 등)에 알리기 위한 트리거.
+    func notifyChatPushReceived() {
+        pushReceivedTick &+= 1
     }
 }
