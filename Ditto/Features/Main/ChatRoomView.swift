@@ -51,8 +51,12 @@ struct ChatRoomView: View {
         .task(id: viewModel.roomId) {
             await viewModel.start(modelContext: modelContext)
         }
+        .onAppear {
+            ChatPresence.shared.activeRoomId = viewModel.roomId
+        }
         .onDisappear {
             viewModel.disconnectSocket()
+            ChatPresence.shared.activeRoomId = nil
         }
     }
 

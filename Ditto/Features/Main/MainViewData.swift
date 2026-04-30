@@ -216,6 +216,7 @@ struct MainTabItem: Identifiable {
     static let samples: [MainTabItem] = [
         .init(id: MainTab.home.rawValue, systemName: "house.fill", title: "홈"),
         .init(id: MainTab.explore.rawValue, systemName: "magnifyingglass", title: "검색"),
+        .init(id: MainTab.chat.rawValue, systemName: "bubble.left.and.bubble.right", title: "채팅"),
         .init(id: MainTab.likes.rawValue, systemName: "heart", title: "좋아요"),
         .init(id: MainTab.profile.rawValue, systemName: "person", title: "프로필")
     ]
@@ -224,6 +225,7 @@ struct MainTabItem: Identifiable {
 enum MainTab: String {
     case home
     case explore
+    case chat
     case likes
     case profile
 }

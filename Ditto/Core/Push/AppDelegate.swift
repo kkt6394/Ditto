@@ -73,11 +73,22 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         _: UNUserNotificationCenter,
         willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        // 푸시 페이로드 키 식별을 위한 임시 로그 (확인 후 제거 예정)
+        let userInfo = notification.request.content.userInfo
+
         #if DEBUG
-        print("[Push:Foreground] userInfo=\(notification.request.content.userInfo)")
+        print("[Push:Foreground] userInfo=\(userInfo)")
         #endif
-        return [.banner, .badge, .sound]
+
+        // 채팅 푸시는 room_id 키를 통해 식별한다. 그 외 푸시는 항상 표시한다.
+        guard let roomId = userInfo["room_id"] as? String else {
+            return [.banner, .badge, .sound]
+        }
+
+        let shouldSilence = await MainActor.run {
+            ChatPresence.shared.shouldSilencePush(roomId: roomId)
+        }
+
+        return shouldSilence ? [] : [.banner, .badge, .sound]
     }
 
     func userNotificationCenter(

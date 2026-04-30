@@ -72,6 +72,21 @@ struct MainView: View {
                 .padding(.bottom, 88)
             }
         }
+        .onAppear {
+            updateChatPresence()
+        }
+        .onChange(of: selectedTabID) { _, _ in
+            updateChatPresence()
+        }
+        .onChange(of: navigationPath.count) { _, _ in
+            updateChatPresence()
+        }
+    }
+
+    private func updateChatPresence() {
+        // 채팅 탭 루트(목록 화면) 노출 시점에만 무음 플래그를 켠다. 채팅방 진입 시엔 ChatRoomView가 activeRoomId를 갱신한다.
+        let isOnChatListRoot = selectedTabID == MainTab.chat.rawValue && navigationPath.isEmpty
+        ChatPresence.shared.isOnChatList = isOnChatListRoot
     }
 
     private var shouldShowComposerButton: Bool {
@@ -104,6 +119,11 @@ struct MainView: View {
             }
                 .id(searchViewResetID)
                 .tag(MainTab.explore.rawValue)
+
+            ChatListView(authManager: authManager) { roomId, opponentNick in
+                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
+            }
+            .tag(MainTab.chat.rawValue)
 
             VStack {
                 Spacer()
