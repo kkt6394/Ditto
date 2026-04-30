@@ -14,7 +14,10 @@ struct ActivityDetailView: View {
 
     @State private var viewModel: ActivityDetailViewModel
     @State private var pendingChatOpponentIDs: Set<String> = []
+    // 결제 시트는 ActivityDetailView가 직접 보유한다. 결제 완료 후에도 Detail 화면은 그대로 유지된다.
+    @State private var isPresentingPayment = false
 
+    private let authManager: any AuthManaging
     private let onStartChat: (String, String) -> Void
 
     init(
@@ -23,24 +26,31 @@ struct ActivityDetailView: View {
         onStartChat: @escaping (String, String) -> Void = { _, _ in }
     ) {
         _viewModel = State(initialValue: ActivityDetailViewModel(activityId: activityId, authManager: authManager))
+        self.authManager = authManager
         self.onStartChat = onStartChat
     }
 
     var body: some View {
-        VStack(spacing: 0) {
-            navigationBar
+        ZStack(alignment: .bottom) {
+            VStack(spacing: 0) {
+                navigationBar
 
-            if viewModel.isLoading && viewModel.activity == nil {
-                ActivityDetailStateView(title: "액티비티 상세 정보를 불러오는 중입니다.", systemName: "arrow.clockwise")
+                if viewModel.isLoading && viewModel.activity == nil {
+                    ActivityDetailStateView(title: "액티비티 상세 정보를 불러오는 중입니다.", systemName: "arrow.clockwise")
+                        .frame(maxHeight: .infinity)
+                } else if let activity = viewModel.activity {
+                    detailContent(activity)
+                } else {
+                    ActivityDetailStateView(
+                        title: viewModel.message ?? "액티비티 정보를 확인할 수 없습니다.",
+                        systemName: "exclamationmark.circle"
+                    )
                     .frame(maxHeight: .infinity)
-            } else if let activity = viewModel.activity {
-                detailContent(activity)
-            } else {
-                ActivityDetailStateView(
-                    title: viewModel.message ?? "액티비티 정보를 확인할 수 없습니다.",
-                    systemName: "exclamationmark.circle"
-                )
-                .frame(maxHeight: .infinity)
+                }
+            }
+
+            if let activity = viewModel.activity {
+                reservationCallToAction(for: activity)
             }
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
@@ -51,6 +61,53 @@ struct ActivityDetailView: View {
         }
         .task(id: viewModel.activityId) {
             await viewModel.loadReviews()
+        }
+        .sheet(isPresented: $isPresentingPayment) {
+            if let activity = viewModel.activity {
+                PaymentView(
+                    activity: activity,
+                    authManager: authManager
+                )
+            }
+        }
+    }
+
+    private func reservationCallToAction(for activity: ActivityResponseDTO) -> some View {
+        // 예약 항목이 비어 있거나 모든 시간이 매진(isReserved)인 경우 모두 "예약 불가"로 통일한다.
+        let isAvailable = hasAvailableReservation(activity)
+
+        return VStack(spacing: 0) {
+            Button {
+                isPresentingPayment = true
+            } label: {
+                Text(isAvailable ? "예약하기" : "예약 불가")
+                    .font(MainFont.pretendard(.bold, size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        isAvailable ? MainScreenPalette.primaryBlue : MainScreenPalette.textMuted,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(!isAvailable)
+            .padding(.horizontal, 20)
+            .padding(.top, 12)
+            .padding(.bottom, 16)
+        }
+        .background(
+            MainScreenPalette.background
+                .opacity(0.95)
+                .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
+    private func hasAvailableReservation(_ activity: ActivityResponseDTO) -> Bool {
+        activity.reservationList.contains { item in
+            item.times.contains { slot in
+                slot.time != nil && !(slot.isReserved ?? false)
+            }
         }
     }
 

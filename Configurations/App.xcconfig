@@ -4,4 +4,8 @@ BASE_URL =
 API_KEY =
 KAKAO_NATIVE_APP_KEY =
 
+// 포트원(아임포트) 결제 식별값. 공개돼도 보안상 문제는 없으나 환경별 분리를 위해 xcconfig에서 관리한다.
+IMP_USER_CODE =
+IMP_PG =
+
 #include? "Secrets.xcconfig"
