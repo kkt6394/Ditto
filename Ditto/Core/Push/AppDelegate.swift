@@ -71,9 +71,23 @@ private extension AppDelegate {
 extension AppDelegate: UNUserNotificationCenterDelegate {
     func userNotificationCenter(
         _: UNUserNotificationCenter,
-        willPresent _: UNNotification
+        willPresent notification: UNNotification
     ) async -> UNNotificationPresentationOptions {
-        [.banner, .badge, .sound]
+        // 푸시 페이로드 키 식별을 위한 임시 로그 (확인 후 제거 예정)
+        #if DEBUG
+        print("[Push:Foreground] userInfo=\(notification.request.content.userInfo)")
+        #endif
+        return [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        // 사용자가 푸시를 탭하여 앱을 연 시점의 페이로드 (백그라운드 진단용 임시 로그)
+        #if DEBUG
+        print("[Push:Tapped] userInfo=\(response.notification.request.content.userInfo)")
+        #endif
     }
 }
 
