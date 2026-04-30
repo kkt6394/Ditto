@@ -12,3 +12,7 @@ build/
 
 # Local configuration
 Configurations/Secrets.xcconfig
+
+# Xcode 16 SPM이 originHash를 비결정적으로 갱신하는 노이즈를 차단한다.
+# 의존성 추가/삭제는 project.pbxproj가 추적하므로 lock 정보 손실은 솔로 프로젝트 범위에서 무시 가능하다.
+Ditto.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
