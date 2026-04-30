@@ -43,8 +43,8 @@ struct ChatListView: View {
             content
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
-        .task(id: ChatPresence.shared.pushReceivedTick) {
-            // 첫 진입 시 1회 + 채팅 푸시 도착 시마다 자동 재로드한다.
+        .task(id: ChatPresence.shared.listRefreshTick) {
+            // 첫 진입 + 채팅 푸시 도착 + 채팅방에서 돌아왔을 때마다 자동 재로드한다.
             await viewModel.load()
         }
         .refreshable {
@@ -108,7 +108,12 @@ struct ChatListView: View {
                     Button {
                         onSelectRoom(room.roomId, opponent?.nick ?? "알 수 없음")
                     } label: {
-                        ChatListRow(room: room, opponentNick: opponent?.nick ?? "알 수 없음")
+                        ChatListRow(
+                            room: room,
+                            opponentNick: opponent?.nick ?? "알 수 없음",
+                            hasUnread: viewModel.unreadIndicators.contains(room.roomId),
+                            unreadCount: viewModel.unreadCounts[room.roomId]
+                        )
                     }
                     .buttonStyle(.plain)
 
@@ -129,11 +134,18 @@ final class ChatListViewModel {
     private(set) var isLoading = false
     private(set) var message: String?
     private(set) var myUserId: String?
+    private(set) var unreadIndicators: Set<String> = []
+    private(set) var unreadCounts: [String: Int] = [:]
 
     private let authManager: any AuthManaging
+    private let readStateStore: ChatReadStateStore
 
-    init(authManager: any AuthManaging) {
+    init(
+        authManager: any AuthManaging,
+        readStateStore: ChatReadStateStore = ChatReadStateStore()
+    ) {
         self.authManager = authManager
+        self.readStateStore = readStateStore
     }
 
     func load() async {
@@ -152,11 +164,18 @@ final class ChatListViewModel {
             }
 
             let response: ChatRoomListResponseDTO = try await networkManager.request(ChatRouter.rooms)
-            rooms = response.data.sorted { lhs, rhs in
+            let sortedRooms = response.data.sorted { lhs, rhs in
                 let lTime = lhs.lastChat?.createdAt ?? lhs.updatedAt
                 let rTime = rhs.lastChat?.createdAt ?? rhs.updatedAt
                 return lTime > rTime
             }
+            rooms = sortedRooms
+
+            // 1단계: 로컬 lastReadAt 비교만으로 안 읽음 여부를 즉시 판정해 dot을 띄운다.
+            let fetchTargets = identifyUnreadRooms(sortedRooms)
+
+            // 2단계: 안 읽은 방만 메시지 API를 추가 호출해 정확한 카운트로 dot을 숫자 뱃지로 교체한다.
+            await fetchUnreadCounts(targets: fetchTargets, networkManager: networkManager)
         } catch {
             message = Self.makeErrorMessage(from: error)
         }
@@ -168,6 +187,55 @@ final class ChatListViewModel {
         }
 
         return room.participants.first
+    }
+
+    private struct UnreadFetchTarget {
+        let roomId: String
+        let lastReadAt: String?
+    }
+
+    private func identifyUnreadRooms(_ rooms: [ChatRoomResponseDTO]) -> [UnreadFetchTarget] {
+        var indicators: Set<String> = []
+        var targets: [UnreadFetchTarget] = []
+
+        for room in rooms {
+            guard let lastChat = room.lastChat else {
+                continue
+            }
+
+            // 본인이 마지막으로 보낸 메시지면 안 읽음에 해당하지 않는다.
+            if let myUserId, lastChat.sender.userId == myUserId {
+                continue
+            }
+
+            let lastReadAt = readStateStore.lastReadAt(roomId: room.roomId)
+            if let lastReadAt, lastChat.createdAt <= lastReadAt {
+                continue
+            }
+
+            indicators.insert(room.roomId)
+            targets.append(UnreadFetchTarget(roomId: room.roomId, lastReadAt: lastReadAt))
+        }
+
+        unreadIndicators = indicators
+        unreadCounts = [:]
+        return targets
+    }
+
+    private func fetchUnreadCounts(
+        targets: [UnreadFetchTarget],
+        networkManager: any NetworkManaging
+    ) async {
+        for target in targets {
+            do {
+                let query = ChatMessageListQuery(roomId: target.roomId, next: target.lastReadAt)
+                let response: ChatListResponseDTO = try await networkManager.request(ChatRouter.messages(query))
+                unreadCounts[target.roomId] = response.data.count
+            } catch {
+                // 카운트 호출이 실패해도 dot 인디케이터는 유지된다.
+                continue
+            }
+        }
     }
 
     private func makeNetworkManager() throws -> any NetworkManaging {
@@ -199,6 +267,8 @@ final class ChatListViewModel {
 private struct ChatListRow: View {
     let room: ChatRoomResponseDTO
     let opponentNick: String
+    let hasUnread: Bool
+    let unreadCount: Int?
 
     var body: some View {
         HStack(spacing: 12) {
@@ -223,15 +293,38 @@ private struct ChatListRow: View {
 
             Spacer()
 
-            Text(formattedTime)
-                .font(MainScreenTypography.timestamp)
-                .foregroundStyle(MainScreenPalette.textSecondary)
-                .padding(.trailing, 16)
+            VStack(alignment: .trailing, spacing: 6) {
+                Text(formattedTime)
+                    .font(MainScreenTypography.timestamp)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+
+                unreadBadge
+            }
+            .padding(.trailing, 16)
         }
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity)
         .background(MainScreenPalette.surface)
         .contentShape(Rectangle())
+    }
+
+    @ViewBuilder
+    private var unreadBadge: some View {
+        let badgeColor = Color(red: 0.92, green: 0.27, blue: 0.27)
+
+        if let unreadCount, unreadCount > 0 {
+            Text(unreadCount > 99 ? "99+" : "\(unreadCount)")
+                .font(MainScreenTypography.timestamp)
+                .foregroundStyle(.white)
+                .padding(.horizontal, 7)
+                .padding(.vertical, 2)
+                .background(badgeColor, in: Capsule())
+        } else if hasUnread {
+            // 카운트 도착 전 또는 카운트 호출 실패 시 fallback dot.
+            Circle()
+                .fill(badgeColor)
+                .frame(width: 9, height: 9)
+        }
     }
 
     private var lastMessageText: String {

@@ -172,12 +172,14 @@ final class ChatRoomViewModel {
     private(set) var message: String?
 
     private let authManager: any AuthManaging
+    private let readStateStore: ChatReadStateStore
     private var currentUserId: String?
     private var socketService: ChatSocketService?
 
-    init(roomId: String, authManager: any AuthManaging) {
+    init(roomId: String, authManager: any AuthManaging, readStateStore: ChatReadStateStore = ChatReadStateStore()) {
         self.roomId = roomId
         self.authManager = authManager
+        self.readStateStore = readStateStore
     }
 
     func start(modelContext: ModelContext) async {
@@ -188,6 +190,17 @@ final class ChatRoomViewModel {
     func disconnectSocket() {
         socketService?.disconnect()
         socketService = nil
+        markLastReadIfPossible()
+        // 사용자가 방을 빠져나오는 시점에 채팅 목록의 안 읽음 카운트가 즉시 갱신되도록 신호를 보낸다.
+        ChatPresence.shared.notifyChatListShouldRefresh()
+    }
+
+    private func markLastReadIfPossible() {
+        guard let lastCreatedAt = messages.last?.createdAt else {
+            return
+        }
+
+        readStateStore.setLastReadAt(lastCreatedAt, roomId: roomId)
     }
 
     func isOutgoing(_ chatMessage: ChatResponseDTO, opponentNick: String) -> Bool {
@@ -218,6 +231,7 @@ final class ChatRoomViewModel {
             let response: ChatListResponseDTO = try await networkManager.request(ChatRouter.messages(query))
             try store(response.data, in: modelContext)
             messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
         } catch {
             message = Self.makeErrorMessage(from: error, fallbackMessage: "채팅 내용을 불러오지 못했습니다.")
         }
@@ -244,6 +258,7 @@ final class ChatRoomViewModel {
             )
             try store([response], in: modelContext)
             messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
         } catch {
             message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 보내지 못했습니다.")
         }
@@ -279,6 +294,7 @@ final class ChatRoomViewModel {
         do {
             try store([socketMessage], in: modelContext)
             messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
         } catch {
             message = "실시간 메시지를 저장하지 못했습니다."
         }

@@ -15,7 +15,7 @@ final class ChatPresence {
 
     var isOnChatList = false
     var activeRoomId: String?
-    private(set) var pushReceivedTick = 0
+    private(set) var listRefreshTick = 0
 
     private init() {}
 
@@ -32,8 +32,8 @@ final class ChatPresence {
         return false
     }
 
-    // 채팅 푸시 도착을 옵저빙 중인 화면(채팅 목록 등)에 알리기 위한 트리거.
-    func notifyChatPushReceived() {
-        pushReceivedTick &+= 1
+    // 채팅 목록을 즉시 새로 그려야 하는 시점(푸시 수신, 채팅방 종료 등)에 호출한다.
+    func notifyChatListShouldRefresh() {
+        listRefreshTick &+= 1
     }
 }

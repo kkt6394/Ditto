@@ -82,7 +82,7 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
 
         let shouldSilence = await MainActor.run {
             // 옵저빙 중인 채팅 목록이 즉시 갱신되도록 트리거를 발행한 뒤 무음 여부를 결정한다.
-            ChatPresence.shared.notifyChatPushReceived()
+            ChatPresence.shared.notifyChatListShouldRefresh()
             return ChatPresence.shared.shouldSilencePush(roomId: roomId)
         }
 
