@@ -21,6 +21,23 @@ private struct LikesZoomActiveKey: EnvironmentKey {
     static let defaultValue: Bool = false
 }
 
+// 좋아요 카드에서 이미 로드된 UIImage를 zoom 오버레이가 즉시 사용할 수 있도록
+// activityId 기준으로 보관하는 메모리 캐시. zoom 시작 직전 카드 측에서 store하고
+// LikesZoomImage가 가장 먼저 이 캐시를 조회한다.
+@MainActor
+final class LikesActivityImageCache {
+    static let shared = LikesActivityImageCache()
+    private var images: [String: UIImage] = [:]
+
+    func image(for activityId: String) -> UIImage? {
+        images[activityId]
+    }
+
+    func store(_ image: UIImage, for activityId: String) {
+        images[activityId] = image
+    }
+}
+
 extension EnvironmentValues {
     var likesZoomActive: Bool {
         get { self[LikesZoomActiveKey.self] }
@@ -49,6 +66,7 @@ struct LikesZoomAnchorKey: PreferenceKey {
 // MainView 최상단에서 NavigationStack 위에 그려져, push 슬라이드보다 위에 보인다.
 // cleanup(zoomingActivityId reset)은 MainView에서 스케줄해 안전하게 처리한다.
 struct LikesZoomOverlay: View {
+    let activityId: String
     let imageRequest: URLRequest?
     let source: CGRect
     let destination: CGRect
@@ -79,7 +97,7 @@ struct LikesZoomOverlay: View {
         ZStack(alignment: .topLeading) {
             Color.clear
 
-            LikesZoomImage(request: imageRequest)
+            LikesZoomImage(activityId: activityId, request: imageRequest)
                 .frame(width: currentWidth, height: currentHeight)
                 .clipShape(RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous))
                 .offset(x: currentX, y: currentY)
@@ -87,18 +105,22 @@ struct LikesZoomOverlay: View {
         .allowsHitTesting(false)
         .transition(.opacity)
         .task {
-            // .task는 view 마운트 시 안정적으로 한 번 실행된다. 한 frame 양보 후
-            // withAnimation으로 isExpanded를 켜 SwiftUI가 frame/offset/cornerRadius를 보간한다.
-            try? await Task.sleep(for: .milliseconds(16))
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+            // .task는 view 마운트 시 안정적으로 한 번 실행된다. 첫 frame이 source rect로
+            // 충분히 그려진 뒤 withAnimation으로 isExpanded를 켜 SwiftUI가
+            // frame/offset/cornerRadius를 spring으로 보간한다.
+            try? await Task.sleep(for: .milliseconds(40))
+            withAnimation(.spring(response: 0.55, dampingFraction: 0.78)) {
                 isExpanded = true
             }
         }
     }
 }
 
-// zoom 오버레이용 경량 이미지 뷰. 캐시 없이 단발성 로딩이라 화면 빠르게 잡히면 그만이다.
+// zoom 오버레이용 경량 이미지 뷰.
+// LikesActivityImageCache를 우선 조회해 카드에서 이미 로드된 UIImage를 즉시 보여주고,
+// 캐시가 비어 있으면 fallback으로 URLSession 호출을 시도한다.
 private struct LikesZoomImage: View {
+    let activityId: String
     let request: URLRequest?
     @State private var remoteImage: UIImage?
 
@@ -114,10 +136,15 @@ private struct LikesZoomImage: View {
         }
         .clipped()
         .task {
+            if let cached = LikesActivityImageCache.shared.image(for: activityId) {
+                remoteImage = cached
+                return
+            }
             guard let request, remoteImage == nil else { return }
             if let (data, _) = try? await URLSession.shared.data(for: request),
                let img = UIImage(data: data) {
                 remoteImage = img
+                LikesActivityImageCache.shared.store(img, for: activityId)
             }
         }
     }

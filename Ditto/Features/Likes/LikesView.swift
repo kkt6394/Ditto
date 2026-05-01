@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct LikesView: View {
     @Environment(KeepStore.self) private var keepStore
@@ -180,6 +181,21 @@ struct LikedActivityCard: View {
     let activity: LikedActivity
 
     var body: some View {
+        cardBody
+            .task {
+                // zoom 오버레이가 즉시 사용할 수 있도록 카드 이미지를 메모리 캐시에 워밍업한다.
+                guard LikesActivityImageCache.shared.image(for: activity.id) == nil,
+                      let request = activity.imageRequest else {
+                    return
+                }
+                if let (data, _) = try? await URLSession.shared.data(for: request),
+                   let image = UIImage(data: data) {
+                    LikesActivityImageCache.shared.store(image, for: activity.id)
+                }
+            }
+    }
+
+    private var cardBody: some View {
         VStack(alignment: .leading, spacing: 8) {
             GeometryReader { proxy in
                 ZStack(alignment: .topTrailing) {

@@ -122,6 +122,7 @@ struct MainView: View {
                             return heroDestinationRect(in: proxy)
                         }()
                         LikesZoomOverlay(
+                            activityId: id,
                             imageRequest: zoomingImageRequest,
                             source: sourceRect,
                             destination: destRect
