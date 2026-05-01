@@ -171,11 +171,8 @@ struct MainView: View {
                             .frame(height: 0)
                             .id("homeTop")
 
-                        MainSectionTitleRow(
-                            title: "NEW 액티비티",
-                            trailingTitle: "View All"
-                        )
-                        .padding(.top, 26)
+                        MainSectionTitleRow(title: "NEW 액티비티")
+                            .padding(.top, 26)
 
                         NewActivityContent(
                             items: viewModel.newActivities,

@@ -176,7 +176,6 @@ struct CategoryFilterCarousel: View {
 
 struct MainSectionTitleRow: View {
     let title: String
-    let trailingTitle: String
 
     var body: some View {
         HStack(alignment: .bottom) {
@@ -185,10 +184,6 @@ struct MainSectionTitleRow: View {
                 .foregroundStyle(MainScreenPalette.textPrimary)
 
             Spacer()
-
-            Text(trailingTitle)
-                .font(MainScreenTypography.action)
-                .foregroundStyle(MainScreenPalette.primaryBlue)
         }
         .padding(.horizontal, 20)
     }
