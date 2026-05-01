@@ -8,13 +8,40 @@
 import SwiftUI
 import UIKit
 
-// 좋아요 카드 이미지 위치를 zoom 오버레이가 읽을 수 있도록 anchor를 발행한다.
-// key는 activityId, value는 카드 이미지의 bounds anchor.
-struct LikesZoomCardAnchorKey: PreferenceKey {
-    static let defaultValue: [String: Anchor<CGRect>] = [:]
+// zoom 오버레이의 source(좋아요 카드 이미지)와 destination(상세 화면 hero 이미지)
+// 좌표를 한 PreferenceKey로 묶어 publish한다. activityId 별로 source/destination 한 쌍.
+struct LikesZoomAnchorPair {
+    var source: Anchor<CGRect>?
+    var destination: Anchor<CGRect>?
+}
+
+// 좋아요 탭에서 zoom 트랜지션이 활성화된 동안 true. ActivityDetailView가
+// 이 값을 보고 본문(hero 이미지 아래)의 fade-in delay를 적용한다.
+private struct LikesZoomActiveKey: EnvironmentKey {
+    static let defaultValue: Bool = false
+}
+
+extension EnvironmentValues {
+    var likesZoomActive: Bool {
+        get { self[LikesZoomActiveKey.self] }
+        set { self[LikesZoomActiveKey.self] = newValue }
+    }
+}
+
+struct LikesZoomAnchorKey: PreferenceKey {
+    static let defaultValue: [String: LikesZoomAnchorPair] = [:]
 
     static func reduce(value: inout Value, nextValue: () -> Value) {
-        value.merge(nextValue()) { _, new in new }
+        for (id, pair) in nextValue() {
+            var existing = value[id] ?? LikesZoomAnchorPair()
+            if let source = pair.source {
+                existing.source = source
+            }
+            if let destination = pair.destination {
+                existing.destination = destination
+            }
+            value[id] = existing
+        }
     }
 }
 
@@ -59,13 +86,12 @@ struct LikesZoomOverlay: View {
         }
         .allowsHitTesting(false)
         .transition(.opacity)
-        .onAppear {
-            // 초기 렌더는 source rect에서 시작. 다음 runloop에 withAnimation으로
-            // isExpanded를 켜 SwiftUI가 frame/offset/cornerRadius를 spring으로 보간한다.
-            DispatchQueue.main.async {
-                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
-                    isExpanded = true
-                }
+        .task {
+            // .task는 view 마운트 시 안정적으로 한 번 실행된다. 한 frame 양보 후
+            // withAnimation으로 isExpanded를 켜 SwiftUI가 frame/offset/cornerRadius를 보간한다.
+            try? await Task.sleep(for: .milliseconds(16))
+            withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                isExpanded = true
             }
         }
     }

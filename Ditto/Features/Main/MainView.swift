@@ -107,14 +107,24 @@ struct MainView: View {
             }
             // 좋아요 카드 → 상세 hero zoom 오버레이. NavigationStack push 위에 그려져
             // 이미지가 그리드 위치에서 상단 hero 위치로 확대되는 트랜지션을 보여준다.
-            .overlayPreferenceValue(LikesZoomCardAnchorKey.self) { anchors in
+            .overlayPreferenceValue(LikesZoomAnchorKey.self) { anchors in
                 GeometryReader { proxy in
                     if let id = zoomingActivityId,
-                       let anchor = anchors[id] {
+                       let pair = anchors[id],
+                       let sourceAnchor = pair.source {
+                        let sourceRect = proxy[sourceAnchor]
+                        // detail의 hero anchor가 publish되면 그걸 destination으로 쓴다.
+                        // detail이 아직 mount되지 않은 짧은 순간에는 fallback rect를 사용한다.
+                        let destRect: CGRect = {
+                            if let destAnchor = pair.destination {
+                                return proxy[destAnchor]
+                            }
+                            return heroDestinationRect(in: proxy)
+                        }()
                         LikesZoomOverlay(
                             imageRequest: zoomingImageRequest,
-                            source: proxy[anchor],
-                            destination: heroDestinationRect(in: proxy)
+                            source: sourceRect,
+                            destination: destRect
                         )
                         .id(id)
                     }
@@ -132,6 +142,7 @@ struct MainView: View {
         }
         .environment(keepStore)
         .environment(\.likesHeroNamespace, likesHeroNamespace)
+        .environment(\.likesZoomActive, zoomingActivityId != nil)
         .onAppear {
             updateChatPresence()
         }

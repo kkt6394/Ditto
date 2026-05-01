@@ -191,10 +191,10 @@ struct LikedActivityCard: View {
                         cornerRadius: 14
                     )
                     .anchorPreference(
-                        key: LikesZoomCardAnchorKey.self,
+                        key: LikesZoomAnchorKey.self,
                         value: .bounds
                     ) { anchor in
-                        [activity.id: anchor]
+                        [activity.id: LikesZoomAnchorPair(source: anchor, destination: nil)]
                     }
 
                     ActivityKeepHeart(activityId: activity.id, size: 28)

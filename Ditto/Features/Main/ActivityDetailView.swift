@@ -13,9 +13,12 @@ struct ActivityDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(KeepStore.self) private var keepStore
     @Environment(\.likesHeroNamespace) private var likesHeroNamespace
+    @Environment(\.likesZoomActive) private var likesZoomActive
 
     @State private var viewModel: ActivityDetailViewModel
     @State private var pendingChatOpponentIDs: Set<String> = []
+    // zoom 진입 시 zoom이 hero에 도달한 뒤 본문이 fade-in되도록 하는 opacity 상태.
+    @State private var bodyOpacity: Double = 1
     // 결제 시트는 ActivityDetailView가 직접 보유한다. 결제 완료 후에도 Detail 화면은 그대로 유지된다.
     @State private var isPresentingPayment = false
 
@@ -156,47 +159,74 @@ struct ActivityDetailView: View {
                         request: viewModel.heroImageRequest,
                         fallbackImageName: "FigmaMainNewActivity2"
                     )
-
-                    VStack(alignment: .leading, spacing: 14) {
-                        Text(activity.title ?? "제목 없는 액티비티")
-                            .font(MainFont.paperlogyBlack(size: 26))
-                            .foregroundStyle(MainScreenPalette.textPrimary)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        Text(activity.description ?? "상세 설명이 없습니다.")
-                            .font(MainScreenTypography.postBody)
-                            .foregroundStyle(MainScreenPalette.textSecondary)
-                            .lineSpacing(5)
-                            .fixedSize(horizontal: false, vertical: true)
-
-                        ActivityDetailBadgeGroup(activity: activity)
-                    }
-                    .padding(.horizontal, 20)
-
-                    ActivityPricePanel(
-                        originalPrice: viewModel.priceText(activity.price.original),
-                        finalPrice: viewModel.priceText(activity.price.final),
-                        discountRate: viewModel.discountRateText(
-                            originalPrice: activity.price.original,
-                            finalPrice: activity.price.final
-                        )
-                    )
-                    .padding(.horizontal, 20)
-
-                    ActivityLimitPanel(activity: activity)
-                        .padding(.horizontal, 20)
-
-                    if let schedule = activity.schedule, !schedule.isEmpty {
-                        ActivitySchedulePanel(schedule: schedule)
-                            .padding(.horizontal, 20)
+                    .anchorPreference(
+                        key: LikesZoomAnchorKey.self,
+                        value: .bounds
+                    ) { anchor in
+                        [viewModel.activityId: LikesZoomAnchorPair(source: nil, destination: anchor)]
                     }
 
-                    reviewSection
-                        .padding(.horizontal, 20)
+                    bodyBelowHero(activity)
+                        .opacity(bodyOpacity)
                 }
                 .frame(width: proxy.size.width, alignment: .leading)
                 .padding(.bottom, SearchLayout.tabBarContentPadding)
             }
+        }
+        .task {
+            // 좋아요 탭에서 zoom과 함께 진입한 경우, 본문은 zoom이 끝난 뒤 fade-in 한다.
+            // 다른 진입 경로는 즉시 보인다.
+            if likesZoomActive {
+                bodyOpacity = 0
+                try? await Task.sleep(for: .milliseconds(380))
+                withAnimation(.easeOut(duration: 0.32)) {
+                    bodyOpacity = 1
+                }
+            } else {
+                bodyOpacity = 1
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func bodyBelowHero(_ activity: ActivityResponseDTO) -> some View {
+        VStack(alignment: .leading, spacing: 20) {
+            VStack(alignment: .leading, spacing: 14) {
+                Text(activity.title ?? "제목 없는 액티비티")
+                    .font(MainFont.paperlogyBlack(size: 26))
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Text(activity.description ?? "상세 설명이 없습니다.")
+                    .font(MainScreenTypography.postBody)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .lineSpacing(5)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ActivityDetailBadgeGroup(activity: activity)
+            }
+            .padding(.horizontal, 20)
+
+            ActivityPricePanel(
+                originalPrice: viewModel.priceText(activity.price.original),
+                finalPrice: viewModel.priceText(activity.price.final),
+                discountRate: viewModel.discountRateText(
+                    originalPrice: activity.price.original,
+                    finalPrice: activity.price.final
+                )
+            )
+            .padding(.horizontal, 20)
+
+            ActivityLimitPanel(activity: activity)
+                .padding(.horizontal, 20)
+
+            if let schedule = activity.schedule, !schedule.isEmpty {
+                ActivitySchedulePanel(schedule: schedule)
+                    .padding(.horizontal, 20)
+            }
+
+            reviewSection
+                .padding(.horizontal, 20)
         }
     }
 
