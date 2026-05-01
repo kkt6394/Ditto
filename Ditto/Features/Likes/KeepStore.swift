@@ -20,6 +20,10 @@ final class KeepStore {
     private(set) var likedActivitiesMessage: String?
     private(set) var nextCursor: String?
 
+    // 좋아요가 새로 추가되는 순간, 카드 하트가 좋아요 탭 아이콘으로 날아가는 비행 애니메이션을
+    // 트리거하기 위한 activityId. 비행이 끝나면 nil로 되돌린다.
+    private(set) var pendingFlightID: String?
+
     // 카드 모델의 isKeep을 KeepStore에 한 번만 시드한다.
     // 이미 등록된 액티비티는 사용자의 최신 토글이 우선이므로 덮어쓰지 않는다.
     @ObservationIgnored private var registeredInitialIDs: Set<String> = []
@@ -72,6 +76,11 @@ final class KeepStore {
         let willKeep = !keptActivityIDs.contains(activityId)
         let snapshot = applyOptimisticToggle(activityId: activityId, willKeep: willKeep)
 
+        // 좋아요 추가 시점에 비행 트랜지션을 즉시 시작해 사용자가 탭의 즉각적 반응을 느끼게 한다.
+        if willKeep {
+            pendingFlightID = activityId
+        }
+
         do {
             let networkManager = try networkManagerProvider()
             let request = ActivityKeepRequestDTO(keepStatus: willKeep)
@@ -87,6 +96,16 @@ final class KeepStore {
             }
         } catch {
             rollbackOptimisticToggle(activityId: activityId, willKeep: willKeep, snapshot: snapshot)
+            if willKeep && pendingFlightID == activityId {
+                pendingFlightID = nil
+            }
+        }
+    }
+
+    // 비행 애니메이션이 끝났을 때 호출돼 pendingFlightID를 비운다.
+    func finishFlightAnimation(activityId: String) {
+        if pendingFlightID == activityId {
+            pendingFlightID = nil
         }
     }
 

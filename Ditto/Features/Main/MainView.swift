@@ -65,6 +65,23 @@ struct MainView: View {
                     }
                 }
             }
+            .overlayPreferenceValue(ActivityHeartAnchorKey.self) { anchors in
+                GeometryReader { proxy in
+                    if let flightID = keepStore.pendingFlightID,
+                       let sourceAnchor = anchors[flightID],
+                       let destAnchor = anchors[ActivityHeartAnchorKey.tabSentinelID] {
+                        FlyingHeart(
+                            source: proxy[sourceAnchor],
+                            destination: proxy[destAnchor],
+                            onComplete: {
+                                keepStore.finishFlightAnimation(activityId: flightID)
+                            }
+                        )
+                        .id(flightID)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
 
             if shouldShowComposerButton {
                 PostComposeFloatingButton {

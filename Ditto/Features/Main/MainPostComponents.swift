@@ -419,6 +419,14 @@ struct MainBottomTabBar: View {
                                     .bounce,
                                     value: isLikesTab ? keepStore.keptActivityIDs.count : 0
                                 )
+                                .anchorPreference(
+                                    key: ActivityHeartAnchorKey.self,
+                                    value: .center
+                                ) { anchor in
+                                    isLikesTab
+                                        ? [ActivityHeartAnchorKey.tabSentinelID: anchor]
+                                        : [:]
+                                }
 
                             Text(item.title)
                                 .font(MainScreenTypography.tab)

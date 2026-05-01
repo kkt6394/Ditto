@@ -39,5 +39,8 @@ struct ActivityKeepHeart: View {
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isKept ? "좋아요 취소" : "좋아요")
+        .anchorPreference(key: ActivityHeartAnchorKey.self, value: .center) { anchor in
+            [activityId: anchor]
+        }
     }
 }
