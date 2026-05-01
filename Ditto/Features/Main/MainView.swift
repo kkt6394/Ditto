@@ -43,7 +43,6 @@ struct MainView: View {
                     destination(for: route)
                 }
             }
-            .environment(keepStore)
             .fullScreenCover(item: $selectedMedia) { media in
                 ActivityPostMediaViewer(media: media, authManager: authManager)
             }
@@ -91,6 +90,7 @@ struct MainView: View {
                 .padding(.bottom, 88)
             }
         }
+        .environment(keepStore)
         .onAppear {
             updateChatPresence()
         }
