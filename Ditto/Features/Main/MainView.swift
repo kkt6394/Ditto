@@ -181,7 +181,9 @@ struct MainView: View {
                             items: viewModel.newActivities,
                             isLoading: viewModel.isLoadingNewActivities,
                             message: viewModel.newActivitiesMessage
-                        )
+                        ) { activityId in
+                            openActivityDetail(activityId: activityId)
+                        }
                         .padding(.top, 12)
 
                         MainBannerContent(

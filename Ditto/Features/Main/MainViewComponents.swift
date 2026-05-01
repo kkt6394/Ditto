@@ -196,6 +196,7 @@ struct MainSectionTitleRow: View {
 
 struct NewActivityCarousel: View {
     let items: [MainNewActivity]
+    let activityDetailAction: (String) -> Void
     private let cardWidth: CGFloat = 316
     private let cardHeight: CGFloat = 316
     private let cardSpacing: CGFloat = 4
@@ -208,18 +209,23 @@ struct NewActivityCarousel: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: cardSpacing) {
                     ForEach(items) { item in
-                        NewActivityCard(item: item)
-                            .frame(width: cardWidth, height: cardHeight)
-                            .visualEffect { content, geometry in
-                                let cardCenterX = geometry.frame(in: .global).midX
-                                let distance = abs(cardCenterX - viewportCenterX)
-                                let progress = min(distance / cardWidth, 1)
-                                let scale = 1 - (progress * 0.133333)
+                        Button {
+                            activityDetailAction(item.id)
+                        } label: {
+                            NewActivityCard(item: item)
+                                .frame(width: cardWidth, height: cardHeight)
+                        }
+                        .buttonStyle(.plain)
+                        .visualEffect { content, geometry in
+                            let cardCenterX = geometry.frame(in: .global).midX
+                            let distance = abs(cardCenterX - viewportCenterX)
+                            let progress = min(distance / cardWidth, 1)
+                            let scale = 1 - (progress * 0.133333)
 
-                                return content
-                                    .scaleEffect(scale)
-                                    .opacity(Double(1 - (progress * 0.08)))
-                            }
+                            return content
+                                .scaleEffect(scale)
+                                .opacity(Double(1 - (progress * 0.08)))
+                        }
                     }
                 }
                 .scrollTargetLayout()
@@ -236,6 +242,7 @@ struct NewActivityContent: View {
     let items: [MainNewActivity]
     let isLoading: Bool
     let message: String?
+    let activityDetailAction: (String) -> Void
 
     var body: some View {
         if isLoading && items.isEmpty {
@@ -252,7 +259,7 @@ struct NewActivityContent: View {
             )
             .padding(.horizontal, 20)
         } else {
-            NewActivityCarousel(items: items)
+            NewActivityCarousel(items: items, activityDetailAction: activityDetailAction)
         }
     }
 }
