@@ -26,35 +26,48 @@ struct LikesZoomOverlay: View {
     let source: CGRect
     let destination: CGRect
 
-    @State private var hasReachedDestination = false
+    @State private var isExpanded = false
 
-    private var currentRect: CGRect {
-        hasReachedDestination ? destination : source
+    private var currentWidth: CGFloat {
+        max(isExpanded ? destination.width : source.width, 1)
+    }
+
+    private var currentHeight: CGFloat {
+        max(isExpanded ? destination.height : source.height, 1)
+    }
+
+    private var currentX: CGFloat {
+        isExpanded ? destination.minX : source.minX
+    }
+
+    private var currentY: CGFloat {
+        isExpanded ? destination.minY : source.minY
     }
 
     private var currentCornerRadius: CGFloat {
-        hasReachedDestination ? 0 : 14
+        isExpanded ? 0 : 14
     }
 
     var body: some View {
-        LikesZoomImage(request: imageRequest)
-            .frame(
-                width: max(currentRect.width, 1),
-                height: max(currentRect.height, 1)
-            )
-            .clipShape(RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous))
-            .position(x: currentRect.midX, y: currentRect.midY)
-            .allowsHitTesting(false)
-            .transition(.opacity)
-            .onAppear {
-                // 초기 렌더는 source 위치에서 시작. 다음 frame에 withAnimation으로
-                // hasReachedDestination을 켜 SwiftUI가 frame/position/cornerRadius를 보간한다.
-                DispatchQueue.main.async {
-                    withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
-                        hasReachedDestination = true
-                    }
+        ZStack(alignment: .topLeading) {
+            Color.clear
+
+            LikesZoomImage(request: imageRequest)
+                .frame(width: currentWidth, height: currentHeight)
+                .clipShape(RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous))
+                .offset(x: currentX, y: currentY)
+        }
+        .allowsHitTesting(false)
+        .transition(.opacity)
+        .onAppear {
+            // 초기 렌더는 source rect에서 시작. 다음 runloop에 withAnimation으로
+            // isExpanded를 켜 SwiftUI가 frame/offset/cornerRadius를 spring으로 보간한다.
+            DispatchQueue.main.async {
+                withAnimation(.spring(response: 0.42, dampingFraction: 0.8)) {
+                    isExpanded = true
                 }
             }
+        }
     }
 }
 
