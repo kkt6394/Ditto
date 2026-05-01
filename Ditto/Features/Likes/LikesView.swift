@@ -11,6 +11,8 @@ struct LikesView: View {
     @Environment(KeepStore.self) private var keepStore
     let isActive: Bool
     let activityDetailAction: (String) -> Void
+    // 카드 탭 시 MainView 레벨 zoom 오버레이를 시작하기 위한 콜백.
+    let startZoomTransition: (LikedActivity) -> Void
 
     // 탭이 활성화될 때마다 갱신되어 그리드 카드의 staggered 등장을 다시 트리거한다.
     @State private var staggerTrigger = UUID()
@@ -128,7 +130,13 @@ struct LikesView: View {
                         .modifier(StaggeredCardAppear(index: index, trigger: staggerTrigger))
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            activityDetailAction(activity.id)
+                            startZoomTransition(activity)
+                            // zoom 오버레이가 화면에 잡힌 직후(짧은 지연) navigation push를 시작해
+                            // 슬라이드가 zoom 위에 보이지 않도록 한다.
+                            Task {
+                                try? await Task.sleep(for: .milliseconds(80))
+                                activityDetailAction(activity.id)
+                            }
                         }
                 }
             }
@@ -172,7 +180,6 @@ private struct StaggeredCardAppear: ViewModifier {
 }
 
 struct LikedActivityCard: View {
-    @Environment(\.likesHeroNamespace) private var heroNamespace
     let activity: LikedActivity
 
     var body: some View {
@@ -186,7 +193,12 @@ struct LikedActivityCard: View {
                         height: proxy.size.width,
                         cornerRadius: 14
                     )
-                    .likesHeroMatched(activityId: activity.id, namespace: heroNamespace)
+                    .anchorPreference(
+                        key: LikesZoomCardAnchorKey.self,
+                        value: .bounds
+                    ) { anchor in
+                        [activity.id: anchor]
+                    }
 
                     ActivityKeepHeart(activityId: activity.id, size: 28)
                         .padding(8)

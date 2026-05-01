@@ -156,10 +156,6 @@ struct ActivityDetailView: View {
                         request: viewModel.heroImageRequest,
                         fallbackImageName: "FigmaMainNewActivity2"
                     )
-                    .likesHeroMatched(
-                        activityId: viewModel.activityId,
-                        namespace: likesHeroNamespace
-                    )
 
                     VStack(alignment: .leading, spacing: 14) {
                         Text(activity.title ?? "제목 없는 액티비티")

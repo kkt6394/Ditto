@@ -13,6 +13,8 @@ struct MainView: View {
     @State private var viewModel: MainViewModel
     @State private var keepStore: KeepStore
     @Namespace private var likesHeroNamespace
+    @State private var zoomingActivityId: String?
+    @State private var zoomingImageRequest: URLRequest?
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
@@ -103,6 +105,26 @@ struct MainView: View {
                 }
                 .allowsHitTesting(false)
             }
+            // 좋아요 카드 → 상세 hero zoom 오버레이. NavigationStack push 위에 그려져
+            // 이미지가 그리드 위치에서 상단 hero 위치로 확대되는 트랜지션을 보여준다.
+            .overlayPreferenceValue(LikesZoomCardAnchorKey.self) { anchors in
+                GeometryReader { proxy in
+                    if let id = zoomingActivityId,
+                       let anchor = anchors[id] {
+                        LikesZoomOverlay(
+                            imageRequest: zoomingImageRequest,
+                            source: proxy[anchor],
+                            destination: heroDestinationRect(in: proxy),
+                            onComplete: {
+                                zoomingActivityId = nil
+                                zoomingImageRequest = nil
+                            }
+                        )
+                        .id(id)
+                    }
+                }
+                .allowsHitTesting(false)
+            }
 
             if shouldShowComposerButton {
                 PostComposeFloatingButton {
@@ -123,6 +145,17 @@ struct MainView: View {
         .onChange(of: navigationPath.count) { _, _ in
             updateChatPresence()
         }
+    }
+
+    // ActivityDetailView의 hero 이미지가 자리잡는 위치(상단 safe area + nav bar 44pt 아래, 너비 가득, 높이 360).
+    // zoom 오버레이의 destination으로 사용한다.
+    private func heroDestinationRect(in proxy: GeometryProxy) -> CGRect {
+        CGRect(
+            x: 0,
+            y: proxy.safeAreaInsets.top + 44,
+            width: proxy.size.width,
+            height: 360
+        )
     }
 
     private func updateChatPresence() {
@@ -186,10 +219,15 @@ struct MainView: View {
             .tag(MainTab.chat.rawValue)
 
             LikesView(
-                isActive: selectedTabID == MainTab.likes.rawValue
-            ) { activityId in
-                openActivityDetail(activityId: activityId)
-            }
+                isActive: selectedTabID == MainTab.likes.rawValue,
+                activityDetailAction: { activityId in
+                    openActivityDetail(activityId: activityId)
+                },
+                startZoomTransition: { activity in
+                    zoomingImageRequest = activity.imageRequest
+                    zoomingActivityId = activity.id
+                }
+            )
             .tag(MainTab.likes.rawValue)
 
             ProfileTabView(
