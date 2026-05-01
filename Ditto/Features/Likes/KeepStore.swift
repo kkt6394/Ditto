@@ -72,12 +72,15 @@ final class KeepStore {
     }
 
     // 좋아요 토글. 낙관적 업데이트 후 실패 시 롤백한다.
-    func toggleKeep(activityId: String) async {
+    // triggersFlight: 좋아요 탭 아이콘으로 향하는 비행 트랜지션을 시작할지 여부.
+    // 탭바가 보이지 않는 상세 화면 같은 곳에서는 false로 전달해 비행이 큐잉되어
+    // 뒤늦게 재생되는 것을 막는다.
+    func toggleKeep(activityId: String, triggersFlight: Bool = true) async {
         let willKeep = !keptActivityIDs.contains(activityId)
         let snapshot = applyOptimisticToggle(activityId: activityId, willKeep: willKeep)
 
         // 좋아요 추가 시점에 비행 트랜지션을 즉시 시작해 사용자가 탭의 즉각적 반응을 느끼게 한다.
-        if willKeep {
+        if willKeep && triggersFlight {
             pendingFlightID = activityId
         }
 

@@ -16,6 +16,9 @@ struct ActivityKeepHeart: View {
     let activityId: String
     var size: CGFloat = 28
     var iconWeight: Font.Weight = .semibold
+    // 좋아요 추가 시 좋아요 탭으로 날아가는 비행 트랜지션을 트리거할지 여부.
+    // 탭바가 보이지 않는 화면(예: ActivityDetail)에서는 false를 넘겨야 한다.
+    var triggersFlight: Bool = true
 
     private static let likedColor = Color(red: 1.0, green: 0.38, blue: 0.52)
 
@@ -24,7 +27,10 @@ struct ActivityKeepHeart: View {
 
         Button {
             Task {
-                await keepStore.toggleKeep(activityId: activityId)
+                await keepStore.toggleKeep(
+                    activityId: activityId,
+                    triggersFlight: triggersFlight
+                )
             }
         } label: {
             Image(systemName: isKept ? "heart.fill" : "heart")
