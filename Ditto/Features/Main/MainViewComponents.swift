@@ -296,6 +296,7 @@ private struct NewActivityStateCard: View {
 }
 
 private struct NewActivityCard: View {
+    @Environment(KeepStore.self) private var keepStore
     let item: MainNewActivity
 
     var body: some View {
@@ -308,6 +309,11 @@ private struct NewActivityCard: View {
             LocationCapsule(text: item.location)
                 .padding(.top, 16)
                 .padding(.leading, 16)
+        }
+        .overlay(alignment: .topTrailing) {
+            ActivityKeepHeart(activityId: item.id, size: 36)
+                .padding(.top, 16)
+                .padding(.trailing, 16)
         }
         .overlay(alignment: .bottomLeading) {
             VStack(alignment: .leading, spacing: 12) {
@@ -340,6 +346,12 @@ private struct NewActivityCard: View {
         .frame(width: 316, height: 316)
         .clipShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
         .shadow(color: MainScreenPalette.shadow, radius: 8, y: 4)
+        .onAppear {
+            keepStore.registerInitialKeepStatus(
+                activityId: item.id,
+                isKept: item.isKeep
+            )
+        }
     }
 }
 

@@ -124,6 +124,7 @@ private struct SearchCategoryActivityContent: View {
 }
 
 private struct SearchActivityListCard: View {
+    @Environment(KeepStore.self) private var keepStore
     let item: SearchActivity
 
     var body: some View {
@@ -139,12 +140,18 @@ private struct SearchActivityListCard: View {
                     )
 
                     HStack {
-                        LikeCircle(isSelected: item.isKeep)
+                        ActivityKeepHeart(activityId: item.id, size: 28)
                         Spacer()
                         SearchLocationTag(text: item.location)
                     }
                     .padding(.top, 8)
                     .padding(.horizontal, 12)
+                    .onAppear {
+                        keepStore.registerInitialKeepStatus(
+                            activityId: item.id,
+                            isKept: item.isKeep
+                        )
+                    }
 
                     if item.isAdvertisement {
                         Text("AD")

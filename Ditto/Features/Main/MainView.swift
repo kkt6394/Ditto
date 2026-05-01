@@ -11,6 +11,7 @@ struct MainView: View {
     private let authManager: any AuthManaging
 
     @State private var viewModel: MainViewModel
+    @State private var keepStore: KeepStore
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
@@ -25,6 +26,7 @@ struct MainView: View {
     init(authManager: any AuthManaging) {
         self.authManager = authManager
         _viewModel = State(initialValue: MainViewModel(authManager: authManager))
+        _keepStore = State(initialValue: KeepStore(authManager: authManager))
     }
 
     var body: some View {
@@ -41,6 +43,7 @@ struct MainView: View {
                     destination(for: route)
                 }
             }
+            .environment(keepStore)
             .fullScreenCover(item: $selectedMedia) { media in
                 ActivityPostMediaViewer(media: media, authManager: authManager)
             }
@@ -142,12 +145,8 @@ struct MainView: View {
             }
             .tag(MainTab.chat.rawValue)
 
-            VStack {
-                Spacer()
-                Text("좋아요 탭 준비 중")
-                    .font(MainScreenTypography.sectionTitle)
-                    .foregroundStyle(MainScreenPalette.textSecondary)
-                Spacer()
+            LikesView { activityId in
+                openActivityDetail(activityId: activityId)
             }
             .tag(MainTab.likes.rawValue)
 

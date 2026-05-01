@@ -11,6 +11,7 @@ import UIKit
 
 struct ActivityDetailView: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(KeepStore.self) private var keepStore
 
     @State private var viewModel: ActivityDetailViewModel
     @State private var pendingChatOpponentIDs: Set<String> = []
@@ -61,6 +62,13 @@ struct ActivityDetailView: View {
         }
         .task(id: viewModel.activityId) {
             await viewModel.loadReviews()
+        }
+        .onChange(of: viewModel.activity?.isKeep) { _, isKept in
+            guard let isKept else { return }
+            keepStore.registerInitialKeepStatus(
+                activityId: viewModel.activityId,
+                isKept: isKept
+            )
         }
         .sheet(isPresented: $isPresentingPayment) {
             if let activity = viewModel.activity {
@@ -131,8 +139,8 @@ struct ActivityDetailView: View {
 
             Spacer()
 
-            Color.clear
-                .frame(width: 44, height: 44)
+            ActivityKeepHeart(activityId: viewModel.activityId, size: 36)
+                .padding(.trailing, 8)
         }
         .padding(.horizontal, 4)
         .frame(height: 44)

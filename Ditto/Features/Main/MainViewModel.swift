@@ -222,7 +222,8 @@ final class MainViewModel {
                 from: firstImageThumbnail(from: response.thumbnails),
                 configuration: configuration,
                 accessToken: accessToken
-            )
+            ),
+            isKeep: response.isKeep
         )
     }
 
@@ -386,57 +387,6 @@ private extension MainViewModel {
             .joined(separator: ", ")
     }
 
-    static func makeLocationText(country: String?) -> String {
-        (country ?? "")
-            .ifEmpty("위치 정보 없음")
-    }
-
-    static func makePriceText(_ price: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-
-        let numberText = formatter.string(from: NSNumber(value: price)) ?? "\(Int(price))"
-        return "\(numberText)원"
-    }
-
-    static func makeImageRequest(
-        from thumbnailPath: String?,
-        configuration: AppConfiguration,
-        accessToken: String?
-    ) -> URLRequest? {
-        guard let thumbnailPath, !thumbnailPath.isEmpty else {
-            return nil
-        }
-
-        let imageURL: URL?
-
-        if let url = URL(string: thumbnailPath), url.scheme != nil {
-            imageURL = url
-        } else {
-            imageURL = makeImageURL(from: thumbnailPath, baseURL: configuration.baseURL)
-        }
-
-        guard let imageURL else {
-            return nil
-        }
-
-        var request = URLRequest(url: imageURL)
-        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
-
-        if let accessToken {
-            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
-        }
-
-        return request
-    }
-
-    static func firstImageThumbnail(from thumbnails: [String]) -> String? {
-        thumbnails.first { thumbnail in
-            isImagePath(thumbnail)
-        }
-    }
-
     static func imagePaths(from paths: [String]) -> [String] {
         paths.filter { isImagePath($0) }
     }
@@ -535,29 +485,6 @@ private extension MainViewModel {
         return components.url
     }
 
-    static func makeNetworkErrorMessage(from error: NetworkError) -> String {
-        makeNetworkErrorMessage(from: error, fallbackMessage: "NEW 액티비티를 불러오지 못했습니다.")
-    }
-
-    static func makeNetworkErrorMessage(from error: NetworkError, fallbackMessage: String) -> String {
-        switch error {
-        case .missingAuthenticationToken:
-            return "로그인이 필요합니다."
-        case .statusCode(_, let message, _):
-            return message ?? fallbackMessage
-        case .requestFailed:
-            return "네트워크 연결을 확인해 주세요."
-        case .decodingFailed:
-            return fallbackMessage
-        case .invalidURL:
-            return "요청 주소가 올바르지 않습니다."
-        case .invalidResponse:
-            return "서버 응답을 확인할 수 없습니다."
-        case .encodingFailed:
-            return "요청 데이터를 만들 수 없습니다."
-        }
-    }
-
     static func makeActivityPostErrorMessage(from error: Error) -> String {
         switch error {
         case let error as NetworkError:
@@ -590,6 +517,83 @@ private extension MainViewModel {
         formatter.unitsStyle = .full
 
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+}
+
+// 좋아요 기능 등 다른 feature에서도 재사용하는 정적 helper 모음.
+extension MainViewModel {
+    static func makeLocationText(country: String?) -> String {
+        (country ?? "")
+            .ifEmpty("위치 정보 없음")
+    }
+
+    static func makePriceText(_ price: Double) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .decimal
+        formatter.maximumFractionDigits = 0
+
+        let numberText = formatter.string(from: NSNumber(value: price)) ?? "\(Int(price))"
+        return "\(numberText)원"
+    }
+
+    static func makeImageRequest(
+        from thumbnailPath: String?,
+        configuration: AppConfiguration,
+        accessToken: String?
+    ) -> URLRequest? {
+        guard let thumbnailPath, !thumbnailPath.isEmpty else {
+            return nil
+        }
+
+        let imageURL: URL?
+
+        if let url = URL(string: thumbnailPath), url.scheme != nil {
+            imageURL = url
+        } else {
+            imageURL = makeImageURL(from: thumbnailPath, baseURL: configuration.baseURL)
+        }
+
+        guard let imageURL else {
+            return nil
+        }
+
+        var request = URLRequest(url: imageURL)
+        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
+
+        if let accessToken {
+            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
+        }
+
+        return request
+    }
+
+    static func firstImageThumbnail(from thumbnails: [String]) -> String? {
+        thumbnails.first { thumbnail in
+            isImagePath(thumbnail)
+        }
+    }
+
+    static func makeNetworkErrorMessage(from error: NetworkError) -> String {
+        makeNetworkErrorMessage(from: error, fallbackMessage: "NEW 액티비티를 불러오지 못했습니다.")
+    }
+
+    static func makeNetworkErrorMessage(from error: NetworkError, fallbackMessage: String) -> String {
+        switch error {
+        case .missingAuthenticationToken:
+            return "로그인이 필요합니다."
+        case .statusCode(_, let message, _):
+            return message ?? fallbackMessage
+        case .requestFailed:
+            return "네트워크 연결을 확인해 주세요."
+        case .decodingFailed:
+            return fallbackMessage
+        case .invalidURL:
+            return "요청 주소가 올바르지 않습니다."
+        case .invalidResponse:
+            return "서버 응답을 확인할 수 없습니다."
+        case .encodingFailed:
+            return "요청 데이터를 만들 수 없습니다."
+        }
     }
 }
 
