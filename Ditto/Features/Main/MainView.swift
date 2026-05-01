@@ -185,7 +185,9 @@ struct MainView: View {
             }
             .tag(MainTab.chat.rawValue)
 
-            LikesView { activityId in
+            LikesView(
+                isActive: selectedTabID == MainTab.likes.rawValue
+            ) { activityId in
                 openActivityDetail(activityId: activityId)
             }
             .tag(MainTab.likes.rawValue)
