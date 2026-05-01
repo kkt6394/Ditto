@@ -139,12 +139,8 @@ struct ActivityDetailView: View {
 
             Spacer()
 
-            ActivityKeepHeart(
-                activityId: viewModel.activityId,
-                size: 36,
-                triggersFlight: false
-            )
-            .padding(.trailing, 8)
+            ActivityKeepHeart(activityId: viewModel.activityId, size: 36)
+                .padding(.trailing, 8)
         }
         .padding(.horizontal, 4)
         .frame(height: 44)

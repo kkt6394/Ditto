@@ -64,6 +64,27 @@ struct MainView: View {
                     }
                 }
             }
+            // 탭바가 숨겨진 화면(예: 액티비티 상세)에서도 비행 destination을 가질 수 있도록
+            // 좋아요 탭이 위치할 자리에 보이지 않는 phantom anchor를 발행한다.
+            .overlay {
+                GeometryReader { proxy in
+                    if !shouldShowTabBar {
+                        Color.clear
+                            .frame(width: 1, height: 1)
+                            .position(
+                                x: proxy.size.width * 0.7,
+                                y: proxy.size.height - 30
+                            )
+                            .anchorPreference(
+                                key: ActivityHeartAnchorKey.self,
+                                value: .center
+                            ) { anchor in
+                                [ActivityHeartAnchorKey.tabSentinelID: anchor]
+                            }
+                    }
+                }
+                .allowsHitTesting(false)
+            }
             .overlayPreferenceValue(ActivityHeartAnchorKey.self) { anchors in
                 GeometryReader { proxy in
                     if let flightID = keepStore.pendingFlightID,
