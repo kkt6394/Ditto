@@ -204,23 +204,22 @@ struct NewActivityCarousel: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: cardSpacing) {
                     ForEach(items) { item in
-                        Button {
-                            activityDetailAction(item.id)
-                        } label: {
-                            NewActivityCard(item: item)
-                                .frame(width: cardWidth, height: cardHeight)
-                        }
-                        .buttonStyle(.plain)
-                        .visualEffect { content, geometry in
-                            let cardCenterX = geometry.frame(in: .global).midX
-                            let distance = abs(cardCenterX - viewportCenterX)
-                            let progress = min(distance / cardWidth, 1)
-                            let scale = 1 - (progress * 0.133333)
+                        NewActivityCard(item: item)
+                            .frame(width: cardWidth, height: cardHeight)
+                            .contentShape(RoundedRectangle(cornerRadius: 24, style: .continuous))
+                            .onTapGesture {
+                                activityDetailAction(item.id)
+                            }
+                            .visualEffect { content, geometry in
+                                let cardCenterX = geometry.frame(in: .global).midX
+                                let distance = abs(cardCenterX - viewportCenterX)
+                                let progress = min(distance / cardWidth, 1)
+                                let scale = 1 - (progress * 0.133333)
 
-                            return content
-                                .scaleEffect(scale)
-                                .opacity(Double(1 - (progress * 0.08)))
-                        }
+                                return content
+                                    .scaleEffect(scale)
+                                    .opacity(Double(1 - (progress * 0.08)))
+                            }
                     }
                 }
                 .scrollTargetLayout()

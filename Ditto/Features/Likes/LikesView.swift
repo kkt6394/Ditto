@@ -110,12 +110,11 @@ struct LikesView: View {
         ScrollView(showsIndicators: false) {
             LazyVGrid(columns: columns, spacing: 16) {
                 ForEach(keepStore.likedActivities) { activity in
-                    Button {
-                        activityDetailAction(activity.id)
-                    } label: {
-                        LikedActivityCard(activity: activity)
-                    }
-                    .buttonStyle(.plain)
+                    LikedActivityCard(activity: activity)
+                        .contentShape(Rectangle())
+                        .onTapGesture {
+                            activityDetailAction(activity.id)
+                        }
                 }
             }
             .padding(.horizontal, 20)

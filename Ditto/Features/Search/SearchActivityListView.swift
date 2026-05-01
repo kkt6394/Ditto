@@ -103,12 +103,11 @@ private struct SearchCategoryActivityContent: View {
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
                     ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
-                        Button {
-                            activityDetailAction(item.id)
-                        } label: {
-                            SearchActivityListCard(item: item)
-                        }
-                        .buttonStyle(.plain)
+                        SearchActivityListCard(item: item)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                activityDetailAction(item.id)
+                            }
 
                         if index != items.indices.last {
                             Divider()
