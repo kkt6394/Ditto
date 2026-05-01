@@ -109,7 +109,8 @@ final class SearchViewModel {
         }
     }
 
-    func loadCategoryActivities(category: String) async {
+    // category가 nil이면 카테고리 필터 없이 전체 액티비티를 가져온다.
+    func loadCategoryActivities(category: String?) async {
         isLoadingCategoryActivities = true
         categoryActivitiesMessage = nil
         defer {
@@ -124,7 +125,8 @@ final class SearchViewModel {
             categoryActivities = mapActivities(response.data, configuration: configuration)
 
             if categoryActivities.isEmpty {
-                categoryActivitiesMessage = "\(category) 액티비티가 없습니다."
+                let label = category ?? "전체"
+                categoryActivitiesMessage = "\(label) 액티비티가 없습니다."
             } else {
                 scheduleCityNameResolution(for: categoryActivities, target: .category)
             }

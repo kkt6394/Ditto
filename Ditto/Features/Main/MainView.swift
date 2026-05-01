@@ -337,7 +337,12 @@ struct MainView: View {
     }
 
     private var selectedCategoryTitle: String? {
-        MainCategoryFilter.samples.first { $0.id == selectedCategoryID }?.title
+        // "전체"는 카테고리 필터를 적용하지 않는 의미이므로 서버 쿼리에서는 nil로 전달한다.
+        guard let filter = MainCategoryFilter.samples.first(where: { $0.id == selectedCategoryID }),
+              filter.id != "all" else {
+            return nil
+        }
+        return filter.title
     }
 
     private var newActivitiesQueryID: String {

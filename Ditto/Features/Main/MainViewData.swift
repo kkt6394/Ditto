@@ -31,7 +31,7 @@ struct MainCategoryFilter: Identifiable {
         .init(id: "package", title: "패키지"),
         .init(id: "exciting", title: "익사이팅"),
         .init(id: "experience", title: "체험"),
-        .init(id: "random", title: "랜덤")
+        .init(id: "all", title: "전체")
     ]
 }
 

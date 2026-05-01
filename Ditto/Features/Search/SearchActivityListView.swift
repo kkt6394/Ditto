@@ -43,7 +43,9 @@ struct SearchCategoryActivityListView: View {
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .task(id: category.id) {
-            await viewModel.loadCategoryActivities(category: category.title)
+            // "전체" 카드는 카테고리 필터 없이 모든 액티비티를 조회한다.
+            let categoryFilter: String? = category.id == "all" ? nil : category.title
+            await viewModel.loadCategoryActivities(category: categoryFilter)
         }
     }
 }

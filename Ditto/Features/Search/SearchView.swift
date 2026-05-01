@@ -455,9 +455,9 @@ struct SearchCategory: Identifiable, Hashable {
             imageName: "SearchCategoryExperience"
         ),
         .init(
-            id: "random",
-            title: "랜덤",
-            navigationTitle: "RANDOM",
+            id: "all",
+            title: "전체",
+            navigationTitle: "ALL",
             backgroundColor: Color(red: 0.722, green: 0.294, blue: 0.886),
             imageName: "SearchCategoryRandom"
         )
