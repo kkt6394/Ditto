@@ -168,6 +168,55 @@ struct SearchStateCard: View {
     }
 }
 
+// 슬라이더 영역의 위치 권한 안내 카드. CTA 버튼으로 권한 요청 또는 설정 이동을 트리거한다.
+struct SearchPermissionPromptCard: View {
+    let systemName: String
+    let title: String
+    let subtitle: String
+    let actionTitle: String
+    let action: () -> Void
+
+    var body: some View {
+        VStack(spacing: 12) {
+            Image(systemName: systemName)
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundStyle(MainScreenPalette.primaryBlue)
+
+            Text(title)
+                .font(MainScreenTypography.sectionTitle)
+                .foregroundStyle(MainScreenPalette.textPrimary)
+                .multilineTextAlignment(.center)
+
+            Text(subtitle)
+                .font(MainScreenTypography.body)
+                .foregroundStyle(MainScreenPalette.textSecondary)
+                .multilineTextAlignment(.center)
+
+            Button(action: action) {
+                Text(actionTitle)
+                    .font(MainScreenTypography.action)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 20)
+                    .frame(height: 36)
+                    .background(MainScreenPalette.primaryBlue, in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 18)
+        .padding(.horizontal, 16)
+        .frame(maxWidth: .infinity)
+        .background(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(MainScreenPalette.surface)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MainScreenPalette.border, lineWidth: 1)
+        )
+    }
+}
+
 struct SearchDistanceSliderCard: View {
     @Binding var distanceKilometers: Double
     let locationMessage: String?

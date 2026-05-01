@@ -15,7 +15,6 @@ struct MainView: View {
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
     @State private var searchViewResetID = UUID()
-    @State private var locationManager = UserLocationManager()
     @State private var signOutMessage: String?
     @State private var navigationPath: [MainRoute] = []
     @State private var selectedMedia: MainPostMedia?
@@ -109,8 +108,7 @@ struct MainView: View {
     private func makeComposerContext() -> PostComposeInitialContext {
         PostComposeInitialContext(
             country: selectedCountryName ?? MainCountryFilter.samples[0].name,
-            category: selectedCategoryTitle ?? MainCategoryFilter.samples[0].title,
-            coordinate: locationManager.currentCoordinate
+            category: selectedCategoryTitle ?? MainCategoryFilter.samples[0].title
         )
     }
 
@@ -224,9 +222,6 @@ struct MainView: View {
                         proxy.scrollTo("homeTop", anchor: .top)
                     }
                 }
-            }
-            .task {
-                locationManager.requestCurrentLocation()
             }
             .task(id: newActivitiesQueryID) {
                 await viewModel.loadNewActivities(

@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct SearchView: View {
     private let activityDetailAction: (String) -> Void
@@ -54,18 +55,15 @@ struct SearchView: View {
 
                     SearchDistanceSliderCard(
                         distanceKilometers: $distanceKilometers,
-                        locationMessage: locationManager.locationMessage
+                        locationMessage: isLocationAuthorized ? locationManager.locationMessage : nil
                     )
                         .padding(.horizontal, 20)
                         .padding(.top, 10)
+                        .opacity(isLocationAuthorized ? 1.0 : 0.4)
+                        .disabled(!isLocationAuthorized)
 
-                    SearchRecommendationContent(
-                        items: viewModel.nearbyActivities,
-                        isLoading: viewModel.isLoadingNearbyActivities,
-                        message: viewModel.nearbyActivitiesMessage,
-                        activityDetailAction: activityDetailAction
-                    )
-                    .padding(.top, 4)
+                    nearbyActivityContent
+                        .padding(.top, 4)
 
                     SearchSectionHeader(title: "추천 액티비티")
                         .padding(.top, 28)
@@ -83,9 +81,6 @@ struct SearchView: View {
         }
         .task {
             await viewModel.loadRecommendedActivities()
-        }
-        .task {
-            locationManager.requestCurrentLocation()
         }
         .task(id: nearbyQueryID) {
             // 슬라이더 조작 중에는 이전 task가 취소되므로, 멈춘 뒤 한 번만 조회한다.
@@ -118,6 +113,46 @@ struct SearchView: View {
         let latitude = Int((coordinate.latitude * 10_000).rounded())
         let longitude = Int((coordinate.longitude * 10_000).rounded())
         return "\(latitude)-\(longitude)"
+    }
+
+    private var isLocationAuthorized: Bool {
+        locationManager.authorizationStatus == .authorized
+    }
+
+    @ViewBuilder
+    private var nearbyActivityContent: some View {
+        switch locationManager.authorizationStatus {
+        case .undetermined:
+            SearchPermissionPromptCard(
+                systemName: "location.fill",
+                title: "내 주변 액티비티 보기",
+                subtitle: "현재 위치를 기준으로 가까운 액티비티를 찾아드릴게요.",
+                actionTitle: "위치 켜기",
+                action: { locationManager.requestCurrentLocation() }
+            )
+            .padding(.horizontal, 20)
+        case .denied:
+            SearchPermissionPromptCard(
+                systemName: "location.slash",
+                title: "위치 권한이 꺼져 있어요",
+                subtitle: "설정에서 위치 권한을 켜면 내 주변 액티비티를 볼 수 있어요.",
+                actionTitle: "설정 열기",
+                action: openSystemSettings
+            )
+            .padding(.horizontal, 20)
+        case .authorized:
+            SearchRecommendationContent(
+                items: viewModel.nearbyActivities,
+                isLoading: viewModel.isLoadingNearbyActivities,
+                message: viewModel.nearbyActivitiesMessage,
+                activityDetailAction: activityDetailAction
+            )
+        }
+    }
+
+    private func openSystemSettings() {
+        guard let url = URL(string: UIApplication.openSettingsURLString) else { return }
+        UIApplication.shared.open(url)
     }
 
     private var titleRow: some View {

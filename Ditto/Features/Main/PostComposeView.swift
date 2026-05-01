@@ -61,11 +61,6 @@ struct PostComposeView: View {
                         viewModel.removeAttachment($0)
                     }
 
-                    PostComposeLocationToggle(
-                        useCurrentLocation: $viewModel.useCurrentLocation,
-                        coordinate: locationCoordinate
-                    )
-
                     if let message = viewModel.formMessage {
                         PostComposeMessageBanner(message: message)
                     }
@@ -82,10 +77,6 @@ struct PostComposeView: View {
         .sheet(isPresented: $isPresentingActivityPicker) {
             PostComposeActivityPickerSheet(viewModel: viewModel)
         }
-    }
-
-    private var locationCoordinate: UserCoordinate? {
-        viewModel.coordinate
     }
 
     private func handleSubmit() {

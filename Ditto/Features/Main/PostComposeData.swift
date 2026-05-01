@@ -38,5 +38,4 @@ struct PostComposeAttachment: Identifiable, Equatable {
 struct PostComposeInitialContext {
     let country: String
     let category: String
-    let coordinate: UserCoordinate?
 }

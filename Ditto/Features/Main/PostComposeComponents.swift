@@ -379,53 +379,6 @@ private struct AddPhotoTile: View {
     }
 }
 
-struct PostComposeLocationToggle: View {
-    @Binding var useCurrentLocation: Bool
-    let coordinate: UserCoordinate?
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "location.fill")
-                .font(.system(size: 14, weight: .medium))
-                .foregroundStyle(PostComposePalette.accent)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text("현재 위치 사용")
-                    .font(MainScreenTypography.postTitle)
-                    .foregroundStyle(PostComposePalette.primaryText)
-
-                Text(coordinate == nil ? "위치 권한이 없거나 좌표를 가져올 수 없습니다." : coordinateText)
-                    .font(MainScreenTypography.bodyCompact)
-                    .foregroundStyle(PostComposePalette.secondaryText)
-            }
-
-            Spacer()
-
-            Toggle("", isOn: $useCurrentLocation)
-                .labelsHidden()
-                .tint(PostComposePalette.accent)
-                .disabled(coordinate == nil)
-        }
-        .padding(.horizontal, 14)
-        .frame(minHeight: 56)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(PostComposePalette.inputBackground)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(PostComposePalette.inputBorder, lineWidth: 1)
-        )
-    }
-
-    private var coordinateText: String {
-        guard let coordinate else { return "" }
-        let lat = String(format: "%.4f", coordinate.latitude)
-        let lng = String(format: "%.4f", coordinate.longitude)
-        return "위도 \(lat) · 경도 \(lng)"
-    }
-}
-
 struct PostComposeMessageBanner: View {
     let message: String
 

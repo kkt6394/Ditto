@@ -14,10 +14,18 @@ struct UserCoordinate: Equatable {
     let longitude: Double
 }
 
+// 위치 권한 상태를 뷰 레이어에서 분기하기 위해 CoreLocation 의존을 노출하지 않는 자체 표현
+enum LocationAuthorizationStatus: Equatable {
+    case undetermined
+    case authorized
+    case denied
+}
+
 @Observable
 final class UserLocationManager: NSObject {
     private(set) var currentCoordinate: UserCoordinate?
     private(set) var locationMessage: String?
+    private(set) var authorizationStatus: LocationAuthorizationStatus = .undetermined
 
     @ObservationIgnored private let locationManager = CLLocationManager()
     @ObservationIgnored private var didRequestAuthorization = false
@@ -27,6 +35,7 @@ final class UserLocationManager: NSObject {
 
         locationManager.delegate = self
         locationManager.desiredAccuracy = kCLLocationAccuracyHundredMeters
+        authorizationStatus = Self.mapAuthorization(locationManager.authorizationStatus)
     }
 
     func requestCurrentLocation() {
@@ -47,10 +56,24 @@ final class UserLocationManager: NSObject {
             locationMessage = "현재 위치를 확인할 수 없습니다."
         }
     }
+
+    private static func mapAuthorization(_ status: CLAuthorizationStatus) -> LocationAuthorizationStatus {
+        switch status {
+        case .notDetermined:
+            return .undetermined
+        case .authorizedAlways, .authorizedWhenInUse:
+            return .authorized
+        case .denied, .restricted:
+            return .denied
+        @unknown default:
+            return .denied
+        }
+    }
 }
 
 extension UserLocationManager: CLLocationManagerDelegate {
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        authorizationStatus = Self.mapAuthorization(manager.authorizationStatus)
         switch manager.authorizationStatus {
         case .authorizedAlways, .authorizedWhenInUse:
             locationMessage = "현재 위치 기준으로 찾는 중입니다."

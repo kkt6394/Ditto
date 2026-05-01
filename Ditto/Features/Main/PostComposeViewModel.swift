@@ -15,7 +15,6 @@ final class PostComposeViewModel {
     var content: String = ""
     var country: String
     var category: String
-    var useCurrentLocation: Bool = true
 
     private(set) var attachments: [PostComposeAttachment] = []
     private(set) var selectedActivity: PostComposeActivityCandidate?
@@ -28,7 +27,6 @@ final class PostComposeViewModel {
     private(set) var activityCategoryFilter: String?
 
     let countryOptions: [String]
-    let coordinate: UserCoordinate?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
@@ -59,7 +57,6 @@ final class PostComposeViewModel {
     ) {
         self.country = initialContext.country
         self.category = initialContext.category
-        self.coordinate = initialContext.coordinate
         self.networkManagerProvider = networkManagerProvider
         self.configurationProvider = configurationProvider
         self.authManager = authManager
@@ -175,16 +172,15 @@ final class PostComposeViewModel {
         formMessage = nil
         defer { isSubmitting = false }
 
-        let location = currentLocation()
-
+        // 포스트 작성에서는 위치 첨부를 사용하지 않으므로 좌표는 0,0으로 전송한다.
         let request = PostRequestDTO(
             country: country,
             category: category,
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             content: content.trimmingCharacters(in: .whitespacesAndNewlines),
             activityId: selectedActivity?.id,
-            latitude: location.latitude,
-            longitude: location.longitude,
+            latitude: 0,
+            longitude: 0,
             files: attachments.compactMap { $0.uploadedPath }
         )
 
@@ -243,14 +239,6 @@ private extension PostComposeViewModel {
     func isAttachmentUploading(_ attachment: PostComposeAttachment) -> Bool {
         if case .uploading = attachment.state { return true }
         return false
-    }
-
-    func currentLocation() -> (latitude: Double, longitude: Double) {
-        if useCurrentLocation, let coordinate {
-            return (coordinate.latitude, coordinate.longitude)
-        }
-        // 위치 정보가 없으면 서버 거부를 피하기 위해 0,0 대신 액티비티 좌표나 기본값을 보낸다.
-        return (0, 0)
     }
 
     static func makeCandidate(from response: ActivitySummaryResponseDTO) -> PostComposeActivityCandidate {
