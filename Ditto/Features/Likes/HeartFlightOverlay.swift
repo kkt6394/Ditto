@@ -93,3 +93,32 @@ private struct HeartFlightState {
     var scale: CGFloat
     var opacity: CGFloat
 }
+
+// 좋아요 탭 카드 이미지 → 액티비티 상세 hero 이미지로 이어지는 hero transition을 위한 namespace.
+// MainView가 @Namespace로 발급해 환경에 주입하고, LikedActivityCard와 ActivityDetailView가
+// 같은 namespace로 matchedGeometryEffect를 걸어 자연스러운 확대 트랜지션을 그린다.
+private struct LikesHeroNamespaceKey: EnvironmentKey {
+    static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+    var likesHeroNamespace: Namespace.ID? {
+        get { self[LikesHeroNamespaceKey.self] }
+        set { self[LikesHeroNamespaceKey.self] = newValue }
+    }
+}
+
+extension View {
+    // hero transition을 위한 matchedGeometryEffect를 namespace가 있는 경우에만 적용한다.
+    @ViewBuilder
+    func likesHeroMatched(activityId: String, namespace: Namespace.ID?) -> some View {
+        if let namespace {
+            self.matchedGeometryEffect(
+                id: "likes-hero-\(activityId)",
+                in: namespace
+            )
+        } else {
+            self
+        }
+    }
+}

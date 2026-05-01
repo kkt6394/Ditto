@@ -12,6 +12,7 @@ import UIKit
 struct ActivityDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(KeepStore.self) private var keepStore
+    @Environment(\.likesHeroNamespace) private var likesHeroNamespace
 
     @State private var viewModel: ActivityDetailViewModel
     @State private var pendingChatOpponentIDs: Set<String> = []
@@ -154,6 +155,10 @@ struct ActivityDetailView: View {
                     ActivityDetailRemoteImage(
                         request: viewModel.heroImageRequest,
                         fallbackImageName: "FigmaMainNewActivity2"
+                    )
+                    .likesHeroMatched(
+                        activityId: viewModel.activityId,
+                        namespace: likesHeroNamespace
                     )
 
                     VStack(alignment: .leading, spacing: 14) {

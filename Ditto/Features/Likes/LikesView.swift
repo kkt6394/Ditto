@@ -69,6 +69,11 @@ struct LikesView: View {
             Image(systemName: "heart")
                 .font(.system(size: 56, weight: .medium))
                 .foregroundStyle(MainScreenPalette.textMuted)
+                .phaseAnimator([1.0, 1.08]) { content, scale in
+                    content.scaleEffect(scale)
+                } animation: { _ in
+                    .easeInOut(duration: 1.5)
+                }
             Text("아직 좋아요한 액티비티가 없습니다.")
                 .font(MainFont.pretendard(.bold, size: 16))
                 .foregroundStyle(MainScreenPalette.textPrimary)
@@ -109,8 +114,9 @@ struct LikesView: View {
     private var gridList: some View {
         ScrollView(showsIndicators: false) {
             LazyVGrid(columns: columns, spacing: 16) {
-                ForEach(keepStore.likedActivities) { activity in
+                ForEach(Array(keepStore.likedActivities.enumerated()), id: \.element.id) { index, activity in
                     LikedActivityCard(activity: activity)
+                        .modifier(StaggeredCardAppear(index: index))
                         .contentShape(Rectangle())
                         .onTapGesture {
                             activityDetailAction(activity.id)
@@ -127,7 +133,32 @@ struct LikesView: View {
     }
 }
 
+// 그리드 카드를 좌→우, 위→아래 순으로 작은 시간차로 등장시킨다.
+// 처음 8장만 stagger 적용하고 그 이후는 동시 등장으로 잘라 마지막 카드까지 기다리지 않게 한다.
+private struct StaggeredCardAppear: ViewModifier {
+    let index: Int
+    @State private var hasAppeared = false
+
+    private var delay: Double {
+        Double(min(index, 7)) * 0.05
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(hasAppeared ? 1 : 0)
+            .scaleEffect(hasAppeared ? 1 : 0.92)
+            .animation(
+                .spring(response: 0.45, dampingFraction: 0.78).delay(delay),
+                value: hasAppeared
+            )
+            .onAppear {
+                hasAppeared = true
+            }
+    }
+}
+
 struct LikedActivityCard: View {
+    @Environment(\.likesHeroNamespace) private var heroNamespace
     let activity: LikedActivity
 
     var body: some View {
@@ -141,6 +172,7 @@ struct LikedActivityCard: View {
                         height: proxy.size.width,
                         cornerRadius: 14
                     )
+                    .likesHeroMatched(activityId: activity.id, namespace: heroNamespace)
 
                     ActivityKeepHeart(activityId: activity.id, size: 28)
                         .padding(8)
@@ -166,7 +198,7 @@ struct LikedActivityCard: View {
             .padding(.horizontal, 4)
         }
         .transition(.asymmetric(
-            insertion: .scale(scale: 0.92).combined(with: .opacity),
+            insertion: .identity,
             removal: .opacity.combined(with: .scale(scale: 0.94))
         ))
     }

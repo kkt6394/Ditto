@@ -12,6 +12,7 @@ struct MainView: View {
 
     @State private var viewModel: MainViewModel
     @State private var keepStore: KeepStore
+    @Namespace private var likesHeroNamespace
     @State private var selectedCountryID = MainCountryFilter.samples[0].id
     @State private var selectedCategoryID = MainCategoryFilter.samples[0].id
     @State private var selectedTabID = MainTab.home.rawValue
@@ -112,6 +113,7 @@ struct MainView: View {
             }
         }
         .environment(keepStore)
+        .environment(\.likesHeroNamespace, likesHeroNamespace)
         .onAppear {
             updateChatPresence()
         }
