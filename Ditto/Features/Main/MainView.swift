@@ -221,7 +221,7 @@ struct MainView: View {
             LikesView(
                 isActive: selectedTabID == MainTab.likes.rawValue,
                 activityDetailAction: { activityId in
-                    openActivityDetail(activityId: activityId)
+                    openLikedActivityDetail(activityId: activityId)
                 },
                 startZoomTransition: { activity in
                     zoomingImageRequest = activity.imageRequest
@@ -388,6 +388,16 @@ struct MainView: View {
 
     private func openActivityDetail(activityId: String) {
         navigationPath.append(MainRoute.activityDetail(activityId: activityId))
+    }
+
+    // 좋아요 탭의 zoom 트랜지션과 함께 쓰는 진입 함수.
+    // NavigationStack의 push 슬라이드가 zoom 오버레이와 겹쳐 어색해 보이지 않도록 애니메이션을 끈다.
+    private func openLikedActivityDetail(activityId: String) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            navigationPath.append(MainRoute.activityDetail(activityId: activityId))
+        }
     }
 
     private func startChat(with post: MainActivityPost) {

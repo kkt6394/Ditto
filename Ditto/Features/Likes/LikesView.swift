@@ -130,13 +130,10 @@ struct LikesView: View {
                         .modifier(StaggeredCardAppear(index: index, trigger: staggerTrigger))
                         .contentShape(Rectangle())
                         .onTapGesture {
+                            // zoom 오버레이를 시작함과 동시에 NavigationStack push도 트리거한다.
+                            // push는 MainView에서 disablesAnimations 트랜잭션으로 띄워져 zoom과 겹치지 않는다.
                             startZoomTransition(activity)
-                            // zoom 오버레이가 화면에 잡힌 직후(짧은 지연) navigation push를 시작해
-                            // 슬라이드가 zoom 위에 보이지 않도록 한다.
-                            Task {
-                                try? await Task.sleep(for: .milliseconds(80))
-                                activityDetailAction(activity.id)
-                            }
+                            activityDetailAction(activity.id)
                         }
                 }
             }
