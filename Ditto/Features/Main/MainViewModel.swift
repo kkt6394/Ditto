@@ -22,6 +22,9 @@ final class MainViewModel {
     private(set) var activityPostsMessage: String?
     private(set) var chatStartMessage: String?
 
+    // 화면 재진입 시 동일 조건의 NEW 액티비티를 다시 fetch하지 않도록 마지막 query key를 보관한다.
+    @ObservationIgnored private var lastNewActivitiesQueryKey: String?
+
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
     private let authManager: (any AuthManaging)?
@@ -67,6 +70,13 @@ final class MainViewModel {
     }
 
     func loadNewActivities(country: String?, category: String?) async {
+        // 동일한 country/category 조합이면 상세 화면 왕복 등 view 재진입 시 다시 fetch하지 않는다.
+        // 카드 순서가 매 fetch마다 흔들리는 것을 방지하기 위해 캐시 키로 분기한다.
+        let queryKey = "\(country ?? "")|\(category ?? "")"
+        if queryKey == lastNewActivitiesQueryKey, !newActivities.isEmpty {
+            return
+        }
+
         isLoadingNewActivities = true
         newActivitiesMessage = nil
         defer {
@@ -94,6 +104,7 @@ final class MainViewModel {
                 newActivities = mappedActivities
                 scheduleCityNameResolution(for: mappedActivities)
             }
+            lastNewActivitiesQueryKey = queryKey
         } catch {
             newActivitiesMessage = Self.makeErrorMessage(from: error)
         }

@@ -26,12 +26,12 @@ struct MainCategoryFilter: Identifiable {
     let title: String
 
     static let samples: [MainCategoryFilter] = [
+        .init(id: "all", title: "전체"),
         .init(id: "sightseeing", title: "관광"),
         .init(id: "tour", title: "투어"),
         .init(id: "package", title: "패키지"),
         .init(id: "exciting", title: "익사이팅"),
-        .init(id: "experience", title: "체험"),
-        .init(id: "all", title: "전체")
+        .init(id: "experience", title: "체험")
     ]
 }
 
