@@ -26,57 +26,36 @@ struct LikesZoomOverlay: View {
     let source: CGRect
     let destination: CGRect
 
-    @State private var trigger = false
+    @State private var hasReachedDestination = false
+
+    private var currentRect: CGRect {
+        hasReachedDestination ? destination : source
+    }
+
+    private var currentCornerRadius: CGFloat {
+        hasReachedDestination ? 0 : 14
+    }
 
     var body: some View {
         LikesZoomImage(request: imageRequest)
-            .keyframeAnimator(
-                initialValue: ZoomFrame(
-                    posX: source.midX,
-                    posY: source.midY,
-                    width: source.width,
-                    height: source.height,
-                    cornerRadius: 14
-                ),
-                trigger: trigger,
-                content: { content, value in
-                    content
-                        .frame(width: max(value.width, 1), height: max(value.height, 1))
-                        .clipShape(RoundedRectangle(cornerRadius: value.cornerRadius, style: .continuous))
-                        .position(x: value.posX, y: value.posY)
-                },
-                keyframes: { _ in
-                    KeyframeTrack(\.posX) {
-                        SpringKeyframe(destination.midX, duration: 0.42, spring: .smooth)
-                    }
-                    KeyframeTrack(\.posY) {
-                        SpringKeyframe(destination.midY, duration: 0.42, spring: .smooth)
-                    }
-                    KeyframeTrack(\.width) {
-                        SpringKeyframe(destination.width, duration: 0.42, spring: .smooth)
-                    }
-                    KeyframeTrack(\.height) {
-                        SpringKeyframe(destination.height, duration: 0.42, spring: .smooth)
-                    }
-                    KeyframeTrack(\.cornerRadius) {
-                        LinearKeyframe(0, duration: 0.42)
-                    }
-                }
+            .frame(
+                width: max(currentRect.width, 1),
+                height: max(currentRect.height, 1)
             )
+            .clipShape(RoundedRectangle(cornerRadius: currentCornerRadius, style: .continuous))
+            .position(x: currentRect.midX, y: currentRect.midY)
             .allowsHitTesting(false)
             .transition(.opacity)
             .onAppear {
-                trigger.toggle()
+                // 초기 렌더는 source 위치에서 시작. 다음 frame에 withAnimation으로
+                // hasReachedDestination을 켜 SwiftUI가 frame/position/cornerRadius를 보간한다.
+                DispatchQueue.main.async {
+                    withAnimation(.spring(response: 0.42, dampingFraction: 0.78)) {
+                        hasReachedDestination = true
+                    }
+                }
             }
     }
-}
-
-private struct ZoomFrame {
-    var posX: CGFloat
-    var posY: CGFloat
-    var width: CGFloat
-    var height: CGFloat
-    var cornerRadius: CGFloat
 }
 
 // zoom 오버레이용 경량 이미지 뷰. 캐시 없이 단발성 로딩이라 화면 빠르게 잡히면 그만이다.
