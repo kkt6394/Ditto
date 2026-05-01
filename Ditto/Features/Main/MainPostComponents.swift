@@ -392,6 +392,7 @@ private extension Array {
 }
 
 struct MainBottomTabBar: View {
+    @Environment(KeepStore.self) private var keepStore
     let items: [MainTabItem]
     let selectedID: String
     let selectionAction: (MainTabItem) -> Void
@@ -404,6 +405,7 @@ struct MainBottomTabBar: View {
                         selectionAction(item)
                     } label: {
                         let isSelected = item.id == selectedID
+                        let isLikesTab = item.id == MainTab.likes.rawValue
 
                         VStack(spacing: 6) {
                             Image(systemName: item.systemName)
@@ -412,6 +414,10 @@ struct MainBottomTabBar: View {
                                     isSelected
                                         ? MainScreenPalette.textPrimary
                                         : MainScreenPalette.textMuted
+                                )
+                                .symbolEffect(
+                                    .bounce,
+                                    value: isLikesTab ? keepStore.keptActivityIDs.count : 0
                                 )
 
                             Text(item.title)
