@@ -251,6 +251,7 @@ struct MainView: View {
             .tag(MainTab.likes.rawValue)
 
             ProfileTabView(
+                authManager: authManager,
                 signOutMessage: signOutMessage,
                 signOutAction: signOut
             )
