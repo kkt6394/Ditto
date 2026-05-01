@@ -17,8 +17,10 @@ struct ActivityDetailView: View {
 
     @State private var viewModel: ActivityDetailViewModel
     @State private var pendingChatOpponentIDs: Set<String> = []
-    // zoom 진입 시 zoom이 hero에 도달한 뒤 본문이 fade-in되도록 하는 opacity 상태.
-    @State private var bodyOpacity: Double = 1
+    // zoom 진입 시 zoom이 hero에 도달할 때까지 detail의 hero 이미지를 가리고,
+    // 도달 직후 hero를 노출, 그 뒤 본문을 fade-in 한다.
+    @State private var heroOpacity: Double = 0
+    @State private var bodyOpacity: Double = 0
     // 결제 시트는 ActivityDetailView가 직접 보유한다. 결제 완료 후에도 Detail 화면은 그대로 유지된다.
     @State private var isPresentingPayment = false
 
@@ -159,6 +161,7 @@ struct ActivityDetailView: View {
                         request: viewModel.heroImageRequest,
                         fallbackImageName: "FigmaMainNewActivity2"
                     )
+                    .opacity(heroOpacity)
                     .anchorPreference(
                         key: LikesZoomAnchorKey.self,
                         value: .bounds
@@ -174,15 +177,20 @@ struct ActivityDetailView: View {
             }
         }
         .task {
-            // 좋아요 탭에서 zoom과 함께 진입한 경우, 본문은 zoom이 끝난 뒤 fade-in 한다.
-            // 다른 진입 경로는 즉시 보인다.
+            // 좋아요 탭에서 zoom과 함께 진입한 경우:
+            //  - zoom이 hero에 도달하기 전(~420ms)까지 detail의 hero/본문을 모두 숨김
+            //  - 도달 직후 hero를 즉시 노출(zoom overlay와 같은 위치/이미지라 인계가 자연스러움)
+            //  - hero가 자리 잡은 뒤 본문을 부드럽게 fade-in
+            // 다른 진입 경로(홈/검색)는 즉시 노출한다.
             if likesZoomActive {
-                bodyOpacity = 0
-                try? await Task.sleep(for: .milliseconds(380))
+                try? await Task.sleep(for: .milliseconds(420))
+                heroOpacity = 1
+                try? await Task.sleep(for: .milliseconds(60))
                 withAnimation(.easeOut(duration: 0.32)) {
                     bodyOpacity = 1
                 }
             } else {
+                heroOpacity = 1
                 bodyOpacity = 1
             }
         }
