@@ -20,11 +20,11 @@ struct LikesZoomCardAnchorKey: PreferenceKey {
 
 // 카드 → 상세 hero로 이미지가 확대되는 zoom 트랜지션 오버레이.
 // MainView 최상단에서 NavigationStack 위에 그려져, push 슬라이드보다 위에 보인다.
+// cleanup(zoomingActivityId reset)은 MainView에서 스케줄해 안전하게 처리한다.
 struct LikesZoomOverlay: View {
     let imageRequest: URLRequest?
     let source: CGRect
     let destination: CGRect
-    let onComplete: () -> Void
 
     @State private var trigger = false
 
@@ -64,12 +64,9 @@ struct LikesZoomOverlay: View {
                 }
             )
             .allowsHitTesting(false)
+            .transition(.opacity)
             .onAppear {
                 trigger.toggle()
-                Task {
-                    try? await Task.sleep(for: .milliseconds(440))
-                    onComplete()
-                }
             }
     }
 }

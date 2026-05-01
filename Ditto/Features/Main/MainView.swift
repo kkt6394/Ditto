@@ -114,11 +114,7 @@ struct MainView: View {
                         LikesZoomOverlay(
                             imageRequest: zoomingImageRequest,
                             source: proxy[anchor],
-                            destination: heroDestinationRect(in: proxy),
-                            onComplete: {
-                                zoomingActivityId = nil
-                                zoomingImageRequest = nil
-                            }
+                            destination: heroDestinationRect(in: proxy)
                         )
                         .id(id)
                     }
@@ -226,6 +222,18 @@ struct MainView: View {
                 startZoomTransition: { activity in
                     zoomingImageRequest = activity.imageRequest
                     zoomingActivityId = activity.id
+                    // 안전 장치: zoom 애니메이션 종료 시간 후 무조건 정리해
+                    // 이전 화면의 이미지가 detail 화면 위에 잔존하지 않도록 한다.
+                    let id = activity.id
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(480))
+                        if zoomingActivityId == id {
+                            withAnimation(.easeOut(duration: 0.18)) {
+                                zoomingActivityId = nil
+                                zoomingImageRequest = nil
+                            }
+                        }
+                    }
                 }
             )
             .tag(MainTab.likes.rawValue)
