@@ -139,7 +139,7 @@ struct LikesView: View {
                 }
             }
             .padding(.horizontal, 20)
-            .padding(.bottom, 24)
+            .padding(.bottom, SearchLayout.tabBarContentPadding)
             .animation(.spring(response: 0.4, dampingFraction: 0.78), value: keepStore.likedActivities)
         }
         .refreshable {
