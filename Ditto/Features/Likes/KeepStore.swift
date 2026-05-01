@@ -121,7 +121,9 @@ final class KeepStore {
         do {
             let networkManager = try networkManagerProvider()
             let configuration = try configurationProvider()
-            let query = ActivityKeepListQuery(country: nil, category: nil, next: nil, limit: nil)
+            // 서버 기본값(5)이 너무 작아 좋아요 탭에 일부만 보이는 문제를 막기 위해
+            // 한 번에 더 많이 가져온다. 100을 초과하는 경우는 추후 pagination으로 처리한다.
+            let query = ActivityKeepListQuery(country: nil, category: nil, next: nil, limit: 100)
             let response: ActivitySummaryListResponseDTO = try await networkManager.request(
                 ActivityRouter.myKeeps(query)
             )
