@@ -25,6 +25,7 @@ struct MainView: View {
     @State private var homeScrollToTopTrigger = false
     @State private var pendingChatOpponentIDs: Set<String> = []
     @State private var isPresentingPostComposer = false
+    @State private var presentedBannerWebView: BannerWebViewPresentation?
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -56,6 +57,9 @@ struct MainView: View {
                 ) {
                     Task { await reloadActivityPostsAfterCompose() }
                 }
+            }
+            .sheet(item: $presentedBannerWebView) { presentation in
+                BannerWebViewLauncher.makeWebView(for: presentation, authManager: authManager)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if shouldShowTabBar {
@@ -287,7 +291,10 @@ struct MainView: View {
                         MainBannerContent(
                             banners: viewModel.mainBanners,
                             isLoading: viewModel.isLoadingMainBanners,
-                            message: viewModel.mainBannersMessage
+                            message: viewModel.mainBannersMessage,
+                            onSelect: { banner in
+                                presentedBannerWebView = BannerWebViewLauncher.presentation(for: banner)
+                            }
                         )
                         .padding(.top, 16)
 
