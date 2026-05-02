@@ -72,6 +72,9 @@ struct ProfileAvatar: View {
                     height: size,
                     cornerRadius: size / 2
                 )
+                // URL이 바뀌면 SearchRemoteImage가 캐시된 UIImage를 그대로 보여줘
+                // 새 이미지가 안 그려지는 문제가 있어, URL 기반 id로 강제 재생성한다.
+                .id(imageRequest.url?.absoluteString ?? "")
             } else {
                 Image(systemName: "person.fill")
                     .font(.system(size: size * 0.45, weight: .semibold))
@@ -375,6 +378,54 @@ struct ProfilePostCard: View {
                         .font(MainFont.pretendard(.semibold, size: 11))
                         .foregroundStyle(MainScreenPalette.primaryBlue)
                 }
+            }
+            .frame(width: 160, alignment: .leading)
+        }
+    }
+}
+
+struct ProfileLikedActivityHorizontalList: View {
+    let items: [LikedActivity]
+
+    var body: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(items) { item in
+                    ProfileLikedActivityCard(activity: item)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+struct ProfileLikedActivityCard: View {
+    let activity: LikedActivity
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            SearchRemoteImage(
+                request: activity.imageRequest,
+                fallbackImageName: "FigmaMainNewActivity1",
+                width: 160,
+                height: 110,
+                cornerRadius: 12
+            )
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(activity.title)
+                    .font(MainFont.pretendard(.bold, size: 13))
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .lineLimit(1)
+
+                Text(activity.location)
+                    .font(MainScreenTypography.activityMetaCompact)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .lineLimit(1)
+
+                Text(activity.priceText)
+                    .font(MainFont.pretendard(.bold, size: 12))
+                    .foregroundStyle(MainScreenPalette.primaryBlue)
             }
             .frame(width: 160, alignment: .leading)
         }

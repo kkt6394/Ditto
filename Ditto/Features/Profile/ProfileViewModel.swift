@@ -22,10 +22,8 @@ final class ProfileViewModel {
     private(set) var isLoadingMyPosts = false
     private(set) var myPostsMessage: String?
 
-    // 내가 좋아요한 포스트
-    private(set) var likedPosts: [ProfilePostPreview] = []
-    private(set) var isLoadingLikedPosts = false
-    private(set) var likedPostsMessage: String?
+    // 좋아요한 액티비티는 앱 전역의 KeepStore를 단일 소스로 사용한다.
+    // 따라서 ProfileViewModel에는 별도 상태/로드 로직을 두지 않는다.
 
     // 액션 진행 상태(편집/이미지 업로드/회원탈퇴)
     private(set) var isUpdatingProfile = false
@@ -63,9 +61,7 @@ final class ProfileViewModel {
     func loadAll() async {
         // 프로필이 먼저 와야 내 포스트 쿼리에 userId를 넘길 수 있어 직렬로 흐른다.
         await loadProfile()
-        async let myPostsTask: Void = loadMyPosts()
-        async let likedPostsTask: Void = loadLikedPosts()
-        _ = await (myPostsTask, likedPostsTask)
+        await loadMyPosts()
     }
 
     func loadProfile() async {
@@ -137,41 +133,6 @@ final class ProfileViewModel {
             myPostsMessage = MainViewModel.makeNetworkErrorMessage(
                 from: NetworkErrorAdapter.wrap(error),
                 fallbackMessage: "내 포스트를 불러오지 못했습니다."
-            )
-        }
-    }
-
-    func loadLikedPosts() async {
-        isLoadingLikedPosts = true
-        likedPostsMessage = nil
-        defer {
-            isLoadingLikedPosts = false
-        }
-
-        do {
-            let networkManager = try networkManagerProvider()
-            let configuration = try configurationProvider()
-            let query = PostLikedListQuery(country: nil, category: nil, next: nil, limit: 10)
-            let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
-                PostRouter.likedPosts(query)
-            )
-            let mapped = response.data.map { dto in
-                Self.makeProfilePostPreview(
-                    from: dto,
-                    configuration: configuration,
-                    accessToken: authManager.tokens?.accessToken
-                )
-            }
-
-            likedPosts = mapped
-
-            if mapped.isEmpty {
-                likedPostsMessage = "아직 좋아요한 포스트가 없습니다."
-            }
-        } catch {
-            likedPostsMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "좋아요한 포스트를 불러오지 못했습니다."
             )
         }
     }

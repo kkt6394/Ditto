@@ -8,6 +8,10 @@
 import SwiftUI
 
 struct ProfileTabView: View {
+    // 좋아요한 액티비티 데이터는 좋아요 탭과 동일한 KeepStore를 단일 소스로 사용한다.
+    @Environment(KeepStore.self) private var keepStore
+    // 탭이 활성화될 때마다 내 포스트를 다시 fetch해 새 글이 즉시 반영되게 한다.
+    let isActive: Bool
     let signOutMessage: String?
     let signOutAction: () -> Void
 
@@ -17,9 +21,11 @@ struct ProfileTabView: View {
 
     init(
         authManager: any AuthManaging,
+        isActive: Bool,
         signOutMessage: String?,
         signOutAction: @escaping () -> Void
     ) {
+        self.isActive = isActive
         self.signOutMessage = signOutMessage
         self.signOutAction = signOutAction
         _viewModel = State(initialValue: ProfileViewModel(authManager: authManager))
@@ -41,20 +47,34 @@ struct ProfileTabView: View {
                         ProfileMessageBanner(message: actionMessage)
                     }
                     myPostsSection
-                    likedPostsSection
+                    likedActivitiesSection
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 20)
                 .padding(.bottom, 80)
             }
             .refreshable {
-                await viewModel.loadAll()
+                async let profileTask: Void = viewModel.loadAll()
+                async let likesTask: Void = keepStore.loadLikedActivities()
+                _ = await (profileTask, likesTask)
             }
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
         .task {
             if viewModel.profile == nil {
                 await viewModel.loadAll()
+            }
+            // 좋아요 탭에 한 번도 들어간 적이 없으면 KeepStore가 비어 있을 수 있어 여기서 한 번 시드한다.
+            if keepStore.likedActivities.isEmpty {
+                await keepStore.loadLikedActivities()
+            }
+        }
+        .onChange(of: isActive) { _, newValue in
+            // 탭 진입 시 새로 작성한 포스트와 좋아요 변동분이 즉시 반영되게 갱신한다.
+            guard newValue else { return }
+            Task {
+                await viewModel.loadMyPosts()
+                await keepStore.loadLikedActivities()
             }
         }
         .sheet(isPresented: $isPresentingEditor) {
@@ -118,7 +138,7 @@ struct ProfileTabView: View {
     private var statsRow: some View {
         HStack(spacing: 12) {
             ProfileStatTile(title: "내 포스트", value: "\(viewModel.myPosts.count)")
-            ProfileStatTile(title: "좋아요", value: "\(viewModel.likedPosts.count)")
+            ProfileStatTile(title: "좋아요", value: "\(keepStore.likedActivities.count)")
         }
     }
 
@@ -172,15 +192,17 @@ struct ProfileTabView: View {
     }
 
     @ViewBuilder
-    private var likedPostsSection: some View {
-        ProfileSectionHeader(title: "좋아요한 포스트")
+    private var likedActivitiesSection: some View {
+        ProfileSectionHeader(title: "좋아요한 액티비티")
 
-        if viewModel.isLoadingLikedPosts && viewModel.likedPosts.isEmpty {
+        if keepStore.isLoadingLikedActivities && keepStore.likedActivities.isEmpty {
             ProfileSectionLoading()
-        } else if viewModel.likedPosts.isEmpty {
-            ProfileSectionEmpty(message: viewModel.likedPostsMessage ?? "아직 좋아요한 포스트가 없습니다.")
+        } else if keepStore.likedActivities.isEmpty {
+            ProfileSectionEmpty(
+                message: keepStore.likedActivitiesMessage ?? "아직 좋아요한 액티비티가 없습니다."
+            )
         } else {
-            ProfilePostHorizontalList(items: viewModel.likedPosts)
+            ProfileLikedActivityHorizontalList(items: keepStore.likedActivities)
         }
     }
 }

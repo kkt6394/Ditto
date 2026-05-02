@@ -252,6 +252,7 @@ struct MainView: View {
 
             ProfileTabView(
                 authManager: authManager,
+                isActive: selectedTabID == MainTab.profile.rawValue,
                 signOutMessage: signOutMessage,
                 signOutAction: signOut
             )
