@@ -23,32 +23,9 @@ final class LoginViewModel {
     private let kakaoLoginService: any KakaoLoginServicing
     private let pushTokenStore: any PushNotificationTokenStoring
 
-    convenience init() {
-        let authManager = AuthManager()
-
-        self.init(
-            networkManagerProvider: {
-                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
-            },
-            authManager: authManager,
-            kakaoLoginService: KakaoLoginService(),
-            pushTokenStore: PushNotificationTokenStore.shared
-        )
-    }
-
-    convenience init(authManager: any AuthManaging) {
-        self.init(
-            networkManagerProvider: {
-                // 기본 실행 경로에서는 앱 설정값을 읽어 실제 NetworkManager를 만든다.
-                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
-            },
-            authManager: authManager,
-            kakaoLoginService: KakaoLoginService(),
-            pushTokenStore: PushNotificationTokenStore.shared
-        )
-    }
-
+    /// 모든 의존성을 외부에서 주입하는 단일 designated initializer.
+    /// 프로덕션 진입점은 `init(authManager:)` convenience 또는 테스트용 extension의
+    /// `init(networkManager:...)` convenience를 통해 호출한다.
     init(
         networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
         authManager: any AuthManaging,
@@ -61,37 +38,17 @@ final class LoginViewModel {
         self.pushTokenStore = pushTokenStore
     }
 
-    convenience init(networkManager: any NetworkManaging) {
-        self.init(networkManager: networkManager, authManager: AuthManager())
-    }
-
-    init(
-        networkManager: any NetworkManaging,
-        authManager: any AuthManaging,
-        pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared
-    ) {
-        // 테스트에서는 StubNetworkManager를 주입해 네트워크 결과를 고정한다.
-        networkManagerProvider = {
-            networkManager
-        }
-        self.authManager = authManager
-        kakaoLoginService = KakaoLoginService()
-        self.pushTokenStore = pushTokenStore
-    }
-
-    init(
-        networkManager: any NetworkManaging,
-        authManager: any AuthManaging,
-        kakaoLoginService: any KakaoLoginServicing,
-        pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared
-    ) {
-        // 테스트에서는 StubNetworkManager와 StubKakaoLoginService를 주입해 외부 인증 흐름을 고정한다.
-        networkManagerProvider = {
-            networkManager
-        }
-        self.authManager = authManager
-        self.kakaoLoginService = kakaoLoginService
-        self.pushTokenStore = pushTokenStore
+    /// 프로덕션 진입점 — 외부에서 AuthManager 인스턴스를 받아 NetworkManager 생성에 재사용한다.
+    /// 동일 authManager 인스턴스를 networkManager·LoginViewModel이 공유해야 토큰 갱신이 일관된다.
+    convenience init(authManager: any AuthManaging) {
+        self.init(
+            networkManagerProvider: {
+                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
+            },
+            authManager: authManager,
+            kakaoLoginService: KakaoLoginService(),
+            pushTokenStore: PushNotificationTokenStore.shared
+        )
     }
 
     var isLoginButtonEnabled: Bool {
@@ -309,6 +266,28 @@ enum LoginMessage: Equatable {
         case .success(let text), .info(let text), .error(let text):
             return text
         }
+    }
+}
+
+// MARK: - Test Helpers
+
+extension LoginViewModel {
+    /// 테스트 전용 — networkManager를 직접 주입한다.
+    /// 누락된 의존성은 프로덕션 기본값으로 채워지므로 테스트는 필요한 stub만 명시하면 된다.
+    /// 기본값을 init body 안에서 생성하는 이유: AuthManager 등이 @MainActor로 격리돼 있어
+    /// 디폴트 파라미터(비격리 컨텍스트)에서는 직접 호출할 수 없다.
+    convenience init(
+        networkManager: any NetworkManaging,
+        authManager: (any AuthManaging)? = nil,
+        kakaoLoginService: (any KakaoLoginServicing)? = nil,
+        pushTokenStore: (any PushNotificationTokenStoring)? = nil
+    ) {
+        self.init(
+            networkManagerProvider: { networkManager },
+            authManager: authManager ?? AuthManager(),
+            kakaoLoginService: kakaoLoginService ?? KakaoLoginService(),
+            pushTokenStore: pushTokenStore ?? PushNotificationTokenStore.shared
+        )
     }
 }
 
