@@ -12,6 +12,8 @@ build/
 
 # Local configuration
 Configurations/Secrets.xcconfig
+# Firebase 키가 들어 있는 민감 파일 — 로컬에만 보관, 커밋 금지
+Ditto/GoogleService-Info.plist
 
 # Xcode 16 SPM이 originHash를 비결정적으로 갱신하는 노이즈를 차단한다.
 # 의존성 추가/삭제는 project.pbxproj가 추적하므로 lock 정보 손실은 솔로 프로젝트 범위에서 무시 가능하다.
