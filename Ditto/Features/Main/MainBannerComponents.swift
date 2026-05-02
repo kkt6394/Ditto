@@ -12,19 +12,21 @@ struct MainBannerContent: View {
     let banners: [MainBanner]
     let isLoading: Bool
     let message: String?
+    var onSelect: ((MainBanner) -> Void)?
 
     var body: some View {
         if isLoading && banners.isEmpty {
             MainBannerStateCard()
                 .padding(.horizontal, 20)
         } else if !banners.isEmpty {
-            MainBannerCarousel(banners: banners)
+            MainBannerCarousel(banners: banners, onSelect: onSelect)
         }
     }
 }
 
 private struct MainBannerCarousel: View {
     let banners: [MainBanner]
+    let onSelect: ((MainBanner) -> Void)?
     private let bannerHeight: CGFloat = 104
     @State private var selectedBannerID: String?
 
@@ -40,6 +42,10 @@ private struct MainBannerCarousel: View {
                                 height: bannerHeight
                             )
                             .frame(width: proxy.size.width, height: bannerHeight)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                onSelect?(banner)
+                            }
                             .id(banner.id)
                         }
                     }
