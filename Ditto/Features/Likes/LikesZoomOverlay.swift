@@ -24,17 +24,35 @@ private struct LikesZoomActiveKey: EnvironmentKey {
 // 좋아요 카드에서 이미 로드된 UIImage를 zoom 오버레이가 즉시 사용할 수 있도록
 // activityId 기준으로 보관하는 메모리 캐시. zoom 시작 직전 카드 측에서 store하고
 // LikesZoomImage가 가장 먼저 이 캐시를 조회한다.
+//
+// NSCache 기반으로 두 가지 경계를 둔다:
+// 1) countLimit — 항목 수 상한. 좋아요 페이지네이션이 많아져도 무한 누적되지 않는다.
+// 2) totalCostLimit — 바이트 합산 상한. 이미지가 커도 메모리 절대량을 보장한다.
+// 추가로 시스템 메모리 압박 시 NSCache가 자동으로 일부 항목을 제거한다.
 @MainActor
 final class LikesActivityImageCache {
     static let shared = LikesActivityImageCache()
-    private var images: [String: UIImage] = [:]
+
+    private let cache: NSCache<NSString, UIImage> = {
+        let cache = NSCache<NSString, UIImage>()
+        cache.countLimit = 40                // 최근 액티비티 40개까지만 유지
+        cache.totalCostLimit = 80 * 1_024 * 1_024  // 약 80MB 상한
+        return cache
+    }()
 
     func image(for activityId: String) -> UIImage? {
-        images[activityId]
+        cache.object(forKey: activityId as NSString)
     }
 
     func store(_ image: UIImage, for activityId: String) {
-        images[activityId] = image
+        // 비용 = 픽셀 수 × 4바이트(BGRA). totalCostLimit과 비교해 자동 evict한다.
+        let cost = Int(image.size.width * image.size.height * image.scale * image.scale * 4)
+        cache.setObject(image, forKey: activityId as NSString, cost: cost)
+    }
+
+    /// 좋아요 탭에서 벗어나거나 메모리 회수가 필요할 때 외부에서 호출한다.
+    func clearAll() {
+        cache.removeAllObjects()
     }
 }
 

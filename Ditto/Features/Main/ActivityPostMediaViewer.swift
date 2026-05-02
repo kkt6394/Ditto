@@ -49,7 +49,10 @@ struct ActivityPostMediaViewer: View {
             await loadMedia()
         }
         .onDisappear {
+            // pause만으로는 AVPlayer/AVPlayerItem/디코더 버퍼가 살아 있어 메모리를 점유한다.
+            // nil 대입으로 ARC 해제를 트리거해 풀스크린 종료 시 즉시 회수한다.
             player?.pause()
+            player = nil
         }
     }
 
