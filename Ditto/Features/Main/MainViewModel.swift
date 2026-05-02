@@ -421,10 +421,8 @@ private extension MainViewModel {
             return nil
         }
 
-        if media.isEmpty {
-            return fallback.media
-        }
-
+        // 사진이 없는 글은 sample fallback(낙하산 사진 3장)을 채우지 않고 빈 배열로 둔다.
+        // ActivityPostImageCollage는 post.media[safe: index]로 접근해 빈 배열이면 사진 영역을 그리지 않는다.
         return media
     }
 
