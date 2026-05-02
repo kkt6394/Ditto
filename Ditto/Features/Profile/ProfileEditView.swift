@@ -149,15 +149,34 @@ struct ProfileEditView: View {
             viewModel.actionMessage = "사진을 불러오지 못했습니다."
             return
         }
-        // HEIC 등 비-JPEG 원본은 서버 호환을 위해 JPEG로 재인코딩한다.
-        let payload: Data
-        if let image = UIImage(data: raw),
-           let jpeg = image.jpegData(compressionQuality: 0.8) {
-            payload = jpeg
-        } else {
-            payload = raw
+        guard let payload = Self.makeUploadPayload(from: raw) else {
+            // 다운샘플링도 압축도 실패하면 1MB 제한을 만족할 수 없는 상황이라 사용자에게 안내한다.
+            viewModel.actionMessage = "이미지를 처리하지 못했습니다. 다른 사진을 선택해 주세요."
+            return
         }
         await viewModel.uploadProfileImage(data: payload)
+    }
+
+    // 서버 용량 제한 1MB와 jpg/png/jpeg 확장자 제한을 만족시키기 위해
+    // 1) 긴 변 1024px로 다운샘플링하고 2) 1MB 이하가 될 때까지 단계적으로 품질을 낮춘다.
+    private static func makeUploadPayload(from raw: Data) -> Data? {
+        let maxBytes = 1_000_000
+        let targetSide: CGFloat = 1024
+
+        let downsampled = RemoteImageLoader.downsample(
+            data: raw,
+            pointSize: CGSize(width: targetSide, height: targetSide),
+            scale: 1
+        ) ?? UIImage(data: raw)
+
+        guard let image = downsampled else { return nil }
+
+        for quality in [0.8, 0.6, 0.4, 0.2] {
+            if let data = image.jpegData(compressionQuality: quality), data.count <= maxBytes {
+                return data
+            }
+        }
+        return image.jpegData(compressionQuality: 0.2)
     }
 }
 
