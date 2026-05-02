@@ -185,10 +185,10 @@ final class KeepStore {
         return LikedActivity(
             id: response.activityId,
             title: title,
-            location: MainViewModel.makeLocationText(country: response.country),
-            priceText: MainViewModel.makePriceText(response.price.final),
-            imageRequest: MainViewModel.makeImageRequest(
-                from: MainViewModel.firstImageThumbnail(from: response.thumbnails),
+            location: ActivityFormatting.makeLocationText(country: response.country),
+            priceText: ActivityFormatting.makePriceText(response.price.final),
+            imageRequest: ActivityFormatting.makeImageRequest(
+                from: ActivityFormatting.firstImageThumbnail(from: response.thumbnails),
                 configuration: configuration,
                 accessToken: accessToken
             )

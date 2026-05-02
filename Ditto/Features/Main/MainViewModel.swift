@@ -213,13 +213,13 @@ final class MainViewModel {
             countryName: response.country,
             latitude: response.geolocation.latitude,
             longitude: response.geolocation.longitude,
-            location: makeLocationText(country: response.country),
+            location: ActivityFormatting.makeLocationText(country: response.country),
             title: title,
-            price: makePriceText(response.price.final),
+            price: ActivityFormatting.makePriceText(response.price.final),
             summary: summary,
             imageName: fallback.imageName,
-            imageRequest: makeImageRequest(
-                from: firstImageThumbnail(from: response.thumbnails),
+            imageRequest: ActivityFormatting.makeImageRequest(
+                from: ActivityFormatting.firstImageThumbnail(from: response.thumbnails),
                 configuration: configuration,
                 accessToken: accessToken
             ),
@@ -258,7 +258,7 @@ final class MainViewModel {
         MainBanner(
             id: "\(response.payload.type)-\(response.payload.value)-\(fallbackIndex)",
             name: response.name,
-            imageRequest: makeImageRequest(
+            imageRequest: ActivityFormatting.makeImageRequest(
                 from: response.imageUrl,
                 configuration: configuration,
                 accessToken: accessToken
@@ -276,7 +276,7 @@ final class MainViewModel {
     ) -> MainActivityPost {
         let fallback = MainActivityPost.samples[fallbackIndex % MainActivityPost.samples.count]
         let imageRequests = imagePaths(from: response.files).map {
-            makeImageRequest(from: $0, configuration: configuration, accessToken: accessToken)
+            ActivityFormatting.makeImageRequest(from: $0, configuration: configuration, accessToken: accessToken)
         }
 
         return MainActivityPost(
@@ -287,10 +287,10 @@ final class MainViewModel {
             timeText: makeRelativeTimeText(from: response.createdAt),
             title: response.title,
             body: response.content,
-            location: makeLocationText(country: response.country),
+            location: ActivityFormatting.makeLocationText(country: response.country),
             category: response.activity?.title ?? response.category,
             profileImageName: fallback.profileImageName,
-            profileImageRequest: makeImageRequest(
+            profileImageRequest: ActivityFormatting.makeImageRequest(
                 from: response.creator.profileImage,
                 configuration: configuration,
                 accessToken: accessToken
@@ -370,7 +370,7 @@ private extension MainViewModel {
                 longitude: longitude
             ) else { continue }
 
-            let combined = Self.combineCountryAndCity(country: activity.countryName, city: city)
+            let combined = ActivityFormatting.combineCountryAndCity(country: activity.countryName, city: city)
             guard !combined.isEmpty else { continue }
 
             // 도시명을 받아오는 사이 배열이 갱신될 수 있어 ID로 다시 찾아 갱신한다.
@@ -380,15 +380,8 @@ private extension MainViewModel {
         }
     }
 
-    static func combineCountryAndCity(country: String?, city: String) -> String {
-        [country, city]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
-    }
-
     static func imagePaths(from paths: [String]) -> [String] {
-        paths.filter { isImagePath($0) }
+        paths.filter { ActivityFormatting.isImagePath($0) }
     }
 
     static func makePostMedia(
@@ -406,15 +399,15 @@ private extension MainViewModel {
         let media = paths.enumerated().compactMap { index, path -> MainPostMedia? in
             let fallbackName = fallbackNames[index % fallbackNames.count]
 
-            if isImagePath(path) {
-                let request = makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+            if ActivityFormatting.isImagePath(path) {
+                let request = ActivityFormatting.makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
                 return .image(id: "\(path)-\(index)", request: request, fallbackImageName: fallbackName)
             }
 
-            if isVideoPath(path) {
-                let videoId = videoId(from: path)
+            if ActivityFormatting.isVideoPath(path) {
+                let videoId = ActivityFormatting.videoId(from: path)
                 let request = videoId == nil
-                    ? makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+                    ? ActivityFormatting.makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
                     : nil
 
                 return .video(
@@ -433,56 +426,6 @@ private extension MainViewModel {
         }
 
         return media
-    }
-
-    static func isImagePath(_ path: String) -> Bool {
-        let lowercasedPath = path.lowercased()
-
-        return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
-            lowercasedPath.hasSuffix(imageExtension)
-        }
-    }
-
-    static func isVideoPath(_ path: String) -> Bool {
-        let lowercasedPath = path.lowercased()
-
-        if lowercasedPath.hasPrefix("video://") {
-            return true
-        }
-
-        return [".mp4", ".mov", ".m4v", ".m3u8"].contains { videoExtension in
-            lowercasedPath.hasSuffix(videoExtension)
-        }
-    }
-
-    static func videoId(from path: String) -> String? {
-        guard path.hasPrefix("video://") else {
-            return nil
-        }
-
-        let videoId = String(path.dropFirst("video://".count))
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-
-        return videoId.isEmpty ? nil : videoId
-    }
-
-    static func makeImageURL(from thumbnailPath: String, baseURL: URL) -> URL? {
-        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        var imagePath = thumbnailPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-
-        if imagePath.hasPrefix("data/") {
-            imagePath = "v1/" + imagePath
-        }
-
-        components.path = "/" + [basePath, imagePath]
-            .filter { !$0.isEmpty }
-            .joined(separator: "/")
-
-        return components.url
     }
 
     static func makeActivityPostErrorMessage(from error: Error) -> String {
@@ -520,59 +463,7 @@ private extension MainViewModel {
     }
 }
 
-// 좋아요 기능 등 다른 feature에서도 재사용하는 정적 helper 모음.
 extension MainViewModel {
-    static func makeLocationText(country: String?) -> String {
-        (country ?? "")
-            .ifEmpty("위치 정보 없음")
-    }
-
-    static func makePriceText(_ price: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-
-        let numberText = formatter.string(from: NSNumber(value: price)) ?? "\(Int(price))"
-        return "\(numberText)원"
-    }
-
-    static func makeImageRequest(
-        from thumbnailPath: String?,
-        configuration: AppConfiguration,
-        accessToken: String?
-    ) -> URLRequest? {
-        guard let thumbnailPath, !thumbnailPath.isEmpty else {
-            return nil
-        }
-
-        let imageURL: URL?
-
-        if let url = URL(string: thumbnailPath), url.scheme != nil {
-            imageURL = url
-        } else {
-            imageURL = makeImageURL(from: thumbnailPath, baseURL: configuration.baseURL)
-        }
-
-        guard let imageURL else {
-            return nil
-        }
-
-        var request = URLRequest(url: imageURL)
-        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
-
-        if let accessToken {
-            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
-        }
-
-        return request
-    }
-
-    static func firstImageThumbnail(from thumbnails: [String]) -> String? {
-        thumbnails.first { thumbnail in
-            isImagePath(thumbnail)
-        }
-    }
-
     static func makeNetworkErrorMessage(from error: NetworkError) -> String {
         makeNetworkErrorMessage(from: error, fallbackMessage: "NEW 액티비티를 불러오지 못했습니다.")
     }
@@ -594,12 +485,6 @@ extension MainViewModel {
         case .encodingFailed:
             return "요청 데이터를 만들 수 없습니다."
         }
-    }
-}
-
-private extension String {
-    func ifEmpty(_ fallback: String) -> String {
-        isEmpty ? fallback : self
     }
 }
 

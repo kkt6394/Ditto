@@ -81,7 +81,7 @@ final class ProfileViewModel {
             let response: MyInfoResponseDTO = try await networkManager.request(UserRouter.myProfile)
             let summary = ProfileSummary(dto: response)
             profile = summary
-            profileImageRequest = MainViewModel.makeImageRequest(
+            profileImageRequest = ActivityFormatting.makeImageRequest(
                 from: summary.profileImagePath,
                 configuration: configuration,
                 accessToken: authManager.tokens?.accessToken
@@ -208,7 +208,7 @@ final class ProfileViewModel {
             let configuration = try configurationProvider()
             let summary = ProfileSummary(dto: response)
             profile = summary
-            profileImageRequest = MainViewModel.makeImageRequest(
+            profileImageRequest = ActivityFormatting.makeImageRequest(
                 from: summary.profileImagePath,
                 configuration: configuration,
                 accessToken: authManager.tokens?.accessToken
@@ -261,7 +261,7 @@ final class ProfileViewModel {
             )
             let summary = ProfileSummary(dto: updated)
             profile = summary
-            profileImageRequest = MainViewModel.makeImageRequest(
+            profileImageRequest = ActivityFormatting.makeImageRequest(
                 from: summary.profileImagePath,
                 configuration: configuration,
                 accessToken: authManager.tokens?.accessToken
@@ -307,26 +307,21 @@ private extension ProfileViewModel {
         accessToken: String?
     ) -> ProfilePostPreview {
         let firstImagePath = dto.files.first { path in
-            isImagePath(path)
+            ActivityFormatting.isImagePath(path)
         }
         return ProfilePostPreview(
             id: dto.postId,
             title: dto.title,
             summary: dto.content,
             category: dto.activity?.title ?? dto.category,
-            location: MainViewModel.makeLocationText(country: dto.country),
-            imageRequest: MainViewModel.makeImageRequest(
+            location: ActivityFormatting.makeLocationText(country: dto.country),
+            imageRequest: ActivityFormatting.makeImageRequest(
                 from: firstImagePath,
                 configuration: configuration,
                 accessToken: accessToken
             ),
             likeCount: Int(dto.likeCount.rounded())
         )
-    }
-
-    static func isImagePath(_ path: String) -> Bool {
-        let lowercased = path.lowercased()
-        return [".jpg", ".jpeg", ".png", ".webp"].contains { lowercased.hasSuffix($0) }
     }
 
     static func normalizeOptional(_ raw: String?) -> String? {

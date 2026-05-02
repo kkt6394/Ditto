@@ -230,7 +230,7 @@ final class SearchViewModel {
                 longitude: longitude
             ) else { continue }
 
-            let combined = Self.combineCountryAndCity(country: activity.countryName, city: city)
+            let combined = ActivityFormatting.combineCountryAndCity(country: activity.countryName, city: city)
             guard !combined.isEmpty else { continue }
 
             // 도시명을 받아오는 사이 배열이 갱신될 수 있어 ID로 다시 찾아 갱신한다.
@@ -276,18 +276,18 @@ private extension SearchViewModel {
             countryName: response.country,
             latitude: response.geolocation.latitude,
             longitude: response.geolocation.longitude,
-            location: makeLocationText(country: response.country),
+            location: ActivityFormatting.makeLocationText(country: response.country),
             status: makeStatus(isAdvertisement: response.isAdvertisement),
             statusDetail: makeStatusDetail(isAdvertisement: response.isAdvertisement),
             summary: makeSummary(tags: response.tags, category: response.category),
-            originalPrice: discountRate == nil ? nil : makePriceText(originalPrice),
-            finalPrice: makePriceText(finalPrice),
+            originalPrice: discountRate == nil ? nil : ActivityFormatting.makePriceText(originalPrice),
+            finalPrice: ActivityFormatting.makePriceText(finalPrice),
             discountRate: discountRate,
             keepCount: "\(response.keepCount)개",
             pointText: makePointText(response.pointReward),
             fallbackImageName: fallback,
-            imageRequest: makeImageRequest(
-                from: firstImageThumbnail(from: response.thumbnails),
+            imageRequest: ActivityFormatting.makeImageRequest(
+                from: ActivityFormatting.firstImageThumbnail(from: response.thumbnails),
                 configuration: configuration,
                 accessToken: accessToken
             ),
@@ -313,18 +313,18 @@ private extension SearchViewModel {
             countryName: response.country,
             latitude: response.geolocation.latitude,
             longitude: response.geolocation.longitude,
-            location: makeLocationText(country: response.country),
+            location: ActivityFormatting.makeLocationText(country: response.country),
             status: makeStatus(isAdvertisement: response.isAdvertisement),
             statusDetail: makeStatusDetail(isAdvertisement: response.isAdvertisement),
             summary: makeSummary(tags: response.tags, category: response.category),
-            originalPrice: discountRate == nil ? nil : makePriceText(originalPrice),
-            finalPrice: makePriceText(finalPrice),
+            originalPrice: discountRate == nil ? nil : ActivityFormatting.makePriceText(originalPrice),
+            finalPrice: ActivityFormatting.makePriceText(finalPrice),
             discountRate: discountRate,
             keepCount: "\(response.keepCount)개",
             pointText: makePointText(response.pointReward),
             fallbackImageName: fallback,
-            imageRequest: makeImageRequest(
-                from: firstImageThumbnail(from: response.thumbnails),
+            imageRequest: ActivityFormatting.makeImageRequest(
+                from: ActivityFormatting.firstImageThumbnail(from: response.thumbnails),
                 configuration: configuration,
                 accessToken: accessToken
             ),
@@ -350,18 +350,6 @@ private extension SearchViewModel {
         isAdvertisement ? "액티비티 오픈할인" : "인기 액티비티"
     }
 
-    static func makeLocationText(country: String?) -> String {
-        (country ?? "")
-            .ifEmpty("위치 정보 없음")
-    }
-
-    static func combineCountryAndCity(country: String?, city: String) -> String {
-        [country, city]
-            .compactMap { $0 }
-            .filter { !$0.isEmpty }
-            .joined(separator: ", ")
-    }
-
     static func makeSummary(tags: [String], category: String?) -> String {
         if !tags.isEmpty {
             return tags.joined(separator: " · ")
@@ -378,15 +366,6 @@ private extension SearchViewModel {
         return "\(Int(pointReward.rounded()))P"
     }
 
-    static func makePriceText(_ price: Double) -> String {
-        let formatter = NumberFormatter()
-        formatter.numberStyle = .decimal
-        formatter.maximumFractionDigits = 0
-
-        let numberText = formatter.string(from: NSNumber(value: price)) ?? "\(Int(price))"
-        return "\(numberText)원"
-    }
-
     static func makeDiscountRate(originalPrice: Double, finalPrice: Double) -> String? {
         guard originalPrice > finalPrice, originalPrice > 0 else {
             return nil
@@ -394,70 +373,6 @@ private extension SearchViewModel {
 
         let discount = ((originalPrice - finalPrice) / originalPrice * 100).rounded()
         return "\(Int(discount))%"
-    }
-
-    static func makeImageRequest(
-        from thumbnailPath: String?,
-        configuration: AppConfiguration,
-        accessToken: String?
-    ) -> URLRequest? {
-        guard let thumbnailPath, !thumbnailPath.isEmpty else {
-            return nil
-        }
-
-        let imageURL: URL?
-
-        if let url = URL(string: thumbnailPath), url.scheme != nil {
-            imageURL = url
-        } else {
-            imageURL = makeImageURL(from: thumbnailPath, baseURL: configuration.baseURL)
-        }
-
-        guard let imageURL else {
-            return nil
-        }
-
-        var request = URLRequest(url: imageURL)
-        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
-
-        if let accessToken {
-            request.setValue(accessToken, forHTTPHeaderField: "Authorization")
-        }
-
-        return request
-    }
-
-    static func firstImageThumbnail(from thumbnails: [String]) -> String? {
-        thumbnails.first { thumbnail in
-            isImagePath(thumbnail)
-        }
-    }
-
-    static func isImagePath(_ path: String) -> Bool {
-        let lowercasedPath = path.lowercased()
-
-        return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
-            lowercasedPath.hasSuffix(imageExtension)
-        }
-    }
-
-    static func makeImageURL(from thumbnailPath: String, baseURL: URL) -> URL? {
-        guard var components = URLComponents(url: baseURL, resolvingAgainstBaseURL: false) else {
-            return nil
-        }
-
-        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-        var imagePath = thumbnailPath.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
-
-        if imagePath.hasPrefix("data/") {
-            imagePath = "v1/" + imagePath
-        }
-
-        components.path = "/" + [basePath, imagePath]
-            .filter { !$0.isEmpty }
-            .joined(separator: "/")
-
-        return components.url
     }
 
     static func makeErrorMessage(from error: Error) -> String {
@@ -491,8 +406,3 @@ private extension SearchViewModel {
     }
 }
 
-private extension String {
-    func ifEmpty(_ fallback: String) -> String {
-        isEmpty ? fallback : self
-    }
-}
