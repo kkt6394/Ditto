@@ -117,9 +117,16 @@ actor CityResolver {
         let longitude: Int
     }
 
+    /// 캐시 항목 상한. 사용자가 다양한 지역을 검색해도 메모리 누적이 제한된다.
+    /// 500 × (key 16B + value 50B) ≈ 33KB 정도로 안정적.
+    private let cacheSizeLimit = 500
+
     private let geocoder = CLGeocoder()
     private let preferredLocale = Locale(identifier: "ko_KR")
+    // String? 값을 그대로 보관해 "조회 시도했으나 nil 결과"와 "미조회"를 구분한다.
     private var cache: [CacheKey: String?] = [:]
+    // FIFO eviction을 위한 삽입 순서 — 가장 오래된 키가 앞쪽.
+    private var insertionOrder: [CacheKey] = []
 
     private init() {}
 
@@ -131,6 +138,13 @@ actor CityResolver {
 
         let resolved = await reverseGeocodeCity(latitude: latitude, longitude: longitude)
         cache[key] = resolved
+        insertionOrder.append(key)
+
+        // 상한 초과 시 가장 오래된 항목을 제거 (FIFO)
+        if insertionOrder.count > cacheSizeLimit {
+            let oldest = insertionOrder.removeFirst()
+            cache.removeValue(forKey: oldest)
+        }
         return resolved
     }
 
