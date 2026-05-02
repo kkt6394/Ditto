@@ -141,8 +141,12 @@ private struct LikesZoomImage: View {
                 return
             }
             guard let request, remoteImage == nil else { return }
-            if let (data, _) = try? await URLSession.shared.data(for: request),
-               let img = UIImage(data: data) {
+            // 줌 오버레이 표시 크기 = 화면 전체 → 화면 크기 기준 다운샘플링
+            let zoomSize = UIScreen.main.bounds.size
+            if let img = try? await RemoteImageLoader.load(
+                request: request,
+                pointSize: zoomSize
+            ) {
                 remoteImage = img
                 LikesActivityImageCache.shared.store(img, for: activityId)
             }

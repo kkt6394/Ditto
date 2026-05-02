@@ -392,15 +392,11 @@ private struct NewActivityImage: View {
 
     private func loadRemoteImage(from request: URLRequest) async {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let image = UIImage(data: data) else {
-                didFailLoadingRemoteImage = true
-                return
-            }
-
+            // NEW 액티비티 카드 표시 크기(316×474) 기준 다운샘플링
+            let image = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: CGSize(width: 316, height: 474)
+            )
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

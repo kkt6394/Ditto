@@ -530,16 +530,13 @@ private struct ActivityDetailRemoteImage: View {
     }
 
     private func loadRemoteImage(from request: URLRequest) async {
+        // 화면 너비 × 360 헤더 — 디바이스 화면 너비 기준으로 다운샘플링
+        let pointSize = CGSize(width: UIScreen.main.bounds.width, height: 360)
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let image = UIImage(data: data) else {
-                didFailLoadingRemoteImage = true
-                return
-            }
-
+            let image = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: pointSize
+            )
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

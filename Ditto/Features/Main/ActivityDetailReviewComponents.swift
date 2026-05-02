@@ -168,15 +168,11 @@ private struct ReviewProfileImage: View {
 
     private func load(_ request: URLRequest) async {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let loaded = UIImage(data: data) else {
-                didFail = true
-                return
-            }
-
+            // 36×36 프로필 표시 크기로 다운샘플링
+            let loaded = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: CGSize(width: 36, height: 36)
+            )
             image = loaded
         } catch {
             didFail = true
@@ -214,15 +210,11 @@ private struct ReviewImageThumbnail: View {
 
     private func load(_ request: URLRequest) async {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let loaded = UIImage(data: data) else {
-                didFail = true
-                return
-            }
-
+            // 88×88 썸네일 표시 크기로 다운샘플링
+            let loaded = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: CGSize(width: 88, height: 88)
+            )
             image = loaded
         } catch {
             didFail = true

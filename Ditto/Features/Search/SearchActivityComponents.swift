@@ -50,15 +50,11 @@ struct SearchRemoteImage: View {
 
     private func loadRemoteImage(from request: URLRequest) async {
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let image = UIImage(data: data) else {
-                didFailLoadingRemoteImage = true
-                return
-            }
-
+            // 검색 카드 표시 크기로 다운샘플링 — 리스트 전체 메모리 부담 절감
+            let image = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: CGSize(width: width, height: height)
+            )
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

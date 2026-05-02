@@ -188,8 +188,12 @@ struct LikedActivityCard: View {
                       let request = activity.imageRequest else {
                     return
                 }
-                if let (data, _) = try? await URLSession.shared.data(for: request),
-                   let image = UIImage(data: data) {
+                // 캐시는 카드와 줌 오버레이가 공유한다. 줌 표시 크기(화면 크기) 기준으로 다운샘플링한다.
+                let zoomSize = UIScreen.main.bounds.size
+                if let image = try? await RemoteImageLoader.load(
+                    request: request,
+                    pointSize: zoomSize
+                ) {
                     LikesActivityImageCache.shared.store(image, for: activity.id)
                 }
             }

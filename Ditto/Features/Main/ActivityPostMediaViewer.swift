@@ -115,17 +115,21 @@ struct ActivityPostMediaViewer: View {
             return
         }
 
+        // 풀스크린 뷰어 — 핀치 줌 최대 4배까지 허용되므로
+        // 화면 크기의 2배 point를 다운샘플링 기준으로 둔다.
+        // (× 2 point × screen scale = 화면 픽셀의 4배 ≈ 2배 줌까지 선명, 4배 줌에서도 적당)
+        // 풀 해상도(수십 MB) 대비 1/3~1/5 메모리만 사용한다.
+        let screenSize = UIScreen.main.bounds.size
+        let targetSize = CGSize(width: screenSize.width * 2, height: screenSize.height * 2)
+
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  (200..<300).contains(httpResponse.statusCode),
-                  let loadedImage = UIImage(data: data) else {
-                message = "사진을 불러올 수 없습니다."
-                return
-            }
-
+            let loadedImage = try await RemoteImageLoader.load(
+                request: request,
+                pointSize: targetSize
+            )
             image = loadedImage
+        } catch RemoteImageError.invalidStatus, RemoteImageError.decodeFailed {
+            message = "사진을 불러올 수 없습니다."
         } catch {
             message = "네트워크 연결을 확인해 주세요."
         }
