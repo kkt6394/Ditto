@@ -80,11 +80,13 @@ extension PostRouter {
         case .search(let title):
             return [URLQueryItem(name: "title", value: title)]
         case .userPosts(let query):
+            // nil 필터까지 ?country&category처럼 빈 키로 보내면 서버가 빈 문자열 매칭으로
+            // 0건을 반환하는 경우가 있어, 값이 있는 항목만 query에 추가한다.
             return [
-                URLQueryItem(name: "country", value: query.country),
-                URLQueryItem(name: "category", value: query.category),
+                query.country.map { URLQueryItem(name: "country", value: $0) },
+                query.category.map { URLQueryItem(name: "category", value: $0) },
                 query.limit.map { URLQueryItem(name: "limit", value: String($0)) },
-                URLQueryItem(name: "next", value: query.next)
+                query.next.map { URLQueryItem(name: "next", value: $0) }
             ]
             .compactMap { $0 }
         case .likedPosts(let query):
