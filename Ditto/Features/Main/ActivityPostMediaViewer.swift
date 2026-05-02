@@ -49,10 +49,14 @@ struct ActivityPostMediaViewer: View {
             await loadMedia()
         }
         .onDisappear {
-            // pause만으로는 AVPlayer/AVPlayerItem/디코더 버퍼가 살아 있어 메모리를 점유한다.
-            // nil 대입으로 ARC 해제를 트리거해 풀스크린 종료 시 즉시 회수한다.
+            // AVPlayer는 currentItem(AVPlayerItem)을 강하게 잡고 있어 nil 대입만으로는
+            // 디코더 버퍼와 네트워크 캐시가 즉시 풀리지 않는 경우가 있다.
+            // replaceCurrentItem(with: nil)을 먼저 호출해 AVPlayerItem을 명시적으로 드롭한 뒤
+            // player·image도 제거해 모든 무거운 상태를 동시 해제한다.
             player?.pause()
+            player?.replaceCurrentItem(with: nil)
             player = nil
+            image = nil
         }
     }
 
