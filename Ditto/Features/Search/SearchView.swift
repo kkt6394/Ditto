@@ -262,7 +262,7 @@ private struct SearchCategoryCard: View {
                 .rotationEffect(.degrees(12))
                 .shadow(color: Color.black.opacity(0.16), radius: 4, y: 2)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                .offset(x: 28, y: 12)
+                .offset(x: 8, y: 12)
         }
         .frame(height: 86)
         .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
