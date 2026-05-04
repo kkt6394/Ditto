@@ -164,10 +164,10 @@ private extension NetworkManager {
         return components.url
     }
 
-    func encode(_ body: Encodable) throws -> Data {
+    func encode(_ body: any Encodable) throws -> Data {
         do {
-            // Encodable existential은 바로 encode할 수 없어서 AnyEncodable로 감싸 타입을 지운다.
-            return try encoder.encode(AnyEncodable(body))
+            // Swift 5.7+의 implicit existential opening으로 any Encodable을 generic encode에 직접 전달한다.
+            return try encoder.encode(body)
         } catch {
             throw NetworkError.encodingFailed(error)
         }
@@ -234,19 +234,6 @@ private extension NetworkManager {
         } catch {
             throw NetworkError.requestFailed(error)
         }
-    }
-}
-
-// 서로 다른 Request DTO를 Encodable 하나의 값처럼 다루기 위한 작은 type eraser다.
-private struct AnyEncodable: Encodable {
-    private let encodeValue: (Encoder) throws -> Void
-
-    init(_ value: Encodable) {
-        encodeValue = value.encode
-    }
-
-    func encode(to encoder: Encoder) throws {
-        try encodeValue(encoder)
     }
 }
 
