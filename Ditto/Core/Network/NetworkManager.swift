@@ -20,6 +20,8 @@ final class NetworkManager: NetworkManaging {
     private let session: URLSession
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    // 동시에 여러 요청이 419를 받았을 때 refresh를 중복 호출하지 않도록 in-flight Task를 actor로 공유한다.
+    private let refreshCoordinator = TokenRefreshCoordinator()
 
     convenience init(
         configuration: AppConfiguration,
@@ -184,6 +186,16 @@ private extension NetworkManager {
     }
 
     func refreshTokens() async throws {
+        // coordinator가 in-flight refresh Task를 보유하므로 동시 호출자는 같은 Task를 기다린다.
+        try await refreshCoordinator.refresh { [weak self] in
+            guard let self else {
+                throw NetworkError.missingAuthenticationToken
+            }
+            try await self.performTokenRefresh()
+        }
+    }
+
+    func performTokenRefresh() async throws {
         guard let currentTokens = authManager.tokens else {
             throw NetworkError.missingAuthenticationToken
         }
@@ -235,5 +247,23 @@ private struct AnyEncodable: Encodable {
 
     func encode(to encoder: Encoder) throws {
         try encodeValue(encoder)
+    }
+}
+
+// 동시에 들어온 토큰 갱신 요청을 단일 Task로 직렬화한다.
+// actor isolation으로 in-flight Task 접근이 race 없이 보호된다.
+private actor TokenRefreshCoordinator {
+    private var inFlight: Task<Void, Error>?
+
+    func refresh(_ work: @Sendable @escaping () async throws -> Void) async throws {
+        if let existing = inFlight {
+            try await existing.value
+            return
+        }
+
+        let task = Task { try await work() }
+        inFlight = task
+        defer { inFlight = nil }
+        try await task.value
     }
 }
