@@ -200,11 +200,12 @@ final class ProfileViewModel {
         do {
             let networkManager = try networkManagerProvider()
             let configuration = try configurationProvider()
-            let file = MultipartFile(
+            let file = try MultipartFile(
                 filename: "profile-\(UUID().uuidString).jpg",
                 mimeType: "image/jpeg",
                 data: data
             )
+            .validated(against: .profileImage)
             let request = ProfileImageUploadRequestDTO(profile: file)
             let response: ProfileImageUploadResponseDTO = try await networkManager.request(
                 UserRouter.uploadProfileImage(request)
@@ -228,6 +229,9 @@ final class ProfileViewModel {
                 accessToken: authManager.tokens?.accessToken
             )
             return true
+        } catch let validationError as MultipartUploadError {
+            actionMessage = validationError.userMessage
+            return false
         } catch {
             actionMessage = MainViewModel.makeNetworkErrorMessage(
                 from: NetworkErrorAdapter.wrap(error),

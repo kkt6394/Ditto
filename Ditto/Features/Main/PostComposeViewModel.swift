@@ -203,11 +203,12 @@ private extension PostComposeViewModel {
 
             do {
                 let networkManager = try self.networkManagerProvider()
-                let file = MultipartFile(
+                let file = try MultipartFile(
                     filename: "post_\(attachment.id.uuidString).jpg",
                     mimeType: "image/jpeg",
                     data: attachment.previewData
                 )
+                .validated(against: .postFiles)
                 let response: FileResponseDTO = try await networkManager.request(
                     PostRouter.uploadFiles(PostFileUploadRequestDTO(files: [file]))
                 )
@@ -218,6 +219,8 @@ private extension PostComposeViewModel {
                 }
 
                 self.markAttachmentUploaded(attachment.id, path: path)
+            } catch let validationError as MultipartUploadError {
+                self.markAttachmentFailed(attachment.id, message: validationError.userMessage)
             } catch {
                 let message = Self.makeErrorMessage(from: error, fallback: "사진 업로드에 실패했습니다.")
                 self.markAttachmentFailed(attachment.id, message: message)

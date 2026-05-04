@@ -50,6 +50,53 @@ struct MultipartFile: Equatable {
     let data: Data
 }
 
+// 서버 정책에 맞춰 업로드 직전 파일 크기/개수를 사전 검증한다.
+// 화면별 정밀 가공(다운샘플·재인코딩)은 별도 책임으로 두고, 여기서는 마지막 안전망 역할만 한다.
+struct MultipartUploadLimit {
+    let maxBytesPerFile: Int
+    let maxFiles: Int
+
+    static let profileImage = MultipartUploadLimit(maxBytesPerFile: 1 * 1024 * 1024, maxFiles: 1)
+    static let activityFiles = MultipartUploadLimit(maxBytesPerFile: 5 * 1024 * 1024, maxFiles: 5)
+    static let postFiles = activityFiles
+    static let reviewFiles = activityFiles
+    static let chatFiles = activityFiles
+}
+
+enum MultipartUploadError: Error, Equatable {
+    case fileTooLarge(filename: String, maxBytes: Int)
+    case tooManyFiles(maxFiles: Int)
+
+    var userMessage: String {
+        switch self {
+        case .fileTooLarge(_, let maxBytes):
+            let mb = Double(maxBytes) / (1024 * 1024)
+            return String(format: "파일 크기는 최대 %.0fMB까지 가능합니다.", mb)
+        case .tooManyFiles(let maxFiles):
+            return "한 번에 최대 \(maxFiles)개까지 첨부할 수 있습니다."
+        }
+    }
+}
+
+extension Array where Element == MultipartFile {
+    func validated(against limit: MultipartUploadLimit) throws -> Self {
+        if count > limit.maxFiles {
+            throw MultipartUploadError.tooManyFiles(maxFiles: limit.maxFiles)
+        }
+        if let oversized = first(where: { $0.data.count > limit.maxBytesPerFile }) {
+            throw MultipartUploadError.fileTooLarge(filename: oversized.filename, maxBytes: limit.maxBytesPerFile)
+        }
+        return self
+    }
+}
+
+extension MultipartFile {
+    func validated(against limit: MultipartUploadLimit) throws -> MultipartFile {
+        _ = try [self].validated(against: limit)
+        return self
+    }
+}
+
 private extension Data {
     mutating func append(_ string: String) {
         append(Data(string.utf8))
