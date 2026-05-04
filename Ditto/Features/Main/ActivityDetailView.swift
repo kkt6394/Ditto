@@ -472,22 +472,6 @@ final class ActivityDetailViewModel {
     }
 
     private static func makeMessage(from error: Error, fallback: String) -> String {
-        switch error {
-        case let error as NetworkError:
-            switch error {
-            case .missingAuthenticationToken:
-                return "로그인이 필요합니다."
-            case .statusCode(_, let message, _):
-                return message ?? fallback
-            case .requestFailed:
-                return "네트워크 연결을 확인해 주세요."
-            default:
-                return fallback
-            }
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
-        default:
-            return fallback
-        }
+        NetworkErrorMapper.userMessage(from: error, fallback: fallback)
     }
 }

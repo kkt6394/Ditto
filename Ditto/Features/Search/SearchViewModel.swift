@@ -376,33 +376,11 @@ private extension SearchViewModel {
     }
 
     static func makeErrorMessage(from error: Error) -> String {
-        switch error {
-        case let error as NetworkError:
-            return makeNetworkErrorMessage(from: error)
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
-        default:
-            return "액티비티를 불러오지 못했습니다."
-        }
+        NetworkErrorMapper.userMessage(from: error, fallback: "액티비티를 불러오지 못했습니다.")
     }
 
     static func makeNetworkErrorMessage(from error: NetworkError) -> String {
-        switch error {
-        case .missingAuthenticationToken:
-            return "로그인이 필요합니다."
-        case .statusCode(_, let message, _):
-            return message ?? "액티비티를 불러오지 못했습니다."
-        case .requestFailed:
-            return "네트워크 연결을 확인해 주세요."
-        case .decodingFailed:
-            return "액티비티를 불러오지 못했습니다."
-        case .invalidURL:
-            return "요청 주소가 올바르지 않습니다."
-        case .invalidResponse:
-            return "서버 응답을 확인할 수 없습니다."
-        case .encodingFailed:
-            return "요청 데이터를 만들 수 없습니다."
-        }
+        NetworkErrorMapper.networkUserMessage(from: error, fallback: "액티비티를 불러오지 못했습니다.")
     }
 }
 

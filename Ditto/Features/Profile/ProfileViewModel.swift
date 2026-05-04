@@ -83,10 +83,7 @@ final class ProfileViewModel {
                 accessToken: authManager.tokens?.accessToken
             )
         } catch {
-            profileMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "프로필을 불러오지 못했습니다."
-            )
+            profileMessage = NetworkErrorMapper.userMessage(from: error, fallback: "프로필을 불러오지 못했습니다.")
         }
     }
 
@@ -130,10 +127,7 @@ final class ProfileViewModel {
                 myPostsMessage = "아직 작성한 포스트가 없습니다."
             }
         } catch {
-            myPostsMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "내 포스트를 불러오지 못했습니다."
-            )
+            myPostsMessage = NetworkErrorMapper.userMessage(from: error, fallback: "내 포스트를 불러오지 못했습니다.")
         }
     }
 
@@ -176,10 +170,7 @@ final class ProfileViewModel {
             )
             return true
         } catch {
-            actionMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "프로필 수정에 실패했습니다."
-            )
+            actionMessage = NetworkErrorMapper.userMessage(from: error, fallback: "프로필 수정에 실패했습니다.")
             return false
         }
     }
@@ -229,14 +220,9 @@ final class ProfileViewModel {
                 accessToken: authManager.tokens?.accessToken
             )
             return true
-        } catch let validationError as MultipartUploadError {
-            actionMessage = validationError.userMessage
-            return false
         } catch {
-            actionMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "이미지 업로드에 실패했습니다."
-            )
+            // MultipartUploadError를 포함한 모든 에러는 mapper가 일관된 사용자 메시지로 변환한다.
+            actionMessage = NetworkErrorMapper.userMessage(from: error, fallback: "이미지 업로드에 실패했습니다.")
             return false
         }
     }
@@ -256,10 +242,7 @@ final class ProfileViewModel {
             try? authManager.signOut()
             return true
         } catch {
-            actionMessage = MainViewModel.makeNetworkErrorMessage(
-                from: NetworkErrorAdapter.wrap(error),
-                fallbackMessage: "회원탈퇴에 실패했습니다."
-            )
+            actionMessage = NetworkErrorMapper.userMessage(from: error, fallback: "회원탈퇴에 실패했습니다.")
             return false
         }
     }
@@ -296,13 +279,3 @@ private extension ProfileViewModel {
     }
 }
 
-// NetworkError가 아닌 generic Error도 일관된 사용자 메시지로 변환할 수 있도록
-// MainViewModel.makeNetworkErrorMessage가 받을 수 있는 형태로 감싼다.
-private enum NetworkErrorAdapter {
-    static func wrap(_ error: Error) -> NetworkError {
-        if let networkError = error as? NetworkError {
-            return networkError
-        }
-        return .requestFailed(error)
-    }
-}

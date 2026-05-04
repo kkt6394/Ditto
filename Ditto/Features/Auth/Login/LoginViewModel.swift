@@ -192,40 +192,19 @@ final class LoginViewModel {
     }
 
     static func makeErrorMessage(from error: Error) -> String {
-        // ViewModel은 네트워크 계층 오류를 사용자 메시지로 번역한다.
+        // 카카오 SDK 전용 에러는 ViewModel 측 도메인 메시지로 처리하고, 그 외는 공통 mapper에 위임한다.
         switch error {
-        case let error as NetworkError:
-            return makeNetworkErrorMessage(from: error)
-        case AuthManagerError.tokenSaveFailed:
-            return "인증 정보를 저장할 수 없습니다."
         case KakaoLoginServiceError.missingNativeAppKey:
             return "카카오 앱 키를 확인해 주세요."
         case KakaoLoginServiceError.missingOAuthToken:
             return "카카오 인증 정보를 확인할 수 없습니다."
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
         default:
-            return "로그인 요청에 실패했습니다."
+            return NetworkErrorMapper.userMessage(from: error, fallback: "로그인 요청에 실패했습니다.")
         }
     }
 
     static func makeNetworkErrorMessage(from error: NetworkError) -> String {
-        switch error {
-        case .invalidURL:
-            return "요청 주소가 올바르지 않습니다."
-        case .invalidResponse:
-            return "서버 응답을 확인할 수 없습니다."
-        case .missingAuthenticationToken:
-            return "로그인이 필요합니다."
-        case .statusCode(_, let message, _):
-            return message ?? "로그인 요청에 실패했습니다."
-        case .encodingFailed:
-            return "요청 데이터를 만들 수 없습니다."
-        case .decodingFailed:
-            return "로그인 처리 중 문제가 발생했습니다. 잠시 후 다시 시도해 주세요."
-        case .requestFailed:
-            return "네트워크 연결을 확인해 주세요."
-        }
+        NetworkErrorMapper.networkUserMessage(from: error, fallback: "로그인 요청에 실패했습니다.")
     }
 }
 

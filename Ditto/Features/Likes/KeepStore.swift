@@ -196,17 +196,7 @@ final class KeepStore {
     }
 
     static func makeErrorMessage(from error: Error) -> String {
-        switch error {
-        case let error as NetworkError:
-            return MainViewModel.makeNetworkErrorMessage(
-                from: error,
-                fallbackMessage: "좋아요 목록을 불러오지 못했습니다."
-            )
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
-        default:
-            return "좋아요 목록을 불러오지 못했습니다."
-        }
+        NetworkErrorMapper.userMessage(from: error, fallback: "좋아요 목록을 불러오지 못했습니다.")
     }
 }
 

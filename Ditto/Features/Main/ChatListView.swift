@@ -244,23 +244,7 @@ final class ChatListViewModel {
     }
 
     private static func makeErrorMessage(from error: Error) -> String {
-        switch error {
-        case let error as NetworkError:
-            switch error {
-            case .missingAuthenticationToken:
-                return "로그인이 필요합니다."
-            case .statusCode(_, let message, _):
-                return message ?? "채팅 목록을 불러오지 못했습니다."
-            case .requestFailed:
-                return "네트워크 연결을 확인해 주세요."
-            default:
-                return "채팅 목록을 불러오지 못했습니다."
-            }
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
-        default:
-            return "채팅 목록을 불러오지 못했습니다."
-        }
+        NetworkErrorMapper.userMessage(from: error, fallback: "채팅 목록을 불러오지 못했습니다.")
     }
 }
 

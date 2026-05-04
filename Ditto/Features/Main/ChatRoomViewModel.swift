@@ -281,23 +281,7 @@ final class ChatRoomViewModel {
     }
 
     static func makeErrorMessage(from error: Error, fallbackMessage: String) -> String {
-        switch error {
-        case let error as NetworkError:
-            switch error {
-            case .missingAuthenticationToken:
-                return "로그인이 필요합니다."
-            case .statusCode(_, let message, _):
-                return message ?? fallbackMessage
-            case .requestFailed:
-                return "네트워크 연결을 확인해 주세요."
-            default:
-                return fallbackMessage
-            }
-        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
-            return "API 설정값을 확인해 주세요."
-        default:
-            return fallbackMessage
-        }
+        NetworkErrorMapper.userMessage(from: error, fallback: fallbackMessage)
     }
 }
 
