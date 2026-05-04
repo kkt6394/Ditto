@@ -77,6 +77,12 @@ struct PostLikeRequestDTO: Encodable, Equatable {
     }
 }
 
+// 위치기반 게시글 조회 정렬 기준. rawValue가 그대로 order_by 쿼리로 전송된다.
+enum PostOrderBy: String, Equatable {
+    case createdAt
+    case likes
+}
+
 struct PostGeolocationQuery: Equatable {
     let country: String?
     let category: String?
@@ -85,7 +91,7 @@ struct PostGeolocationQuery: Equatable {
     let maxDistance: Int?
     let limit: Int?
     let next: String?
-    let orderBy: String?
+    let orderBy: PostOrderBy?
 }
 
 struct PostUserListQuery: Equatable {

@@ -37,11 +37,18 @@ struct ReviewUpdateRequestDTO: Encodable, Equatable {
     }
 }
 
+// 액티비티 리뷰 목록 정렬 기준. rawValue가 그대로 order_by 쿼리로 전송된다.
+enum ReviewOrderBy: String, Equatable {
+    case latest
+    case ratingHigh = "rating_high"
+    case ratingLow = "rating_low"
+}
+
 struct ReviewListQuery: Equatable {
     let activityId: String
     let next: String?
     let limit: Int?
-    let orderBy: String?
+    let orderBy: ReviewOrderBy?
 }
 
 struct UserReviewListQuery: Equatable {

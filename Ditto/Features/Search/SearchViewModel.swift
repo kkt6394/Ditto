@@ -159,7 +159,7 @@ final class SearchViewModel {
                 maxDistance: maxDistanceMeters,
                 limit: 30,
                 next: nil,
-                orderBy: "createdAt"
+                orderBy: .createdAt
             )
             let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
                 PostRouter.geolocation(query)

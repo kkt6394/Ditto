@@ -161,7 +161,7 @@ final class MainViewModel {
                 maxDistance: coordinate == nil ? nil : maxDistanceMeters,
                 limit: 5,
                 next: nil,
-                orderBy: "createdAt"
+                orderBy: .createdAt
             )
             let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
                 PostRouter.geolocation(query)

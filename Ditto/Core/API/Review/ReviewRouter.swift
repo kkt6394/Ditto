@@ -58,7 +58,7 @@ extension ReviewRouter {
             return [
                 query.next.map { URLQueryItem(name: "next", value: $0) },
                 query.limit.map { URLQueryItem(name: "limit", value: String($0)) },
-                query.orderBy.map { URLQueryItem(name: "order_by", value: $0) }
+                query.orderBy.map { URLQueryItem(name: "order_by", value: $0.rawValue) }
             ]
             .compactMap { $0 }
         case .reviewsByUser(let query):
