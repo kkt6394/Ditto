@@ -423,42 +423,42 @@ struct SearchCategory: Identifiable, Hashable {
             id: "sightseeing",
             title: "관광",
             navigationTitle: "SIGHTSEEING",
-            backgroundColor: Color(red: 0.624, green: 0.776, blue: 0.639),
+            backgroundColor: Color(red: 0.773, green: 0.416, blue: 0.231),
             imageName: "SearchCategorySightseeing"
         ),
         .init(
             id: "tour",
             title: "투어",
             navigationTitle: "TOUR",
-            backgroundColor: Color(red: 0.290, green: 0.090, blue: 0.949),
+            backgroundColor: Color(red: 0.176, green: 0.478, blue: 0.420),
             imageName: "SearchCategoryTour"
         ),
         .init(
             id: "package",
             title: "패키지",
             navigationTitle: "PACKAGE",
-            backgroundColor: Color(red: 0.918, green: 0.145, blue: 0.290),
+            backgroundColor: Color(red: 0.176, green: 0.227, blue: 0.290),
             imageName: "SearchCategoryPackage"
         ),
         .init(
             id: "exciting",
             title: "익사이팅",
             navigationTitle: "EXCITING",
-            backgroundColor: Color(red: 0.941, green: 0.420, blue: 0.090),
+            backgroundColor: Color(red: 0.141, green: 0.439, blue: 0.816),
             imageName: "SearchCategoryExciting"
         ),
         .init(
             id: "experience",
             title: "체험",
             navigationTitle: "EXPERIENCE",
-            backgroundColor: Color(red: 0.231, green: 0.549, blue: 1.000),
+            backgroundColor: Color(red: 0.478, green: 0.353, blue: 0.239),
             imageName: "SearchCategoryExperience"
         ),
         .init(
             id: "all",
             title: "전체",
             navigationTitle: "ALL",
-            backgroundColor: Color(red: 0.722, green: 0.294, blue: 0.886),
+            backgroundColor: Color(red: 0.475, green: 0.196, blue: 0.749),
             imageName: "SearchCategoryRandom"
         )
     ]
