@@ -41,7 +41,8 @@ extension ChatRouter {
     var queryItems: [URLQueryItem] {
         switch self {
         case .messages(let query):
-            return [URLQueryItem(name: "next", value: query.next)].compactMap { $0 }
+            // next가 nil이면 키 자체를 빼서 서버가 처음부터 조회하도록 한다.
+            return [query.next.map { URLQueryItem(name: "next", value: $0) }].compactMap { $0 }
         case .createRoom, .rooms, .send, .uploadFiles:
             return []
         }

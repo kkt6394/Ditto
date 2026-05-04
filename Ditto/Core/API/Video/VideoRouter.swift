@@ -37,8 +37,9 @@ extension VideoRouter {
     var queryItems: [URLQueryItem] {
         switch self {
         case .list(let query):
+            // next가 nil이면 키 자체를 빼서 서버가 처음부터 조회하도록 한다.
             return [
-                URLQueryItem(name: "next", value: query.next),
+                query.next.map { URLQueryItem(name: "next", value: $0) },
                 query.limit.map { URLQueryItem(name: "limit", value: String($0)) }
             ]
             .compactMap { $0 }

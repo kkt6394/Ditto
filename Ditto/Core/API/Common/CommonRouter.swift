@@ -13,7 +13,7 @@ enum CommonRouter: APIRouter {
 
 extension CommonRouter {
     var path: String {
-        "common"
+        "v1/common"
     }
 
     var method: HTTPMethod {

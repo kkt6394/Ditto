@@ -53,17 +53,19 @@ extension ReviewRouter {
     var queryItems: [URLQueryItem] {
         switch self {
         case .list(let query):
+            // nil 필터를 빈 키로 보내면 서버가 빈 문자열 매칭으로 0건을 반환할 수 있어
+            // 값이 있는 항목만 query에 추가한다.
             return [
-                URLQueryItem(name: "next", value: query.next),
+                query.next.map { URLQueryItem(name: "next", value: $0) },
                 query.limit.map { URLQueryItem(name: "limit", value: String($0)) },
-                URLQueryItem(name: "order_by", value: query.orderBy)
+                query.orderBy.map { URLQueryItem(name: "order_by", value: $0) }
             ]
             .compactMap { $0 }
         case .reviewsByUser(let query):
             return [
-                URLQueryItem(name: "country", value: query.country),
-                URLQueryItem(name: "category", value: query.category),
-                URLQueryItem(name: "next", value: query.next),
+                query.country.map { URLQueryItem(name: "country", value: $0) },
+                query.category.map { URLQueryItem(name: "category", value: $0) },
+                query.next.map { URLQueryItem(name: "next", value: $0) },
                 query.limit.map { URLQueryItem(name: "limit", value: String($0)) }
             ]
             .compactMap { $0 }
