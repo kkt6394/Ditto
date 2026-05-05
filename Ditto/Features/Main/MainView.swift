@@ -258,7 +258,10 @@ struct MainView: View {
                 authManager: authManager,
                 isActive: selectedTabID == MainTab.profile.rawValue,
                 signOutMessage: signOutMessage,
-                signOutAction: signOut
+                signOutAction: signOut,
+                orderListAction: {
+                    navigationPath.append(MainRoute.orderList)
+                }
             )
             .tag(MainTab.profile.rawValue)
         }
@@ -390,26 +393,6 @@ struct MainView: View {
         selectedTabID = item.id
     }
 
-    @ViewBuilder
-    private func destination(for route: MainRoute) -> some View {
-        switch route {
-        case .activityDetail(let activityId):
-            ActivityDetailView(activityId: activityId, authManager: authManager) { roomId, opponentNick in
-                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
-            }
-        case .chat(let roomId, let opponentNick):
-            ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
-        case .searchCategory(let category):
-            SearchCategoryActivityListView(
-                category: category,
-                authManager: authManager,
-                activityDetailAction: { activityId in
-                    openActivityDetail(activityId: activityId)
-                }
-            )
-        }
-    }
-
     private func openActivityDetail(for post: MainActivityPost) {
         // 포스트가 액티비티 ID를 포함하지 않는 경우, 요청된 디자인 Node ID 상세로 연결한다.
         navigationPath.append(MainRoute.activityDetail(activityId: post.activityId ?? "DXWNE"))
@@ -465,10 +448,42 @@ struct MainView: View {
     }
 }
 
+// MainRoute에 대한 destination 빌더는 SwiftLint type_body_length(400) 룰을 피해
+// MainView struct 외부의 file-private extension으로 분리한다.
+private extension MainView {
+    @ViewBuilder
+    func destination(for route: MainRoute) -> some View {
+        switch route {
+        case .activityDetail(let activityId):
+            ActivityDetailView(activityId: activityId, authManager: authManager) { roomId, opponentNick in
+                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
+            }
+        case .chat(let roomId, let opponentNick):
+            ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
+        case .searchCategory(let category):
+            SearchCategoryActivityListView(
+                category: category,
+                authManager: authManager,
+                activityDetailAction: { activityId in
+                    openActivityDetail(activityId: activityId)
+                }
+            )
+        case .orderList:
+            OrderListView(authManager: authManager) { orderCode in
+                navigationPath.append(MainRoute.receipt(orderCode: orderCode))
+            }
+        case .receipt(let orderCode):
+            ReceiptView(orderCode: orderCode, authManager: authManager)
+        }
+    }
+}
+
 private enum MainRoute: Hashable {
     case activityDetail(activityId: String)
     case chat(roomId: String, opponentNick: String)
     case searchCategory(SearchCategory)
+    case orderList
+    case receipt(orderCode: String)
 }
 
 #Preview {
