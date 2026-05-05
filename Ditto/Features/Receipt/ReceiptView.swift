@@ -95,20 +95,22 @@ private struct ReceiptNavigationBar: View {
 }
 
 private struct ReceiptCard: View {
-    let receipt: ReceiptOrderResponseDTO
+    let receipt: PaymentResponseDTO
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            ReceiptRow(label: "결제 ID", value: receipt.paymentId)
-            ReceiptRow(label: "주문 번호", value: receipt.orderItem.orderCode)
-            ReceiptRow(
-                label: "액티비티",
-                value: receipt.orderItem.activity.title ?? "이름 없는 액티비티"
-            )
-            ReceiptRow(label: "품목", value: receipt.orderItem.reservationItemName)
-            ReceiptRow(label: "일정", value: receipt.orderItem.reservationItemTime)
-            ReceiptRow(label: "인원", value: "\(receipt.orderItem.participantCount)명")
-            ReceiptRow(label: "결제 일자", value: receipt.orderItem.paidAt)
+            ReceiptRow(label: "결제 ID", value: receipt.impUid)
+            ReceiptRow(label: "주문 번호", value: receipt.merchantUid)
+            ReceiptRow(label: "액티비티", value: receipt.name ?? "이름 없는 액티비티")
+            ReceiptRow(label: "결제 수단", value: receipt.payMethod ?? "-")
+
+            if let cardDisplay = makeCardDisplay() {
+                ReceiptRow(label: "카드", value: cardDisplay)
+            }
+
+            ReceiptRow(label: "PG", value: receipt.pgProvider ?? "-")
+            ReceiptRow(label: "결제 상태", value: receipt.status)
+            ReceiptRow(label: "결제 일자", value: receipt.paidAt)
 
             Divider()
                 .overlay(MainScreenPalette.border)
@@ -120,7 +122,7 @@ private struct ReceiptCard: View {
 
                 Spacer()
 
-                Text(ActivityFormatting.makePriceText(Double(receipt.orderItem.totalPrice)))
+                Text(ActivityFormatting.makePriceText(Double(receipt.amount)))
                     .font(MainFont.pretendard(.bold, size: 18))
                     .foregroundStyle(MainScreenPalette.textPrimary)
             }
@@ -134,6 +136,20 @@ private struct ReceiptCard: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .stroke(MainScreenPalette.border, lineWidth: 1)
         )
+    }
+
+    private func makeCardDisplay() -> String? {
+        // 카드명/번호 둘 다 없으면 행 자체를 숨겨 빈 값을 보여주지 않는다.
+        switch (receipt.cardName, receipt.cardNumber) {
+        case (let name?, let number?):
+            return "\(name) \(number)"
+        case (let name?, nil):
+            return name
+        case (nil, let number?):
+            return number
+        default:
+            return nil
+        }
     }
 }
 

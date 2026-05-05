@@ -15,13 +15,6 @@ struct PaymentValidationRequestDTO: Encodable, Equatable {
     }
 }
 
-struct ReceiptOrderResponseDTO: Decodable, Equatable {
-    let paymentId: String
-    let orderItem: OrderResponseDTO
-    let createdAt: String
-    let updatedAt: String
-}
-
 struct PaymentResponseDTO: Decodable, Equatable {
     let impUid: String
     let merchantUid: String

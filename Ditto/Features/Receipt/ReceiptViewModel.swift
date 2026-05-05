@@ -9,13 +9,13 @@ import Foundation
 import Observation
 
 // 영수증 조회 ViewModel.
-// orderCode로 GET /v1/payments/{orderCode} 호출 → 결제 + 주문 정보 조회.
+// orderCode로 GET /v1/payments/{orderCode} 호출 → 포트원 결제 영수증 정보 조회.
 @MainActor
 @Observable
 final class ReceiptViewModel {
     let orderCode: String
 
-    private(set) var receipt: ReceiptOrderResponseDTO?
+    private(set) var receipt: PaymentResponseDTO?
     private(set) var isLoading = false
     var message: String?
 
@@ -46,7 +46,7 @@ final class ReceiptViewModel {
 
         do {
             let networkManager = try networkManagerProvider()
-            let response: ReceiptOrderResponseDTO = try await networkManager.request(
+            let response: PaymentResponseDTO = try await networkManager.request(
                 PaymentRouter.receipt(orderCode: orderCode)
             )
             receipt = response
