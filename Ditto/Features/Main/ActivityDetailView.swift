@@ -26,15 +26,26 @@ struct ActivityDetailView: View {
 
     private let authManager: any AuthManaging
     private let onStartChat: (String, String) -> Void
+    private let onStartEdit: (String) -> Void
 
     init(
         activityId: String,
         authManager: any AuthManaging,
-        onStartChat: @escaping (String, String) -> Void = { _, _ in }
+        onStartChat: @escaping (String, String) -> Void = { _, _ in },
+        onStartEdit: @escaping (String) -> Void = { _ in }
     ) {
         _viewModel = State(initialValue: ActivityDetailViewModel(activityId: activityId, authManager: authManager))
         self.authManager = authManager
         self.onStartChat = onStartChat
+        self.onStartEdit = onStartEdit
+    }
+
+    // 본인이 작성한 액티비티인 경우에만 우상단 "수정" 버튼을 노출한다.
+    private var canEditCurrentActivity: Bool {
+        guard let myId = viewModel.currentUserId,
+              let creatorId = viewModel.activity?.creator.userId,
+              !myId.isEmpty else { return false }
+        return myId == creatorId
     }
 
     var body: some View {
@@ -144,6 +155,19 @@ struct ActivityDetailView: View {
                 .foregroundStyle(MainScreenPalette.primaryBlue)
 
             Spacer()
+
+            if canEditCurrentActivity {
+                Button {
+                    onStartEdit(viewModel.activityId)
+                } label: {
+                    Image(systemName: "square.and.pencil")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("액티비티 수정")
+            }
 
             ActivityKeepHeart(activityId: viewModel.activityId, size: 36)
                 .padding(.trailing, 8)

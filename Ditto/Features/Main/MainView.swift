@@ -261,6 +261,9 @@ struct MainView: View {
                 signOutAction: signOut,
                 orderListAction: {
                     navigationPath.append(MainRoute.orderList)
+                },
+                composeActivityAction: {
+                    navigationPath.append(MainRoute.activityCompose(mode: .create))
                 }
             )
             .tag(MainTab.profile.rawValue)
@@ -459,9 +462,16 @@ private extension MainView {
     func destination(for route: MainRoute) -> some View {
         switch route {
         case .activityDetail(let activityId):
-            ActivityDetailView(activityId: activityId, authManager: authManager) { roomId, opponentNick in
-                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
-            }
+            ActivityDetailView(
+                activityId: activityId,
+                authManager: authManager,
+                onStartChat: { roomId, opponentNick in
+                    navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
+                },
+                onStartEdit: { editableId in
+                    navigationPath.append(MainRoute.activityCompose(mode: .edit(activityId: editableId)))
+                }
+            )
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
         case .searchCategory(let category):
@@ -478,6 +488,10 @@ private extension MainView {
             }
         case .receipt(let orderCode):
             ReceiptView(orderCode: orderCode, authManager: authManager)
+        case .activityCompose(let mode):
+            ActivityComposeView(mode: mode, authManager: authManager) {
+                // 작성 후 후처리는 후속 커밋에서 — 일단 화면만 닫는다.
+            }
         }
     }
 }
@@ -488,6 +502,7 @@ private enum MainRoute: Hashable {
     case searchCategory(SearchCategory)
     case orderList
     case receipt(orderCode: String)
+    case activityCompose(mode: ActivityComposeMode)
 }
 
 #Preview {
