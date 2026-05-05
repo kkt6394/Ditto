@@ -102,10 +102,116 @@ final class ActivityComposeViewModel {
         // TODO: ActivityRouter.detail 호출 후 폼 필드/existingThumbnails prefill
     }
 
-    // 이미지 업로드 → DTO 빌드 → create/update 호출.
-    // 후속 커밋(제출 로직 단계)에서 실제 구현 — 스켈레톤에서는 placeholder만.
+    // 진행 중인 업로드가 있으면 짧게 폴링하며 대기한 뒤, 실패가 없으면 DTO를 빌드해 create/update를 호출한다.
     func submit() async -> Bool {
-        formMessage = "제출 로직은 다음 커밋에서 연결됩니다."
+        guard canSubmit else { return false }
+
+        isSubmitting = true
+        formMessage = nil
+        defer { isSubmitting = false }
+
+        // 업로드가 끝날 때까지 잠깐 대기. canSubmit는 .uploaded 1장 보장만 하므로
+        // 추가로 진행 중인 첨부가 있으면 그 결과까지 반영해야 thumbnails가 올바르다.
+        while attachments.contains(where: { Self.isUploading($0) }) {
+            try? await Task.sleep(nanoseconds: 200_000_000)
+        }
+
+        if attachments.contains(where: { Self.isFailed($0) }) {
+            formMessage = "업로드에 실패한 사진이 있습니다. 해당 사진을 삭제한 뒤 다시 시도해 주세요."
+            return false
+        }
+
+        let request = buildRequestDTO()
+
+        do {
+            let networkManager = try networkManagerProvider()
+            switch mode {
+            case .create:
+                let _: ActivityResponseDTO = try await networkManager.request(ActivityRouter.create(request))
+            case .edit(let activityId):
+                let _: ActivityResponseDTO = try await networkManager.request(
+                    ActivityRouter.update(activityId: activityId, request: request)
+                )
+            }
+            didSubmitSuccessfully = true
+            return true
+        } catch {
+            formMessage = Self.makeErrorMessage(from: error, fallback: "저장에 실패했습니다.")
+            return false
+        }
+    }
+}
+
+// MARK: - 제출 DTO 빌드
+private extension ActivityComposeViewModel {
+    func buildRequestDTO() -> ActivityCreateRequestDTO {
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime]
+
+        let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDescription = descriptionText.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        let activeExistingThumbnails = existingThumbnails
+            .filter { !$0.isMarkedForDeletion }
+            .map { $0.path }
+        let newThumbnails = attachments.compactMap { $0.uploadedPath }
+        let thumbnails = activeExistingThumbnails + newThumbnails
+
+        let tags = parsedTags()
+        let scheduleItems = parsedSchedule()
+
+        return ActivityCreateRequestDTO(
+            title: trimmedTitle.isEmpty ? nil : trimmedTitle,
+            country: country.isEmpty ? nil : country,
+            category: category.isEmpty ? nil : category,
+            latitude: latitude,
+            longitude: longitude,
+            startDate: startDate.flatMap { isoFormatter.string(from: $0) },
+            endDate: endDate.flatMap { isoFormatter.string(from: $0) },
+            originalPrice: originalPrice,
+            finalPrice: finalPrice,
+            tags: tags,
+            pointReward: pointReward,
+            minHeight: minHeight,
+            minAge: minAge,
+            maxParticipants: maxParticipants,
+            description: trimmedDescription.isEmpty ? nil : trimmedDescription,
+            isAdvertisement: isAdvertisement,
+            schedule: scheduleItems,
+            thumbnails: thumbnails.isEmpty ? nil : thumbnails
+        )
+    }
+
+    func parsedTags() -> [String]? {
+        let items = tagsText
+            .split(whereSeparator: { $0 == "," || $0 == "\n" })
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+        return items.isEmpty ? nil : items
+    }
+
+    func parsedSchedule() -> [ActivityScheduleItemRequestDTO]? {
+        let items = schedule.compactMap { draft -> ActivityScheduleItemRequestDTO? in
+            let duration = draft.duration.trimmingCharacters(in: .whitespacesAndNewlines)
+            let description = draft.description.trimmingCharacters(in: .whitespacesAndNewlines)
+            if duration.isEmpty && description.isEmpty {
+                return nil
+            }
+            return ActivityScheduleItemRequestDTO(
+                duration: duration.isEmpty ? nil : duration,
+                description: description.isEmpty ? nil : description
+            )
+        }
+        return items.isEmpty ? nil : items
+    }
+
+    static func isUploading(_ attachment: ActivityComposeAttachment) -> Bool {
+        if case .uploading = attachment.state { return true }
+        return false
+    }
+
+    static func isFailed(_ attachment: ActivityComposeAttachment) -> Bool {
+        if case .failed = attachment.state { return true }
         return false
     }
 }
