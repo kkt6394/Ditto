@@ -372,10 +372,14 @@ struct MainView: View {
     }
 
     private func signOut() {
-        do {
-            try authManager.signOut()
-        } catch {
-            signOutMessage = "로그아웃 처리에 실패했습니다."
+        // 서버 로그아웃 → 로컬 토큰 삭제 순서. 서버 호출은 best-effort라 실패해도 로컬 정리는 진행된다.
+        Task {
+            await viewModel.performServerLogout()
+            do {
+                try authManager.signOut()
+            } catch {
+                signOutMessage = "로그아웃 처리에 실패했습니다."
+            }
         }
     }
 

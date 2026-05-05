@@ -297,6 +297,16 @@ final class MainViewModel {
         )
     }
 
+    // 서버 로그아웃은 베스트 에포트 — 실패해도 로컬 토큰 삭제(authManager.signOut)를 가로막지 않는다.
+    func performServerLogout() async {
+        do {
+            let networkManager = try networkManagerProvider()
+            try await networkManager.send(AuthRouter.logout)
+        } catch {
+            // 네트워크 오류·토큰 만료 등으로 호출이 실패해도 로컬 로그아웃은 보장한다.
+        }
+    }
+
     func createChatRoom(opponentId: String) async -> ChatRoomResponseDTO? {
         chatStartMessage = nil
 
