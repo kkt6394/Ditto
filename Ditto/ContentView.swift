@@ -9,8 +9,22 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var authManager = AuthManager()
+    // 스플래시(헬스체크)가 끝나기 전에는 인증 분기를 노출하지 않는다.
+    @State private var hasCompletedBootChecks = false
 
     var body: some View {
+        if hasCompletedBootChecks {
+            authenticatedDestination
+        } else {
+            SplashView(
+                authManager: authManager,
+                onFinish: { hasCompletedBootChecks = true }
+            )
+        }
+    }
+
+    @ViewBuilder
+    private var authenticatedDestination: some View {
         if authManager.isAuthenticated {
             MainView(authManager: authManager)
         } else {
