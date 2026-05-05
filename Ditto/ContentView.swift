@@ -16,10 +16,7 @@ struct ContentView: View {
         if hasCompletedBootChecks {
             authenticatedDestination
         } else {
-            SplashView(
-                authManager: authManager,
-                onFinish: { hasCompletedBootChecks = true }
-            )
+            SplashView(onFinish: { hasCompletedBootChecks = true })
         }
     }
 
