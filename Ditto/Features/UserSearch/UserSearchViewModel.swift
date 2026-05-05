@@ -17,6 +17,8 @@ final class UserSearchViewModel {
     private(set) var results: [UserInfoResponseDTO] = []
     private(set) var isSearching = false
     var message: String?
+    // 채팅방 생성 시 발생한 에러 메시지. ActivityDetailViewModel과 동일하게 사용자가 볼 수 있도록 노출한다.
+    private(set) var chatStartMessage: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private var currentTask: Task<Void, Never>?
@@ -53,7 +55,51 @@ final class UserSearchViewModel {
         query = ""
         results = []
         message = nil
+        chatStartMessage = nil
         isSearching = false
+    }
+
+    /// 상대 유저와의 1:1 채팅방을 생성한다. 이미 존재하는 경우 기존 방을 반환한다.
+    /// ActivityDetailViewModel.createChatRoom(opponentId:) 패턴을 그대로 차용한다.
+    func createChatRoom(opponentId: String) async -> ChatRoomResponseDTO? {
+        chatStartMessage = nil
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let request = ChatRoomCreateRequestDTO(opponentId: opponentId)
+            return try await networkManager.request(ChatRouter.createRoom(request))
+        } catch {
+            do {
+                let networkManager = try networkManagerProvider()
+                if let existingRoom = try await existingChatRoom(
+                    opponentId: opponentId,
+                    networkManager: networkManager
+                ) {
+                    return existingRoom
+                }
+            } catch {
+                // 새 방 생성 실패 원인이 기존 방인 경우가 있어, 목록 조회 실패보다 원래 오류 메시지를 우선 보여준다.
+            }
+
+            chatStartMessage = NetworkErrorMapper.userMessage(
+                from: error,
+                fallback: "채팅방을 만들지 못했습니다."
+            )
+            return nil
+        }
+    }
+
+    private func existingChatRoom(
+        opponentId: String,
+        networkManager: any NetworkManaging
+    ) async throws -> ChatRoomResponseDTO? {
+        let response: ChatRoomListResponseDTO = try await networkManager.request(ChatRouter.rooms)
+
+        return response.data.first { room in
+            room.participants.contains { participant in
+                participant.userId == opponentId
+            }
+        }
     }
 
     private func performSearch(nick: String) async {

@@ -13,6 +13,10 @@ struct ChatListView: View {
     private let onSelectRoom: (String, String) -> Void
 
     @State private var viewModel: ChatListViewModel
+    @State private var isPresentingUserSearch = false
+    // sheet dismiss와 navigationPath push가 동시에 일어나면 애니메이션이 꼬이므로
+    // sheet가 닫힌 뒤 onDismiss 시점에 push 하기 위한 보류 슬롯.
+    @State private var pendingChatRoom: (roomId: String, opponentNick: String)?
 
     init(
         authManager: any AuthManaging,
@@ -35,6 +39,15 @@ struct ChatListView: View {
                     .foregroundStyle(MainScreenPalette.textPrimary)
 
                 Spacer()
+
+                Button {
+                    isPresentingUserSearch = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                        .padding(8)
+                }
             }
             .padding(.horizontal, 20)
             .padding(.top, 12)
@@ -49,6 +62,17 @@ struct ChatListView: View {
         }
         .refreshable {
             await viewModel.load()
+        }
+        .sheet(isPresented: $isPresentingUserSearch) {
+            // sheet가 완전히 닫힌 뒤에 navigationPath push를 실행해야 전환 애니메이션이 자연스럽다.
+            if let pending = pendingChatRoom {
+                pendingChatRoom = nil
+                onSelectRoom(pending.roomId, pending.opponentNick)
+            }
+        } content: {
+            UserSearchView(authManager: authManager) { roomId, opponentNick in
+                pendingChatRoom = (roomId, opponentNick)
+            }
         }
     }
 
