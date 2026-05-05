@@ -110,6 +110,17 @@ final class ActivityComposeViewModel {
     }
 }
 
+// MARK: - 일정(schedule) 관리
+extension ActivityComposeViewModel {
+    func addScheduleItem() {
+        schedule.append(ActivityComposeScheduleDraft(id: UUID()))
+    }
+
+    func removeScheduleItem(_ id: UUID) {
+        schedule.removeAll { $0.id == id }
+    }
+}
+
 // MARK: - 미디어(첨부 사진) 관리
 extension ActivityComposeViewModel {
     // 사진 슬롯은 신규 업로드와 기존(편집) 썸네일을 합쳐 최대 5장으로 제한한다.

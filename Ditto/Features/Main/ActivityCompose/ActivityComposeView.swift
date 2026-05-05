@@ -40,6 +40,8 @@ struct ActivityComposeView: View {
 
                 ActivityComposeLocationSection(viewModel: viewModel)
 
+                ActivityComposeScheduleSection(viewModel: viewModel)
+
                 pendingSectionsNotice
 
                 if let message = viewModel.formMessage {
@@ -92,9 +94,9 @@ struct ActivityComposeView: View {
         }
     }
 
-    // 후속 섹션(일정/가격/제약)은 별도 커밋에서 추가된다.
+    // 후속 섹션(가격/제약)은 별도 커밋에서 추가된다.
     private var pendingSectionsNotice: some View {
-        Text("일정·가격/제약 섹션은 다음 커밋에서 추가됩니다.")
+        Text("가격·제약 섹션은 다음 커밋에서 추가됩니다.")
             .font(MainScreenTypography.body)
             .foregroundStyle(MainScreenPalette.textSecondary)
             .padding(.vertical, 12)
