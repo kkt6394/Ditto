@@ -56,6 +56,17 @@ final class LoginViewModel {
         !trimmedEmail.isEmpty && !password.isEmpty && !isSubmitting
     }
 
+    func presentSignOutNoticeIfNeeded() {
+        // 세션 만료로 강제 로그아웃된 경우에만 한 번 안내한다.
+        // 사용자가 직접 로그아웃한 경우엔 별도 토스트를 띄우지 않는다.
+        guard authManager.lastSignOutReason == .sessionExpired else {
+            return
+        }
+
+        message = .info("세션이 만료되어 다시 로그인이 필요해요.")
+        authManager.consumeSignOutReason()
+    }
+
     @discardableResult
     func submitLogin() async -> Bool {
         message = nil

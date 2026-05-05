@@ -205,12 +205,13 @@ private extension NetworkManager {
     }
 
     func signOutIfRefreshExpired(with error: Error) throws {
+        // 419(토큰 만료), 401, 418은 모두 refresh 토큰 자체가 더 이상 유효하지 않다는 신호로 간주한다.
         guard case let NetworkError.statusCode(statusCode, _, _) = error,
-              statusCode == 401 || statusCode == 418 else {
+              statusCode == 401 || statusCode == 418 || statusCode == 419 else {
             return
         }
 
-        try authManager.signOut()
+        try authManager.signOut(reason: .sessionExpired)
     }
 
     func perform(request: URLRequest) async throws -> Data {

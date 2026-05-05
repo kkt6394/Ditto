@@ -41,6 +41,10 @@ struct LoginView: View {
             .scrollIndicators(.hidden)
         }
         .toolbar(.hidden, for: .navigationBar)
+        .onAppear {
+            // 세션 만료로 떨어진 경우에만 안내 메시지를 1회 표시한다.
+            viewModel.presentSignOutNoticeIfNeeded()
+        }
     }
 }
 
