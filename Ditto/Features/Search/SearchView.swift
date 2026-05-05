@@ -127,9 +127,10 @@ struct SearchView: View {
                 systemName: "location.fill",
                 title: "내 주변 액티비티 보기",
                 subtitle: "현재 위치를 기준으로 가까운 액티비티를 찾아드릴게요.",
-                actionTitle: "위치 켜기",
-                action: { locationManager.requestCurrentLocation() }
-            )
+                actionTitle: "위치 켜기"
+            ) {
+                locationManager.requestCurrentLocation()
+            }
             .padding(.horizontal, 20)
         case .denied:
             SearchPermissionPromptCard(

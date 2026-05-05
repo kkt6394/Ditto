@@ -23,13 +23,10 @@ final class PostCommentViewModel {
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
 
     convenience init(postId: String, authManager: any AuthManaging) {
-        self.init(
-            postId: postId,
-            networkManagerProvider: {
-                let configuration = try AppConfiguration()
-                return NetworkManager(configuration: configuration, authManager: authManager)
-            }
-        )
+        self.init(postId: postId) {
+            let configuration = try AppConfiguration()
+            return NetworkManager(configuration: configuration, authManager: authManager)
+        }
     }
 
     init(

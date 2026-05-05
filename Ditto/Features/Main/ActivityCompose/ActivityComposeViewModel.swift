@@ -238,7 +238,7 @@ private extension ActivityComposeViewModel {
 
     func parsedTags() -> [String]? {
         let items = tagsText
-            .split(whereSeparator: { $0 == "," || $0 == "\n" })
+            .split { $0 == "," || $0 == "\n" }
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         return items.isEmpty ? nil : items

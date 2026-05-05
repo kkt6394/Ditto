@@ -24,10 +24,10 @@ final class UserSearchViewModel {
     private var currentTask: Task<Void, Never>?
 
     convenience init(authManager: any AuthManaging) {
-        self.init(networkManagerProvider: {
+        self.init {
             let configuration = try AppConfiguration()
             return NetworkManager(configuration: configuration, authManager: authManager)
-        })
+        }
     }
 
     init(networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging) {

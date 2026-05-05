@@ -336,7 +336,7 @@ final class ActivityDetailViewModel {
             )
             activity = response
             heroImageRequest = makeImageRequest(
-                from: response.thumbnails.first(where: Self.isImagePath),
+                from: response.thumbnails.first(where: ActivityFormatting.isImagePath),
                 configuration: configuration
             )
         } catch {
@@ -473,14 +473,6 @@ final class ActivityDetailViewModel {
             .joined(separator: "/")
 
         return components.url
-    }
-
-    private static func isImagePath(_ path: String) -> Bool {
-        let lowercasedPath = path.lowercased()
-
-        return [".jpg", ".jpeg", ".png", ".webp"].contains { imageExtension in
-            lowercasedPath.hasSuffix(imageExtension)
-        }
     }
 
     private static func makeErrorMessage(from error: Error) -> String {

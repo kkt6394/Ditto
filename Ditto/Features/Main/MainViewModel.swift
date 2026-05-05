@@ -396,14 +396,22 @@ private extension MainViewModel {
             let fallbackName = fallbackNames[index % fallbackNames.count]
 
             if ActivityFormatting.isImagePath(path) {
-                let request = ActivityFormatting.makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+                let request = ActivityFormatting.makeImageRequest(
+                    from: path,
+                    configuration: configuration,
+                    accessToken: accessToken
+                )
                 return .image(id: "\(path)-\(index)", request: request, fallbackImageName: fallbackName)
             }
 
             if ActivityFormatting.isVideoPath(path) {
                 let videoId = ActivityFormatting.videoId(from: path)
                 let request = videoId == nil
-                    ? ActivityFormatting.makeImageRequest(from: path, configuration: configuration, accessToken: accessToken)
+                    ? ActivityFormatting.makeImageRequest(
+                        from: path,
+                        configuration: configuration,
+                        accessToken: accessToken
+                    )
                     : nil
 
                 return .video(

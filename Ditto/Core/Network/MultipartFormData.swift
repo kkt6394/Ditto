@@ -70,8 +70,8 @@ enum MultipartUploadError: Error, Equatable {
     var userMessage: String {
         switch self {
         case .fileTooLarge(_, let maxBytes):
-            let mb = Double(maxBytes) / (1024 * 1024)
-            return String(format: "파일 크기는 최대 %.0fMB까지 가능합니다.", mb)
+            let maxMegabytes = Double(maxBytes) / (1024 * 1024)
+            return String(format: "파일 크기는 최대 %.0fMB까지 가능합니다.", maxMegabytes)
         case .tooManyFiles(let maxFiles):
             return "한 번에 최대 \(maxFiles)개까지 첨부할 수 있습니다."
         }

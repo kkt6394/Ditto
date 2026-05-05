@@ -27,13 +27,10 @@ final class ReviewListViewModel {
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
 
     convenience init(activityId: String, authManager: any AuthManaging) {
-        self.init(
-            activityId: activityId,
-            networkManagerProvider: {
-                let configuration = try AppConfiguration()
-                return NetworkManager(configuration: configuration, authManager: authManager)
-            }
-        )
+        self.init(activityId: activityId) {
+            let configuration = try AppConfiguration()
+            return NetworkManager(configuration: configuration, authManager: authManager)
+        }
     }
 
     init(

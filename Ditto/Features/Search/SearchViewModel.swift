@@ -383,4 +383,3 @@ private extension SearchViewModel {
         NetworkErrorMapper.networkUserMessage(from: error, fallback: "액티비티를 불러오지 못했습니다.")
     }
 }
-

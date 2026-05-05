@@ -278,4 +278,3 @@ private extension ProfileViewModel {
         return trimmed.isEmpty ? nil : trimmed
     }
 }
-

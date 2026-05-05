@@ -22,13 +22,10 @@ final class ReceiptViewModel {
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
 
     convenience init(orderCode: String, authManager: any AuthManaging) {
-        self.init(
-            orderCode: orderCode,
-            networkManagerProvider: {
-                let configuration = try AppConfiguration()
-                return NetworkManager(configuration: configuration, authManager: authManager)
-            }
-        )
+        self.init(orderCode: orderCode) {
+            let configuration = try AppConfiguration()
+            return NetworkManager(configuration: configuration, authManager: authManager)
+        }
     }
 
     init(
