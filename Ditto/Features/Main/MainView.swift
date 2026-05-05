@@ -323,7 +323,6 @@ struct MainView: View {
             .padding(.top, 6)
         }
     }
-
 }
 
 private extension MainView {
@@ -452,10 +451,7 @@ private extension MainView {
     var newActivitiesQueryID: String {
         "\(selectedCountryID)-\(selectedCategoryID)"
     }
-}
 
-// MainRoute별 destination 빌더. type_body_length 회피용.
-private extension MainView {
     @ViewBuilder
     func destination(for route: MainRoute) -> some View {
         switch route {
@@ -482,11 +478,16 @@ private extension MainView {
                 openActivityDetail(activityId: activityId)
             }
         case .orderList:
-            OrderListView(authManager: authManager) { orderCode in
-                navigationPath.append(MainRoute.receipt(orderCode: orderCode))
+            OrderListView(authManager: authManager) { orderCode, activityId, reviewId in
+                navigationPath.append(.receipt(
+                    orderCode: orderCode, activityId: activityId, existingReviewId: reviewId
+                ))
             }
-        case .receipt(let orderCode):
-            ReceiptView(orderCode: orderCode, authManager: authManager)
+        case .receipt(let orderCode, let activityId, let existingReviewId):
+            ReceiptView(
+                orderCode: orderCode, activityId: activityId,
+                existingReviewId: existingReviewId, authManager: authManager
+            )
         case .activityCompose(let mode):
             ActivityComposeView(mode: mode, authManager: authManager) {
                 // 작성 후 후처리는 후속 커밋에서 — 일단 화면만 닫는다.
@@ -495,6 +496,4 @@ private extension MainView {
     }
 }
 
-#Preview {
-    MainView(authManager: AuthManager())
-}
+#Preview { MainView(authManager: AuthManager()) }

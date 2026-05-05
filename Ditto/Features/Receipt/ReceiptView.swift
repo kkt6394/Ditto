@@ -10,11 +10,24 @@ import SwiftUI
 // orderCode로 GET /v1/payments/{orderCode}를 호출해 결제·주문 정보를 영수증 카드에 표시한다.
 struct ReceiptView: View {
     private let orderCode: String
+    private let activityId: String
+    // 이미 작성된 리뷰가 있으면 reviewId — 화면에 "리뷰 작성됨" 안내를 표시하고 작성 진입을 막는다.
+    private let existingReviewId: String?
+    private let authManager: any AuthManaging
 
     @State private var viewModel: ReceiptViewModel
+    @State private var isPresentingReviewCompose = false
 
-    init(orderCode: String, authManager: any AuthManaging) {
+    init(
+        orderCode: String,
+        activityId: String,
+        existingReviewId: String?,
+        authManager: any AuthManaging
+    ) {
         self.orderCode = orderCode
+        self.activityId = activityId
+        self.existingReviewId = existingReviewId
+        self.authManager = authManager
         _viewModel = State(
             initialValue: ReceiptViewModel(orderCode: orderCode, authManager: authManager)
         )
@@ -34,6 +47,15 @@ struct ReceiptView: View {
         .task {
             await viewModel.load()
         }
+        .sheet(isPresented: $isPresentingReviewCompose) {
+            ReviewComposeView(
+                activityId: activityId,
+                mode: .create(orderCode: orderCode),
+                authManager: authManager
+            ) {
+                // 작성 완료 후엔 시트가 닫히고, 사용자는 OrderList로 돌아가 review 상태를 다시 받는다.
+            }
+        }
     }
 
     @ViewBuilder
@@ -46,10 +68,14 @@ struct ReceiptView: View {
             .padding(.horizontal, 20)
         } else if let receipt = viewModel.receipt {
             ScrollView(showsIndicators: false) {
-                ReceiptCard(receipt: receipt)
-                    .padding(.horizontal, 20)
-                    .padding(.top, 4)
-                    .padding(.bottom, 40)
+                VStack(spacing: 16) {
+                    ReceiptCard(receipt: receipt)
+
+                    reviewActionButton
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+                .padding(.bottom, 40)
             }
         } else {
             SearchStateCard(
@@ -58,6 +84,41 @@ struct ReceiptView: View {
                 systemName: "exclamationmark.triangle"
             )
             .padding(.horizontal, 20)
+        }
+    }
+
+    @ViewBuilder
+    private var reviewActionButton: some View {
+        if existingReviewId == nil {
+            Button {
+                isPresentingReviewCompose = true
+            } label: {
+                Text("리뷰 쓰기")
+                    .font(MainFont.pretendard(.bold, size: 16))
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 52)
+                    .background(
+                        MainScreenPalette.primaryBlue,
+                        in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    )
+            }
+            .buttonStyle(.plain)
+        } else {
+            HStack(spacing: 6) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundStyle(MainScreenPalette.primaryBlue)
+
+                Text("이미 리뷰를 작성한 주문입니다. 수정·삭제는 액티비티 상세에서 가능합니다.")
+                    .font(MainScreenTypography.body)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(14)
+            .background(
+                MainScreenPalette.primaryBlueSoft,
+                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+            )
         }
     }
 }

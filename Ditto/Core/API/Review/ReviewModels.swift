@@ -59,7 +59,7 @@ struct UserReviewListQuery: Equatable {
     let limit: Int?
 }
 
-struct ReviewResponseDTO: Decodable, Equatable {
+struct ReviewResponseDTO: Decodable, Equatable, Identifiable {
     let reviewId: String
     let content: String
     let rating: Int
@@ -71,6 +71,9 @@ struct ReviewResponseDTO: Decodable, Equatable {
     let userTotalRating: Double
     let createdAt: String
     let updatedAt: String
+
+    // .sheet(item:)에 직접 바인딩하기 위해 reviewId를 id로 사용한다.
+    var id: String { reviewId }
 }
 
 struct ReviewListResponseDTO: Decodable, Equatable {

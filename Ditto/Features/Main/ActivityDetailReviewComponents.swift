@@ -16,6 +16,8 @@ struct ReviewSection: View {
     let chatStartMessage: String?
     let imageRequestProvider: (String) -> URLRequest?
     let chatAction: (ReviewResponseDTO) -> Void
+    let editAction: (ReviewResponseDTO) -> Void
+    let deleteAction: (ReviewResponseDTO) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -43,7 +45,9 @@ struct ReviewSection: View {
                             review: review,
                             isMine: currentUserId == review.creator.userId,
                             imageRequestProvider: imageRequestProvider,
-                            chatAction: chatAction
+                            chatAction: chatAction,
+                            editAction: editAction,
+                            deleteAction: deleteAction
                         )
                     }
                 }
@@ -65,6 +69,8 @@ private struct ReviewCard: View {
     let isMine: Bool
     let imageRequestProvider: (String) -> URLRequest?
     let chatAction: (ReviewResponseDTO) -> Void
+    let editAction: (ReviewResponseDTO) -> Void
+    let deleteAction: (ReviewResponseDTO) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -84,7 +90,19 @@ private struct ReviewCard: View {
 
                 Spacer()
 
-                if !isMine {
+                if isMine {
+                    Menu {
+                        Button("수정") { editAction(review) }
+                        Button("삭제", role: .destructive) { deleteAction(review) }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                            .frame(width: 32, height: 32)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("내 리뷰 메뉴")
+                } else {
                     Button {
                         chatAction(review)
                     } label: {

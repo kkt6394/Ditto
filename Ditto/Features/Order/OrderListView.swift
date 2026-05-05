@@ -10,13 +10,14 @@ import SwiftUI
 // /v1/orders 응답을 LazyVStack에 표시한다. 단발 호출이라 페이지네이션은 없다.
 struct OrderListView: View {
     private let authManager: any AuthManaging
-    private let receiptAction: (String) -> Void
+    // (orderCode, activityId, existingReviewId?) — 영수증 + 리뷰 진입에 모두 필요한 정보
+    private let receiptAction: (String, String, String?) -> Void
 
     @State private var viewModel: OrderListViewModel
 
     init(
         authManager: any AuthManaging,
-        receiptAction: @escaping (String) -> Void
+        receiptAction: @escaping (String, String, String?) -> Void
     ) {
         self.authManager = authManager
         self.receiptAction = receiptAction
@@ -64,7 +65,11 @@ struct OrderListView: View {
                         OrderRowCard(order: order)
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                receiptAction(order.orderCode)
+                                receiptAction(
+                                    order.orderCode,
+                                    order.activity.id,
+                                    order.review?.id
+                                )
                             }
 
                         if index != viewModel.orders.indices.last {

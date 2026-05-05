@@ -14,6 +14,6 @@ enum MainRoute: Hashable {
     case chat(roomId: String, opponentNick: String)
     case searchCategory(SearchCategory)
     case orderList
-    case receipt(orderCode: String)
+    case receipt(orderCode: String, activityId: String, existingReviewId: String?)
     case activityCompose(mode: ActivityComposeMode)
 }
