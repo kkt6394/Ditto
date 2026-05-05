@@ -12,9 +12,11 @@ import SwiftUI
 // 별도 컴포넌트로 둔다(PostCompose 측 코드는 건드리지 않는다).
 struct ActivityComposeMediaSection: View {
     let attachments: [ActivityComposeAttachment]
+    let existingThumbnails: [ActivityComposeExistingThumbnail]
     @Binding var pickerSelection: [PhotosPickerItem]
     let availableSlotCount: Int
     let removeAction: (UUID) -> Void
+    let toggleExistingDeletion: (UUID) -> Void
 
     private let columns = [
         GridItem(.flexible(), spacing: 8),
@@ -23,7 +25,7 @@ struct ActivityComposeMediaSection: View {
     ]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 12) {
             PostComposeFieldLabel(title: "사진 (최대 5장)")
 
             LazyVGrid(columns: columns, spacing: 8) {
@@ -44,6 +46,71 @@ struct ActivityComposeMediaSection: View {
                     }
                 }
             }
+
+            if !existingThumbnails.isEmpty {
+                existingThumbnailsList
+            }
+        }
+    }
+
+    // 편집 모드: 서버가 보유한 사진 path를 행 단위로 표시한다.
+    // 인증 헤더 포함 AsyncImage 처리는 후속 개선 — 이번 단계는 path 마지막 segment + 삭제 토글.
+    private var existingThumbnailsList: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("기존 사진")
+                .font(MainScreenTypography.bodyCompact)
+                .foregroundStyle(MainScreenPalette.textSecondary)
+
+            VStack(spacing: 6) {
+                ForEach(existingThumbnails) { thumbnail in
+                    ExistingThumbnailRow(thumbnail: thumbnail) {
+                        toggleExistingDeletion(thumbnail.id)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct ExistingThumbnailRow: View {
+    let thumbnail: ActivityComposeExistingThumbnail
+    let toggleAction: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: "photo")
+                .font(.system(size: 16))
+                .foregroundStyle(MainScreenPalette.textSecondary)
+                .frame(width: 32, height: 32)
+                .background(
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .fill(PostComposePalette.inputBackground)
+                )
+
+            Text(thumbnail.path.split(separator: "/").last.map(String.init) ?? thumbnail.path)
+                .font(MainScreenTypography.bodyCompact)
+                .foregroundStyle(
+                    thumbnail.isMarkedForDeletion
+                        ? MainScreenPalette.textMuted
+                        : MainScreenPalette.textPrimary
+                )
+                .strikethrough(thumbnail.isMarkedForDeletion)
+                .lineLimit(1)
+
+            Spacer()
+
+            Button(action: toggleAction) {
+                Image(
+                    systemName: thumbnail.isMarkedForDeletion
+                        ? "arrow.uturn.backward.circle"
+                        : "trash.circle"
+                )
+                .font(.system(size: 22))
+                .foregroundStyle(
+                    thumbnail.isMarkedForDeletion ? MainScreenPalette.primaryBlue : .red
+                )
+            }
+            .buttonStyle(.plain)
         }
     }
 }

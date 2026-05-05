@@ -462,9 +462,16 @@ private extension MainView {
     func destination(for route: MainRoute) -> some View {
         switch route {
         case .activityDetail(let activityId):
-            ActivityDetailView(activityId: activityId, authManager: authManager) { roomId, opponentNick in
-                navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
-            }
+            ActivityDetailView(
+                activityId: activityId,
+                authManager: authManager,
+                onStartChat: { roomId, opponentNick in
+                    navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
+                },
+                onStartEdit: { editableId in
+                    navigationPath.append(MainRoute.activityCompose(mode: .edit(activityId: editableId)))
+                }
+            )
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
         case .searchCategory(let category):

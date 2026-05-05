@@ -96,10 +96,64 @@ final class ActivityComposeViewModel {
     }
 
     // 편집 모드 진입 시 detail을 다시 fetch해서 폼을 prefill한다.
-    // 후속 커밋(수정 모드 단계)에서 실제 구현 — 스켈레톤에서는 no-op.
     func loadInitialDataIfNeeded() async {
-        guard case .edit = mode else { return }
-        // TODO: ActivityRouter.detail 호출 후 폼 필드/existingThumbnails prefill
+        guard case .edit(let activityId) = mode else { return }
+        guard !isPrefilling else { return }
+
+        isPrefilling = true
+        defer { isPrefilling = false }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let dto: ActivityResponseDTO = try await networkManager.request(
+                ActivityRouter.detail(activityId: activityId)
+            )
+            applyPrefill(from: dto)
+        } catch {
+            formMessage = Self.makeErrorMessage(from: error, fallback: "액티비티 정보를 불러오지 못했습니다.")
+        }
+    }
+
+    func toggleExistingThumbnailDeletion(_ id: UUID) {
+        guard let index = existingThumbnails.firstIndex(where: { $0.id == id }) else { return }
+        existingThumbnails[index].isMarkedForDeletion.toggle()
+    }
+
+    private func applyPrefill(from dto: ActivityResponseDTO) {
+        title = dto.title ?? ""
+        country = dto.country ?? ""
+        category = dto.category ?? ""
+        descriptionText = dto.description ?? ""
+
+        latitude = dto.geolocation.latitude
+        longitude = dto.geolocation.longitude
+
+        let isoFormatter = ISO8601DateFormatter()
+        isoFormatter.formatOptions = [.withInternetDateTime]
+        startDate = dto.startDate.flatMap { isoFormatter.date(from: $0) }
+        endDate = dto.endDate.flatMap { isoFormatter.date(from: $0) }
+
+        schedule = (dto.schedule ?? []).map { item in
+            ActivityComposeScheduleDraft(
+                id: UUID(),
+                duration: item.duration ?? "",
+                description: item.description ?? ""
+            )
+        }
+
+        originalPrice = dto.price.original
+        finalPrice = dto.price.final
+        pointReward = dto.pointReward
+        minHeight = dto.restrictions.minHeight
+        minAge = dto.restrictions.minAge
+        maxParticipants = dto.restrictions.maxParticipants
+
+        isAdvertisement = dto.isAdvertisement
+        tagsText = dto.tags.joined(separator: ", ")
+
+        existingThumbnails = dto.thumbnails.map { path in
+            ActivityComposeExistingThumbnail(id: UUID(), path: path, isMarkedForDeletion: false)
+        }
     }
 
     // 진행 중인 업로드가 있으면 짧게 폴링하며 대기한 뒤, 실패가 없으면 DTO를 빌드해 create/update를 호출한다.

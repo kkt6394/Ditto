@@ -33,9 +33,11 @@ struct ActivityComposeView: View {
 
                 ActivityComposeMediaSection(
                     attachments: viewModel.attachments,
+                    existingThumbnails: viewModel.existingThumbnails,
                     pickerSelection: $pickerSelection,
                     availableSlotCount: viewModel.availableSlotCount,
-                    removeAction: { viewModel.removeAttachment($0) }
+                    removeAction: { viewModel.removeAttachment($0) },
+                    toggleExistingDeletion: { viewModel.toggleExistingThumbnailDeletion($0) }
                 )
 
                 ActivityComposeLocationSection(viewModel: viewModel)
