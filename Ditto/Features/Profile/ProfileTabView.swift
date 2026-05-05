@@ -15,6 +15,7 @@ struct ProfileTabView: View {
     let signOutMessage: String?
     let signOutAction: () -> Void
     let orderListAction: () -> Void
+    let composeActivityAction: () -> Void
 
     @State private var viewModel: ProfileViewModel
     @State private var isPresentingEditor = false
@@ -25,12 +26,14 @@ struct ProfileTabView: View {
         isActive: Bool,
         signOutMessage: String?,
         signOutAction: @escaping () -> Void,
-        orderListAction: @escaping () -> Void
+        orderListAction: @escaping () -> Void,
+        composeActivityAction: @escaping () -> Void
     ) {
         self.isActive = isActive
         self.signOutMessage = signOutMessage
         self.signOutAction = signOutAction
         self.orderListAction = orderListAction
+        self.composeActivityAction = composeActivityAction
         _viewModel = State(initialValue: ProfileViewModel(authManager: authManager))
     }
 
@@ -162,6 +165,15 @@ struct ProfileTabView: View {
                 ProfileActionRow(
                     title: "주문 내역",
                     systemImage: "doc.text",
+                    style: .secondary
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button(action: composeActivityAction) {
+                ProfileActionRow(
+                    title: "액티비티 등록",
+                    systemImage: "plus.square",
                     style: .secondary
                 )
             }

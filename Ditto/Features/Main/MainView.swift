@@ -261,6 +261,9 @@ struct MainView: View {
                 signOutAction: signOut,
                 orderListAction: {
                     navigationPath.append(MainRoute.orderList)
+                },
+                composeActivityAction: {
+                    navigationPath.append(MainRoute.activityCompose(mode: .create))
                 }
             )
             .tag(MainTab.profile.rawValue)
@@ -478,6 +481,10 @@ private extension MainView {
             }
         case .receipt(let orderCode):
             ReceiptView(orderCode: orderCode, authManager: authManager)
+        case .activityCompose(let mode):
+            ActivityComposeView(mode: mode, authManager: authManager) {
+                // 작성 후 후처리는 후속 커밋에서 — 일단 화면만 닫는다.
+            }
         }
     }
 }
@@ -488,6 +495,7 @@ private enum MainRoute: Hashable {
     case searchCategory(SearchCategory)
     case orderList
     case receipt(orderCode: String)
+    case activityCompose(mode: ActivityComposeMode)
 }
 
 #Preview {
