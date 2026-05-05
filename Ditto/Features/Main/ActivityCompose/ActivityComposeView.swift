@@ -57,6 +57,7 @@ struct ActivityComposeView: View {
             .padding(.top, 18)
             .padding(.bottom, 36)
         }
+        .scrollDismissesKeyboard(.interactively)
         .background(MainScreenPalette.background.ignoresSafeArea())
         .navigationTitle(navigationTitle)
         .navigationBarTitleDisplayMode(.inline)
