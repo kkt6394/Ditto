@@ -42,7 +42,7 @@ struct ActivityComposeView: View {
 
                 ActivityComposeScheduleSection(viewModel: viewModel)
 
-                pendingSectionsNotice
+                ActivityComposeRestrictionsSection(viewModel: viewModel)
 
                 if let message = viewModel.formMessage {
                     Text(message)
@@ -92,15 +92,6 @@ struct ActivityComposeView: View {
             }
             .disabled(!viewModel.canSubmit || viewModel.isSubmitting)
         }
-    }
-
-    // 후속 섹션(가격/제약)은 별도 커밋에서 추가된다.
-    private var pendingSectionsNotice: some View {
-        Text("가격·제약 섹션은 다음 커밋에서 추가됩니다.")
-            .font(MainScreenTypography.body)
-            .foregroundStyle(MainScreenPalette.textSecondary)
-            .padding(.vertical, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func handleSubmit() {
