@@ -51,7 +51,7 @@ struct ActivityComposeRestrictionsSection: View {
     }
 
     private var advertisementToggle: some View {
-        Toggle("프리미엄 광고로 노출", isOn: $viewModel.isAdvertisement)
+        Toggle("광고/오픈할인 상품으로 등록", isOn: $viewModel.isAdvertisement)
             .font(MainScreenTypography.body)
             .tint(MainScreenPalette.primaryBlue)
     }
