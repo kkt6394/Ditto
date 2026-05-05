@@ -26,8 +26,10 @@ struct ActivityComposeView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 18) {
-                placeholderCard
+            VStack(alignment: .leading, spacing: 24) {
+                ActivityComposeBasicSection(viewModel: viewModel)
+
+                pendingSectionsNotice
 
                 if let message = viewModel.formMessage {
                     Text(message)
@@ -76,26 +78,13 @@ struct ActivityComposeView: View {
         }
     }
 
-    // 섹션 컴포넌트는 후속 커밋에서 차례로 추가된다(기본정보 → 미디어 → 위치 → 일정 → 가격/제약).
-    private var placeholderCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("폼 섹션은 다음 커밋에서 추가됩니다.")
-                .font(MainScreenTypography.body)
-                .foregroundStyle(MainScreenPalette.textPrimary)
-            Text("이번 커밋에는 화면 컨테이너와 진입점만 포함됩니다.")
-                .font(MainScreenTypography.body)
-                .foregroundStyle(MainScreenPalette.textSecondary)
-        }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .fill(MainScreenPalette.surface)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .stroke(MainScreenPalette.border, lineWidth: 1)
-        )
+    // 후속 섹션(미디어/위치/일정/가격/제약)은 별도 커밋에서 추가된다.
+    private var pendingSectionsNotice: some View {
+        Text("미디어·위치·일정·가격/제약 섹션은 다음 커밋에서 추가됩니다.")
+            .font(MainScreenTypography.body)
+            .foregroundStyle(MainScreenPalette.textSecondary)
+            .padding(.vertical, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func handleSubmit() {
