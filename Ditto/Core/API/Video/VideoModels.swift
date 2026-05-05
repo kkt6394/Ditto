@@ -77,5 +77,6 @@ struct StreamUrlResponseDTO: Decodable, Equatable {
 
 struct VideoListResponseDTO: Decodable, Equatable {
     let data: [VideoResponseDTO]
-    let nextCursor: String
+    // 다음 페이지가 있을 때만 응답에 포함되므로 옵셔널.
+    let nextCursor: String?
 }

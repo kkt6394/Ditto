@@ -50,6 +50,9 @@ enum MainScreenTypography {
 }
 
 struct MainTopBar: View {
+    // 영상 피드 진입은 외부에서 주입받아 화면 전환 흐름은 MainView가 책임지게 한다.
+    var openVideoFeedAction: () -> Void = {}
+
     var body: some View {
         HStack {
             Text("DITTO")
@@ -59,6 +62,7 @@ struct MainTopBar: View {
             Spacer()
 
             HStack(spacing: 12) {
+                TopBarIconButton(systemName: "play.rectangle.fill", action: openVideoFeedAction)
                 TopBarIconButton(systemName: "bell")
                 TopBarIconButton(systemName: "magnifyingglass")
             }
@@ -69,9 +73,11 @@ struct MainTopBar: View {
 
 private struct TopBarIconButton: View {
     let systemName: String
+    var action: (() -> Void)?
 
     var body: some View {
         Button {
+            action?()
         } label: {
             Image(systemName: systemName)
                 .font(.system(size: 19, weight: .medium))

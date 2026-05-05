@@ -26,6 +26,7 @@ struct MainView: View {
     @State private var pendingChatOpponentIDs: Set<String> = []
     @State private var isPresentingPostComposer = false
     @State private var presentedBannerWebView: BannerWebViewPresentation?
+    @State private var isPresentingVideoFeed = false
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -60,6 +61,9 @@ struct MainView: View {
             }
             .sheet(item: $presentedBannerWebView) { presentation in
                 BannerWebViewLauncher.makeWebView(for: presentation, authManager: authManager)
+            }
+            .fullScreenCover(isPresented: $isPresentingVideoFeed) {
+                VideoFeedView(authManager: authManager)
             }
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 if shouldShowTabBar {
@@ -306,7 +310,9 @@ struct MainView: View {
 
     private var fixedHeader: some View {
         VStack(spacing: 0) {
-            MainTopBar()
+            MainTopBar {
+                isPresentingVideoFeed = true
+            }
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
 
