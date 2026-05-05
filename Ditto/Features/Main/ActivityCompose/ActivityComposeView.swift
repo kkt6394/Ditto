@@ -5,11 +5,13 @@
 //  Created by Codex on 5/5/26.
 //
 
+import PhotosUI
 import SwiftUI
 
 struct ActivityComposeView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var viewModel: ActivityComposeViewModel
+    @State private var pickerSelection: [PhotosPickerItem] = []
 
     let onSubmitted: () -> Void
 
@@ -29,6 +31,13 @@ struct ActivityComposeView: View {
             VStack(alignment: .leading, spacing: 24) {
                 ActivityComposeBasicSection(viewModel: viewModel)
 
+                ActivityComposeMediaSection(
+                    attachments: viewModel.attachments,
+                    pickerSelection: $pickerSelection,
+                    availableSlotCount: viewModel.availableSlotCount,
+                    removeAction: { viewModel.removeAttachment($0) }
+                )
+
                 pendingSectionsNotice
 
                 if let message = viewModel.formMessage {
@@ -47,6 +56,9 @@ struct ActivityComposeView: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { toolbarContent }
         .task { await viewModel.loadInitialDataIfNeeded() }
+        .onChange(of: pickerSelection) { _, items in
+            handlePickerChange(items)
+        }
     }
 
     private var navigationTitle: String {
@@ -78,9 +90,9 @@ struct ActivityComposeView: View {
         }
     }
 
-    // 후속 섹션(미디어/위치/일정/가격/제약)은 별도 커밋에서 추가된다.
+    // 후속 섹션(위치/일정/가격/제약)은 별도 커밋에서 추가된다.
     private var pendingSectionsNotice: some View {
-        Text("미디어·위치·일정·가격/제약 섹션은 다음 커밋에서 추가됩니다.")
+        Text("위치·일정·가격/제약 섹션은 다음 커밋에서 추가됩니다.")
             .font(MainScreenTypography.body)
             .foregroundStyle(MainScreenPalette.textSecondary)
             .padding(.vertical, 12)
@@ -94,6 +106,28 @@ struct ActivityComposeView: View {
                 onSubmitted()
                 dismiss()
             }
+        }
+    }
+
+    // PostComposeView 패턴 — HEIC을 JPEG로 재인코딩해 헤더(image/jpeg)와 본문 일치를 보장한다.
+    private func handlePickerChange(_ items: [PhotosPickerItem]) {
+        guard !items.isEmpty else { return }
+
+        Task {
+            var datas: [Data] = []
+            for item in items {
+                guard let raw = try? await item.loadTransferable(type: Data.self) else {
+                    continue
+                }
+                if let image = UIImage(data: raw),
+                   let jpeg = image.jpegData(compressionQuality: 0.8) {
+                    datas.append(jpeg)
+                } else {
+                    datas.append(raw)
+                }
+            }
+            viewModel.appendAttachments(datas)
+            pickerSelection = []
         }
     }
 }

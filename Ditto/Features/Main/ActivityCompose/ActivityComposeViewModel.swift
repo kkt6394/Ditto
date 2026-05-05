@@ -109,3 +109,99 @@ final class ActivityComposeViewModel {
         return false
     }
 }
+
+// MARK: - 미디어(첨부 사진) 관리
+extension ActivityComposeViewModel {
+    // 사진 슬롯은 신규 업로드와 기존(편집) 썸네일을 합쳐 최대 5장으로 제한한다.
+    static let maxThumbnailCount = 5
+
+    var availableSlotCount: Int {
+        let activeExisting = existingThumbnails.filter { !$0.isMarkedForDeletion }.count
+        return max(0, Self.maxThumbnailCount - activeExisting - attachments.count)
+    }
+
+    // 라이브러리에서 선택한 Data 묶음을 받아 attachment를 추가하고 백그라운드 업로드를 시작한다.
+    func appendAttachments(_ datas: [Data]) {
+        let newAttachments = datas.map { data in
+            ActivityComposeAttachment(id: UUID(), previewData: data, state: .uploading)
+        }
+        attachments.append(contentsOf: newAttachments)
+        for attachment in newAttachments {
+            uploadAttachment(attachment)
+        }
+    }
+
+    func removeAttachment(_ id: UUID) {
+        attachments.removeAll { $0.id == id }
+    }
+}
+
+private extension ActivityComposeViewModel {
+    func uploadAttachment(_ attachment: ActivityComposeAttachment) {
+        Task { [weak self] in
+            guard let self else { return }
+
+            do {
+                let networkManager = try self.networkManagerProvider()
+                let file = try MultipartFile(
+                    filename: "activity_\(attachment.id.uuidString).jpg",
+                    mimeType: "image/jpeg",
+                    data: attachment.previewData
+                )
+                .validated(against: .activityFiles)
+                let response: ActivityFileResponseDTO = try await networkManager.request(
+                    ActivityRouter.uploadFiles(ActivityFileUploadRequestDTO(files: [file]))
+                )
+
+                guard let path = response.thumbnails?.first else {
+                    self.markAttachmentFailed(attachment.id, message: "업로드 응답이 비어 있습니다.")
+                    return
+                }
+
+                self.markAttachmentUploaded(attachment.id, path: path)
+            } catch let validationError as MultipartUploadError {
+                self.markAttachmentFailed(attachment.id, message: validationError.userMessage)
+            } catch {
+                let message = Self.makeErrorMessage(from: error, fallback: "사진 업로드에 실패했습니다.")
+                self.markAttachmentFailed(attachment.id, message: message)
+            }
+        }
+    }
+
+    func markAttachmentUploaded(_ id: UUID, path: String) {
+        guard let index = attachments.firstIndex(where: { $0.id == id }) else { return }
+        attachments[index].state = .uploaded(path: path)
+    }
+
+    func markAttachmentFailed(_ id: UUID, message: String) {
+        guard let index = attachments.firstIndex(where: { $0.id == id }) else { return }
+        attachments[index].state = .failed(message: message)
+        formMessage = message
+    }
+
+    static func makeErrorMessage(from error: Error, fallback: String) -> String {
+        switch error {
+        case let error as NetworkError:
+            switch error {
+            case .missingAuthenticationToken:
+                return "로그인이 필요합니다."
+            case .statusCode(_, let message, _):
+                return message ?? fallback
+            case .requestFailed:
+                return "네트워크 연결을 확인해 주세요."
+            case .decodingFailed:
+                return fallback
+            case .invalidURL:
+                return "요청 주소가 올바르지 않습니다."
+            case .invalidResponse:
+                return "서버 응답을 확인할 수 없습니다."
+            case .encodingFailed:
+                return "요청 데이터를 만들 수 없습니다."
+            }
+        case AppConfigurationError.missingValue, AppConfigurationError.invalidURL:
+            return "API 설정값을 확인해 주세요."
+        default:
+            return fallback
+        }
+    }
+}
