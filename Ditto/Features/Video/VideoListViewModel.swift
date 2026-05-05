@@ -8,7 +8,7 @@
 import Foundation
 import Observation
 
-// 비디오 목록 + 좋아요 토글 ViewModel.
+// 비디오 목록 + 좋아요 토글 + 스트림 URL 발급 ViewModel.
 @MainActor
 @Observable
 final class VideoListViewModel {
@@ -20,16 +20,31 @@ final class VideoListViewModel {
     var message: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
+    // 썸네일 이미지나 스트림/자막 URL을 절대 URL로 변환할 때 사용한다.
+    private let configurationProvider: @MainActor () throws -> AppConfiguration
+    private let authManager: any AuthManaging
 
     convenience init(authManager: any AuthManaging) {
-        self.init {
-            let configuration = try AppConfiguration()
-            return NetworkManager(configuration: configuration, authManager: authManager)
-        }
+        self.init(
+            authManager: authManager,
+            networkManagerProvider: {
+                let configuration = try AppConfiguration()
+                return NetworkManager(configuration: configuration, authManager: authManager)
+            },
+            configurationProvider: {
+                try AppConfiguration()
+            }
+        )
     }
 
-    init(networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging) {
+    init(
+        authManager: any AuthManaging,
+        networkManagerProvider: @escaping @MainActor () throws -> any NetworkManaging,
+        configurationProvider: @escaping @MainActor () throws -> AppConfiguration
+    ) {
+        self.authManager = authManager
         self.networkManagerProvider = networkManagerProvider
+        self.configurationProvider = configurationProvider
     }
 
     func loadFirstPage() async {
@@ -43,7 +58,7 @@ final class VideoListViewModel {
                 VideoRouter.list(VideoListQuery(next: nil, limit: nil))
             )
             videos = response.data
-            nextCursor = response.nextCursor.isEmpty ? nil : response.nextCursor
+            nextCursor = response.nextCursor
         } catch {
             message = NetworkErrorMapper.userMessage(from: error, fallback: "비디오 목록을 불러오지 못했습니다.")
         }
@@ -60,10 +75,94 @@ final class VideoListViewModel {
                 VideoRouter.list(VideoListQuery(next: cursor, limit: nil))
             )
             videos.append(contentsOf: response.data)
-            nextCursor = response.nextCursor.isEmpty ? nil : response.nextCursor
+            nextCursor = response.nextCursor
         } catch {
             message = NetworkErrorMapper.userMessage(from: error, fallback: "비디오 목록을 더 불러오지 못했습니다.")
         }
+    }
+
+    // 스트림 URL 발급. 응답값에는 토큰이 쿼리에 포함된 상대경로가 들어 있어 절대 URL로 변환한다.
+    func fetchStreamURL(videoId: String) async throws -> StreamUrlResponseDTO {
+        let networkManager = try networkManagerProvider()
+        let response: StreamUrlResponseDTO = try await networkManager.request(
+            VideoRouter.stream(videoId: videoId)
+        )
+        return response
+    }
+
+    // 썸네일 등 인증 헤더가 필요한 경로용 URLRequest 생성.
+    func makeAuthorizedImageRequest(for path: String) -> URLRequest? {
+        guard let url = absoluteURL(for: path, prefixV1ForData: true) else { return nil }
+        guard let configuration = try? configurationProvider() else { return nil }
+
+        var request = URLRequest(url: url)
+        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
+        if let token = authManager.tokens?.accessToken {
+            request.setValue(token, forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    // 명세 본문에는 stream 경로가 v1 prefix 없이 적혀 있지만, 실제 서버는 /v1 + SeSACKey 헤더를
+    // 요구한다. AVPlayer가 후속으로 받을 .m4s/init.mp4/자막 vtt도 같은 규약을 따른다.
+    func makeStreamURL(from path: String) -> URL? {
+        let normalized = path.hasPrefix("/") ? "/v1" + path : "v1/" + path
+        return absoluteURL(for: normalized, prefixV1ForData: false)
+    }
+
+    // AVURLAsset에 주입할 HTTP 헤더. 스트림/자막 요청에 SeSACKey가 자동으로 따라가게 한다.
+    func streamHTTPHeaders() -> [String: String] {
+        guard let configuration = try? configurationProvider() else { return [:] }
+        return ["SeSACKey": configuration.apiKey]
+    }
+
+    // 자막(WebVTT)은 헤더 인증이 필요하다.
+    func makeAuthorizedSubtitleRequest(for path: String) -> URLRequest? {
+        guard let url = absoluteURL(for: path, prefixV1ForData: false) else { return nil }
+        guard let configuration = try? configurationProvider() else { return nil }
+
+        var request = URLRequest(url: url)
+        request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
+        if let token = authManager.tokens?.accessToken {
+            request.setValue(token, forHTTPHeaderField: "Authorization")
+        }
+        return request
+    }
+
+    // 상대경로를 절대 URL로 변환한다.
+    // - prefixV1ForData: true이면 `/data/...` 경로 앞에 v1을 붙인다(이미지·썸네일 규약).
+    private func absoluteURL(for path: String, prefixV1ForData: Bool) -> URL? {
+        guard let configuration = try? configurationProvider() else { return nil }
+
+        if let url = URL(string: path), url.scheme != nil {
+            return url
+        }
+
+        guard var components = URLComponents(url: configuration.baseURL, resolvingAgainstBaseURL: false) else {
+            return nil
+        }
+
+        let basePath = components.path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        var relativePath = path.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        let queryStart = relativePath.firstIndex(of: "?")
+        let pathOnly = queryStart.map { String(relativePath[..<$0]) } ?? relativePath
+        let queryOnly = queryStart.map { String(relativePath[relativePath.index(after: $0)...]) }
+
+        var normalizedPath = pathOnly
+        if prefixV1ForData, normalizedPath.hasPrefix("data/") {
+            normalizedPath = "v1/" + normalizedPath
+        }
+
+        components.path = "/" + [basePath, normalizedPath]
+            .filter { !$0.isEmpty }
+            .joined(separator: "/")
+
+        if let query = queryOnly {
+            components.percentEncodedQuery = query
+        }
+
+        relativePath = normalizedPath
+        return components.url
     }
 
     @discardableResult
