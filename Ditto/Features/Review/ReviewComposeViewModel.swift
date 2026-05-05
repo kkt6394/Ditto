@@ -99,7 +99,7 @@ final class ReviewComposeViewModel {
                 reviewImageUrls: uploadedImagePaths.isEmpty ? nil : uploadedImagePaths,
                 orderCode: orderCode
             )
-            let _: ReviewResponseDTO = try await networkManager.request(
+            try await networkManager.send(
                 ReviewRouter.create(activityId: activityId, request: request)
             )
             return true
@@ -123,7 +123,7 @@ final class ReviewComposeViewModel {
                 rating: rating,
                 reviewImageUrls: uploadedImagePaths
             )
-            let _: ReviewResponseDTO = try await networkManager.request(
+            try await networkManager.send(
                 ReviewRouter.update(activityId: activityId, reviewId: reviewId, request: request)
             )
             return true

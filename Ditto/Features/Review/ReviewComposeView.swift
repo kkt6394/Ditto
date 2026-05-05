@@ -23,6 +23,8 @@ struct ReviewComposeView: View {
     @State private var viewModel: ReviewComposeViewModel
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var didApplyPrefill = false
+    // 본문 TextField 포커스 — 키보드 툴바의 "완료" 버튼이 이 값을 false로 바꿔 키보드를 내린다.
+    @FocusState private var isContentFocused: Bool
 
     private let mode: ReviewComposeMode
     private let authManager: any AuthManaging
@@ -48,7 +50,7 @@ struct ReviewComposeView: View {
                 VStack(alignment: .leading, spacing: 18) {
                     ReviewComposeRatingPicker(rating: $viewModel.rating)
 
-                    ReviewComposeContentField(text: $viewModel.content)
+                    ReviewComposeContentField(text: $viewModel.content, isFocused: $isContentFocused)
 
                     ReviewComposeAttachmentGrid(
                         imagePaths: viewModel.uploadedImagePaths,
@@ -67,6 +69,7 @@ struct ReviewComposeView: View {
                 }
                 .padding(20)
             }
+            .scrollDismissesKeyboard(.interactively)
             .background(MainScreenPalette.background.ignoresSafeArea())
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -87,6 +90,12 @@ struct ReviewComposeView: View {
                         }
                     }
                     .disabled(!canSubmit)
+                }
+
+                // 본문 TextField가 axis: .vertical이라 return은 줄바꿈으로 동작 → 키보드 내릴 별도 버튼 필요.
+                ToolbarItemGroup(placement: .keyboard) {
+                    Spacer()
+                    Button("완료") { isContentFocused = false }
                 }
             }
         }
@@ -213,6 +222,7 @@ private struct ReviewComposeRatingPicker: View {
 
 private struct ReviewComposeContentField: View {
     @Binding var text: String
+    @FocusState.Binding var isFocused: Bool
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -224,6 +234,7 @@ private struct ReviewComposeContentField: View {
                 .font(MainScreenTypography.body)
                 .foregroundStyle(MainScreenPalette.textPrimary)
                 .lineLimit(5...12)
+                .focused($isFocused)
                 .padding(12)
                 .background(
                     MainScreenPalette.surface,
@@ -252,7 +263,7 @@ private struct ReviewComposeAttachmentGrid: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text("사진")
                     .font(MainScreenTypography.sectionTitle)
                     .foregroundStyle(MainScreenPalette.textPrimary)
@@ -264,25 +275,43 @@ private struct ReviewComposeAttachmentGrid: View {
 
                 Spacer()
 
-                Text("\(imagePaths.count)장")
+                Text("\(imagePaths.count)/4")
                     .font(MainScreenTypography.timestamp)
                     .foregroundStyle(MainScreenPalette.textSecondary)
+
+                // 4장 한도 도달 시엔 picker를 노출하지 않는다.
+                if imagePaths.count < 4 {
+                    PhotosPicker(
+                        selection: $pickerSelection,
+                        maxSelectionCount: 4 - imagePaths.count,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("추가")
+                                .font(MainScreenTypography.timestamp)
+                        }
+                        .foregroundStyle(MainScreenPalette.primaryBlue)
+                    }
+                    .accessibilityLabel("사진 추가")
+                }
             }
 
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(Array(imagePaths.enumerated()), id: \.offset) { index, path in
-                    ReviewComposeThumbnail(request: imageRequestProvider(path)) {
-                        onRemove(index)
+            if imagePaths.isEmpty {
+                Text("최대 4장까지 첨부할 수 있어요.")
+                    .font(MainScreenTypography.timestamp)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 12)
+            } else {
+                LazyVGrid(columns: columns, spacing: 8) {
+                    ForEach(Array(imagePaths.enumerated()), id: \.offset) { index, path in
+                        ReviewComposeThumbnail(request: imageRequestProvider(path)) {
+                            onRemove(index)
+                        }
                     }
-                }
-
-                PhotosPicker(
-                    selection: $pickerSelection,
-                    maxSelectionCount: 4,
-                    matching: .images,
-                    photoLibrary: .shared()
-                ) {
-                    ReviewComposeAddPhotoTile()
                 }
             }
         }
@@ -346,25 +375,3 @@ private struct ReviewComposeThumbnail: View {
     }
 }
 
-private struct ReviewComposeAddPhotoTile: View {
-    var body: some View {
-        VStack(spacing: 6) {
-            Image(systemName: "plus")
-                .font(.system(size: 22, weight: .semibold))
-
-            Text("사진 추가")
-                .font(MainScreenTypography.timestamp)
-        }
-        .foregroundStyle(MainScreenPalette.textSecondary)
-        .frame(maxWidth: .infinity)
-        .aspectRatio(1, contentMode: .fill)
-        .background(
-            MainScreenPalette.surface,
-            in: RoundedRectangle(cornerRadius: 10, style: .continuous)
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .stroke(MainScreenPalette.border, style: StrokeStyle(lineWidth: 1, dash: [4]))
-        )
-    }
-}

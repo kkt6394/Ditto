@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // orderCode로 GET /v1/payments/{orderCode}를 호출해 결제·주문 정보를 영수증 카드에 표시한다.
 struct ReceiptView: View {
@@ -17,6 +18,8 @@ struct ReceiptView: View {
 
     @State private var viewModel: ReceiptViewModel
     @State private var isPresentingReviewCompose = false
+    // 화면 진입 시점엔 existingReviewId가 nil이어도, 시트에서 작성 완료 시 즉시 UI를 갱신하기 위한 플래그
+    @State private var hasJustReviewed = false
 
     init(
         orderCode: String,
@@ -42,6 +45,8 @@ struct ReceiptView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(MainScreenPalette.background.ignoresSafeArea())
+        // 시스템 네비바를 숨기면 좌측 엣지 스와이프-백도 같이 막혀, gesture를 다시 살려준다.
+        .background(InteractivePopGestureEnabler())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)
         .task {
@@ -53,7 +58,8 @@ struct ReceiptView: View {
                 mode: .create(orderCode: orderCode),
                 authManager: authManager
             ) {
-                // 작성 완료 후엔 시트가 닫히고, 사용자는 OrderList로 돌아가 review 상태를 다시 받는다.
+                // 작성 성공 시 즉시 UI에 반영. OrderList로 돌아가면 서버 상태로 다시 동기화된다.
+                hasJustReviewed = true
             }
         }
     }
@@ -89,7 +95,7 @@ struct ReceiptView: View {
 
     @ViewBuilder
     private var reviewActionButton: some View {
-        if existingReviewId == nil {
+        if existingReviewId == nil && !hasJustReviewed {
             Button {
                 isPresentingReviewCompose = true
             } label: {
@@ -231,5 +237,42 @@ private struct ReceiptRow: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .lineLimit(2)
         }
+    }
+}
+
+// MARK: - 인터랙티브 팝 제스처 복구
+
+// 커스텀 네비바를 쓰며 시스템 네비바를 숨길 때 좌측 엣지 스와이프-백이 사라지는 SwiftUI 한계를 우회한다.
+// 화면이 attach되면 부모 UINavigationController를 찾아 interactivePopGestureRecognizer의 delegate를 nil로 풀어
+// 시스템이 back button 존재 여부와 무관하게 제스처를 처리하게 만든다.
+private struct InteractivePopGestureEnabler: UIViewRepresentable {
+    func makeUIView(context: Context) -> UIView {
+        let view = UIView()
+        // 뷰 계층에 붙은 직후엔 nav controller가 아직 nil일 수 있어 다음 runloop에서 시도한다.
+        DispatchQueue.main.async {
+            guard let navController = view.nearestNavigationController else { return }
+            navController.interactivePopGestureRecognizer?.delegate = nil
+            navController.interactivePopGestureRecognizer?.isEnabled = true
+        }
+        return view
+    }
+
+    func updateUIView(_ uiView: UIView, context: Context) {}
+}
+
+private extension UIView {
+    var nearestNavigationController: UINavigationController? {
+        var responder: UIResponder? = self
+        while let next = responder?.next {
+            if let navController = next as? UINavigationController {
+                return navController
+            }
+            if let viewController = next as? UIViewController,
+               let navController = viewController.navigationController {
+                return navController
+            }
+            responder = next
+        }
+        return nil
     }
 }
