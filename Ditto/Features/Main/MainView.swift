@@ -99,11 +99,10 @@ struct MainView: View {
                        let destAnchor = anchors[ActivityHeartAnchorKey.tabSentinelID] {
                         FlyingHeart(
                             source: proxy[sourceAnchor],
-                            destination: proxy[destAnchor],
-                            onComplete: {
-                                keepStore.finishFlightAnimation(activityId: flightID)
-                            }
-                        )
+                            destination: proxy[destAnchor]
+                        ) {
+                            keepStore.finishFlightAnimation(activityId: flightID)
+                        }
                         .id(flightID)
                     }
                 }
@@ -157,54 +156,6 @@ struct MainView: View {
         .onChange(of: navigationPath.count) { _, _ in
             updateChatPresence()
         }
-    }
-
-    // ActivityDetailView의 hero 이미지가 자리잡는 위치(상단 safe area + nav bar 44pt 아래, 너비 가득, 높이 360).
-    // zoom 오버레이의 destination으로 사용한다.
-    private func heroDestinationRect(in proxy: GeometryProxy) -> CGRect {
-        CGRect(
-            x: 0,
-            y: proxy.safeAreaInsets.top + 44,
-            width: proxy.size.width,
-            height: 360
-        )
-    }
-
-    private func updateChatPresence() {
-        // 채팅 탭 루트(목록 화면) 노출 시점에만 무음 플래그를 켠다. 채팅방 진입 시엔 ChatRoomView가 activeRoomId를 갱신한다.
-        let isOnChatListRoot = selectedTabID == MainTab.chat.rawValue && navigationPath.isEmpty
-        ChatPresence.shared.isOnChatList = isOnChatListRoot
-    }
-
-    private var shouldShowComposerButton: Bool {
-        navigationPath.isEmpty && selectedTabID == MainTab.home.rawValue
-    }
-
-    // 카테고리 리스트 화면도 검색 탭의 연장으로 보고 탭바를 유지한다.
-    private var shouldShowTabBar: Bool {
-        guard let last = navigationPath.last else {
-            return true
-        }
-
-        if case .searchCategory = last {
-            return true
-        }
-
-        return false
-    }
-
-    private func makeComposerContext() -> PostComposeInitialContext {
-        PostComposeInitialContext(
-            country: selectedCountryName ?? MainCountryFilter.samples[0].name,
-            category: selectedCategoryTitle ?? MainCategoryFilter.samples[0].title
-        )
-    }
-
-    private func reloadActivityPostsAfterCompose() async {
-        await viewModel.loadActivityPosts(
-            country: selectedCountryName,
-            category: selectedCategoryTitle
-        )
     }
 
     @ViewBuilder
@@ -297,11 +248,10 @@ struct MainView: View {
                         MainBannerContent(
                             banners: viewModel.mainBanners,
                             isLoading: viewModel.isLoadingMainBanners,
-                            message: viewModel.mainBannersMessage,
-                            onSelect: { banner in
-                                presentedBannerWebView = BannerWebViewLauncher.presentation(for: banner)
-                            }
-                        )
+                            message: viewModel.mainBannersMessage
+                        ) { banner in
+                            presentedBannerWebView = BannerWebViewLauncher.presentation(for: banner)
+                        }
                         .padding(.top, 16)
 
                         ActivityPostsSection(
@@ -312,7 +262,7 @@ struct MainView: View {
                                 selectedMedia = media
                             },
                             detailAction: { post in
-                                openActivityDetail(for: post)
+                                openPostDetail(for: post)
                             },
                             chatAction: { post in
                                 startChat(with: post)
@@ -374,7 +324,58 @@ struct MainView: View {
         }
     }
 
-    private func signOut() {
+}
+
+private extension MainView {
+    // ActivityDetailView의 hero 이미지가 자리잡는 위치(상단 safe area + nav bar 44pt 아래, 너비 가득, 높이 360).
+    // zoom 오버레이의 destination으로 사용한다.
+    func heroDestinationRect(in proxy: GeometryProxy) -> CGRect {
+        CGRect(
+            x: 0,
+            y: proxy.safeAreaInsets.top + 44,
+            width: proxy.size.width,
+            height: 360
+        )
+    }
+
+    func updateChatPresence() {
+        // 채팅 탭 루트(목록 화면) 노출 시점에만 무음 플래그를 켠다. 채팅방 진입 시엔 ChatRoomView가 activeRoomId를 갱신한다.
+        let isOnChatListRoot = selectedTabID == MainTab.chat.rawValue && navigationPath.isEmpty
+        ChatPresence.shared.isOnChatList = isOnChatListRoot
+    }
+
+    var shouldShowComposerButton: Bool {
+        navigationPath.isEmpty && selectedTabID == MainTab.home.rawValue
+    }
+
+    // 카테고리 리스트 화면도 검색 탭의 연장으로 보고 탭바를 유지한다.
+    var shouldShowTabBar: Bool {
+        guard let last = navigationPath.last else {
+            return true
+        }
+
+        if case .searchCategory = last {
+            return true
+        }
+
+        return false
+    }
+
+    func makeComposerContext() -> PostComposeInitialContext {
+        PostComposeInitialContext(
+            country: selectedCountryName ?? MainCountryFilter.samples[0].name,
+            category: selectedCategoryTitle ?? MainCategoryFilter.samples[0].title
+        )
+    }
+
+    func reloadActivityPostsAfterCompose() async {
+        await viewModel.loadActivityPosts(
+            country: selectedCountryName,
+            category: selectedCategoryTitle
+        )
+    }
+
+    func signOut() {
         // 서버 로그아웃 → 로컬 토큰 삭제 순서. 서버 호출은 best-effort라 실패해도 로컬 정리는 진행된다.
         Task {
             await viewModel.performServerLogout()
@@ -386,7 +387,7 @@ struct MainView: View {
         }
     }
 
-    private func selectTab(_ item: MainTabItem) {
+    func selectTab(_ item: MainTabItem) {
         navigationPath = []
 
         if selectedTabID == item.id {
@@ -400,18 +401,16 @@ struct MainView: View {
         selectedTabID = item.id
     }
 
-    private func openActivityDetail(for post: MainActivityPost) {
-        // 포스트가 액티비티 ID를 포함하지 않는 경우, 요청된 디자인 Node ID 상세로 연결한다.
-        navigationPath.append(MainRoute.activityDetail(activityId: post.activityId ?? "DXWNE"))
+    func openPostDetail(for post: MainActivityPost) {
+        navigationPath.append(MainRoute.postDetail(postId: post.id))
     }
 
-    private func openActivityDetail(activityId: String) {
+    func openActivityDetail(activityId: String) {
         navigationPath.append(MainRoute.activityDetail(activityId: activityId))
     }
 
-    // 좋아요 탭의 zoom 트랜지션과 함께 쓰는 진입 함수.
-    // NavigationStack의 push 슬라이드가 zoom 오버레이와 겹쳐 어색해 보이지 않도록 애니메이션을 끈다.
-    private func openLikedActivityDetail(activityId: String) {
+    // 좋아요 탭의 zoom 트랜지션과 함께 쓰는 진입 함수. push 슬라이드가 zoom과 겹치지 않도록 애니메이션을 끈다.
+    func openLikedActivityDetail(activityId: String) {
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
@@ -419,7 +418,7 @@ struct MainView: View {
         }
     }
 
-    private func startChat(with post: MainActivityPost) {
+    func startChat(with post: MainActivityPost) {
         guard pendingChatOpponentIDs.insert(post.creatorId).inserted else {
             return
         }
@@ -437,11 +436,11 @@ struct MainView: View {
         }
     }
 
-    private var selectedCountryName: String? {
+    var selectedCountryName: String? {
         MainCountryFilter.samples.first { $0.id == selectedCountryID }?.name
     }
 
-    private var selectedCategoryTitle: String? {
+    var selectedCategoryTitle: String? {
         // "전체"는 카테고리 필터를 적용하지 않는 의미이므로 서버 쿼리에서는 nil로 전달한다.
         guard let filter = MainCategoryFilter.samples.first(where: { $0.id == selectedCategoryID }),
               filter.id != "all" else {
@@ -450,13 +449,12 @@ struct MainView: View {
         return filter.title
     }
 
-    private var newActivitiesQueryID: String {
+    var newActivitiesQueryID: String {
         "\(selectedCountryID)-\(selectedCategoryID)"
     }
 }
 
-// MainRoute에 대한 destination 빌더는 SwiftLint type_body_length(400) 룰을 피해
-// MainView struct 외부의 file-private extension으로 분리한다.
+// MainRoute별 destination 빌더. type_body_length 회피용.
 private extension MainView {
     @ViewBuilder
     func destination(for route: MainRoute) -> some View {
@@ -472,16 +470,17 @@ private extension MainView {
                     navigationPath.append(MainRoute.activityCompose(mode: .edit(activityId: editableId)))
                 }
             )
+        case .postDetail(let postId):
+            PostDetailView(postId: postId, authManager: authManager)
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
         case .searchCategory(let category):
             SearchCategoryActivityListView(
                 category: category,
-                authManager: authManager,
-                activityDetailAction: { activityId in
-                    openActivityDetail(activityId: activityId)
-                }
-            )
+                authManager: authManager
+            ) { activityId in
+                openActivityDetail(activityId: activityId)
+            }
         case .orderList:
             OrderListView(authManager: authManager) { orderCode in
                 navigationPath.append(MainRoute.receipt(orderCode: orderCode))
@@ -494,15 +493,6 @@ private extension MainView {
             }
         }
     }
-}
-
-private enum MainRoute: Hashable {
-    case activityDetail(activityId: String)
-    case chat(roomId: String, opponentNick: String)
-    case searchCategory(SearchCategory)
-    case orderList
-    case receipt(orderCode: String)
-    case activityCompose(mode: ActivityComposeMode)
 }
 
 #Preview {

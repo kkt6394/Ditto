@@ -18,6 +18,7 @@ final class PostDetailViewModel {
     private(set) var post: PostResponseDTO?
     private(set) var isLoading = false
     private(set) var isMutating = false
+    private(set) var currentUserId: String?
     var message: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
@@ -53,9 +54,30 @@ final class PostDetailViewModel {
             let networkManager = try networkManagerProvider()
             let response: PostResponseDTO = try await networkManager.request(PostRouter.detail(postId: postId))
             post = response
+
+            // 본인 댓글 판별을 위해 내 user_id를 함께 캐시한다 (실패는 무시).
+            if currentUserId == nil {
+                if let myInfo: MyInfoResponseDTO = try? await networkManager.request(UserRouter.myProfile) {
+                    currentUserId = myInfo.userId
+                }
+            }
         } catch {
             message = NetworkErrorMapper.userMessage(from: error, fallback: "포스트를 불러오지 못했습니다.")
         }
+    }
+
+    // 포스트의 첨부 파일/프로필 이미지 등을 인증 헤더가 포함된 URLRequest로 변환한다.
+    func imageRequest(for path: String?) -> URLRequest? {
+        guard let path, !path.isEmpty,
+              let configuration = try? AppConfiguration() else {
+            return nil
+        }
+
+        return ActivityFormatting.makeImageRequest(
+            from: path,
+            configuration: configuration,
+            accessToken: authManager.tokens?.accessToken
+        )
     }
 
     @discardableResult
