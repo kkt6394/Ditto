@@ -13,7 +13,7 @@ import SwiftData
 @Observable
 final class ChatRoomViewModel {
     let roomId: String
-    private(set) var messages: [ChatResponseDTO] = []
+    private(set) var messages: [ChatDisplayMessage] = []
     private(set) var isLoading = false
     private(set) var isSending = false
     private(set) var message: String?
@@ -129,41 +129,96 @@ final class ChatRoomViewModel {
             return
         }
 
+        // 서버 명세상 content는 required(string).
+        // 첨부만 보낼 때 빈 문자열도, 공백 한 글자도 서버가 trim 후 거부("필수값을 채워주세요.")한다.
+        // zero-width space(U+200B)는 trim에 잡히지 않아 서버 검증을 통과하면서
+        // 화면에는 보이지 않는다. ChatBubble에서는 별도로 정리해 빈 텍스트 버블을 그리지 않는다.
+        let payloadContent = trimmedContent.isEmpty ? "\u{200B}" : trimmedContent
+        let pendingId = Self.makePendingId()
+
+        do {
+            try insertPendingEntity(
+                pendingId: pendingId,
+                content: payloadContent,
+                files: uploadedPaths,
+                modelContext: modelContext
+            )
+        } catch {
+            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 임시 저장하지 못했습니다.")
+            return
+        }
+
+        // 입력 영역은 즉시 비워준다. 실패 시에도 사용자가 다시 타이핑하지 않도록
+        // 본문/첨부 정보는 pending 엔티티에 보존된다.
+        attachments.removeAll()
+
         isSending = true
         message = nil
         defer {
             isSending = false
         }
 
-        do {
-            let networkManager = try makeNetworkManager()
-            // 서버 명세상 content는 required(string).
-            // 첨부만 보낼 때 빈 문자열도, 공백 한 글자도 서버가 trim 후 거부("필수값을 채워주세요.")한다.
-            // zero-width space(U+200B)는 trim에 잡히지 않아 서버 검증을 통과하면서
-            // 화면에는 보이지 않는다. ChatBubble에서는 별도로 정리해 빈 텍스트 버블을 그리지 않는다.
-            let payloadContent = trimmedContent.isEmpty ? "\u{200B}" : trimmedContent
-            let request = ChatSendRequestDTO(
-                content: payloadContent,
-                files: hasAttachments ? uploadedPaths : nil
-            )
-            let response: ChatResponseDTO = try await networkManager.request(
-                ChatRouter.send(roomId: roomId, request: request)
-            )
-            try store([response], in: modelContext)
-            messages = try cachedMessages(in: modelContext)
-            markLastReadIfPossible()
-            attachments.removeAll()
-        } catch {
-            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 보내지 못했습니다.")
-        }
+        await performSend(
+            pendingId: pendingId,
+            content: payloadContent,
+            files: uploadedPaths,
+            modelContext: modelContext
+        )
     }
 
-    private func markLastReadIfPossible() {
-        guard let lastCreatedAt = messages.last?.createdAt else {
+    func retry(messageId: String, modelContext: ModelContext) async {
+        guard let entity = findEntity(chatId: messageId, in: modelContext),
+              entity.status == .failed else {
             return
         }
 
-        readStateStore.setLastReadAt(lastCreatedAt, roomId: roomId)
+        entity.setStatus(.sending)
+        do {
+            try modelContext.save()
+        } catch {
+            message = "재전송 준비 중 오류가 발생했습니다."
+            return
+        }
+        messages = (try? cachedMessages(in: modelContext)) ?? messages
+
+        isSending = true
+        defer {
+            isSending = false
+        }
+        await performSend(
+            pendingId: entity.chatId,
+            content: entity.content,
+            files: entity.files,
+            modelContext: modelContext
+        )
+    }
+
+    func discardFailed(messageId: String, modelContext: ModelContext) {
+        guard let entity = findEntity(chatId: messageId, in: modelContext),
+              entity.status != .sent else {
+            return
+        }
+
+        modelContext.delete(entity)
+        do {
+            try modelContext.save()
+        } catch {
+            message = "실패한 메시지를 지우지 못했습니다."
+            return
+        }
+        messages = (try? cachedMessages(in: modelContext)) ?? messages
+    }
+
+    private func markLastReadIfPossible() {
+        guard let lastSentCreatedAt = lastSentMessage?.dto.createdAt else {
+            return
+        }
+
+        readStateStore.setLastReadAt(lastSentCreatedAt, roomId: roomId)
+    }
+
+    private var lastSentMessage: ChatDisplayMessage? {
+        messages.last { $0.status == .sent }
     }
 
     private func loadMessages(modelContext: ModelContext) async {
@@ -182,7 +237,9 @@ final class ChatRoomViewModel {
         do {
             let networkManager = try makeNetworkManager()
             currentUserId = await loadCurrentUserId(using: networkManager)
-            let query = ChatMessageListQuery(roomId: roomId, next: messages.last?.createdAt)
+            // pending/failed 로컬 메시지의 timestamp 가 cursor 로 새어 나가지 않도록 sent 만 본다.
+            let cursor = lastSentMessage?.dto.createdAt
+            let query = ChatMessageListQuery(roomId: roomId, next: cursor)
             let response: ChatListResponseDTO = try await networkManager.request(ChatRouter.messages(query))
             try store(response.data, in: modelContext)
             messages = try cachedMessages(in: modelContext)
@@ -248,7 +305,7 @@ final class ChatRoomViewModel {
         }
     }
 
-    private func cachedMessages(in modelContext: ModelContext) throws -> [ChatResponseDTO] {
+    private func cachedMessages(in modelContext: ModelContext) throws -> [ChatDisplayMessage] {
         let descriptor = FetchDescriptor<ChatMessageEntity>(
             predicate: #Predicate { message in
                 message.roomId == roomId
@@ -256,7 +313,7 @@ final class ChatRoomViewModel {
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
 
-        return try modelContext.fetch(descriptor).map(\.dto)
+        return try modelContext.fetch(descriptor).map(\.displayMessage)
     }
 
     private func store(_ remoteMessages: [ChatResponseDTO], in modelContext: ModelContext) throws {
@@ -297,6 +354,91 @@ final class ChatRoomViewModel {
 }
 
 private extension ChatRoomViewModel {
+    static func makePendingId() -> String {
+        "pending-" + UUID().uuidString
+    }
+
+    static let pendingDateFormatter: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    func findEntity(chatId: String, in modelContext: ModelContext) -> ChatMessageEntity? {
+        do {
+            return try cachedMessage(chatId: chatId, in: modelContext)
+        } catch {
+            return nil
+        }
+    }
+
+    func insertPendingEntity(
+        pendingId: String,
+        content: String,
+        files: [String],
+        modelContext: ModelContext
+    ) throws {
+        let nowString = Self.pendingDateFormatter.string(from: Date())
+        let entity = ChatMessageEntity(
+            pendingId: pendingId,
+            roomId: roomId,
+            content: content,
+            files: files,
+            senderId: currentUserId ?? "",
+            senderNick: "",
+            senderProfileImage: nil,
+            senderIntroduction: nil,
+            createdAt: nowString
+        )
+        modelContext.insert(entity)
+        try modelContext.save()
+        messages = try cachedMessages(in: modelContext)
+    }
+
+    func performSend(
+        pendingId: String,
+        content: String,
+        files: [String],
+        modelContext: ModelContext
+    ) async {
+        do {
+            let networkManager = try makeNetworkManager()
+            let request = ChatSendRequestDTO(
+                content: content,
+                files: files.isEmpty ? nil : files
+            )
+            let response: ChatResponseDTO = try await networkManager.request(
+                ChatRouter.send(roomId: roomId, request: request)
+            )
+            try replacePending(pendingId: pendingId, with: response, modelContext: modelContext)
+            messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
+        } catch {
+            markPendingFailed(pendingId: pendingId, modelContext: modelContext)
+            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 보내지 못했습니다.")
+        }
+    }
+
+    func replacePending(
+        pendingId: String,
+        with response: ChatResponseDTO,
+        modelContext: ModelContext
+    ) throws {
+        if let pending = findEntity(chatId: pendingId, in: modelContext) {
+            modelContext.delete(pending)
+        }
+        try store([response], in: modelContext)
+    }
+
+    func markPendingFailed(pendingId: String, modelContext: ModelContext) {
+        guard let pending = findEntity(chatId: pendingId, in: modelContext) else {
+            return
+        }
+        pending.setStatus(.failed)
+        try? modelContext.save()
+        messages = (try? cachedMessages(in: modelContext)) ?? messages
+    }
+
     func uploadAttachment(_ attachment: ChatComposeAttachment) {
         Task { [weak self] in
             guard let self else { return }

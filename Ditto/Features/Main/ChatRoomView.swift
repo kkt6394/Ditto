@@ -24,6 +24,7 @@ struct ChatRoomView: View {
     @State private var isPresentingPhotosPicker = false
     @State private var isPresentingFileImporter = false
     @State private var presentedMedia: ChatMediaPresentation?
+    @State private var failedMessageId: String?
 
     init(roomId: String, opponentNick: String, authManager: any AuthManaging) {
         self.opponentNick = opponentNick
@@ -91,6 +92,29 @@ struct ChatRoomView: View {
         .fullScreenCover(item: $presentedMedia) { presentation in
             ChatMediaFullScreen(media: presentation, authManager: authManager)
         }
+        .confirmationDialog(
+            "이 메시지를 어떻게 할까요?",
+            isPresented: Binding(
+                get: { failedMessageId != nil },
+                set: { newValue in if !newValue { failedMessageId = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: failedMessageId
+        ) { messageId in
+            Button("재전송") {
+                failedMessageId = nil
+                Task {
+                    await viewModel.retry(messageId: messageId, modelContext: modelContext)
+                }
+            }
+            Button("삭제", role: .destructive) {
+                failedMessageId = nil
+                viewModel.discardFailed(messageId: messageId, modelContext: modelContext)
+            }
+            Button("취소", role: .cancel) {
+                failedMessageId = nil
+            }
+        }
     }
 
     private var navigationBar: some View {
@@ -129,14 +153,17 @@ struct ChatRoomView: View {
                         ChatStateView(title: "아직 메시지가 없습니다.", systemName: "bubble.left.and.bubble.right")
                             .padding(.top, 80)
                     } else {
-                        ForEach(viewModel.messages, id: \.chatId) { message in
+                        ForEach(viewModel.messages) { display in
                             ChatBubble(
-                                message: message,
-                                isOutgoing: viewModel.isOutgoing(message, opponentNick: opponentNick),
+                                message: display.dto,
+                                isOutgoing: viewModel.isOutgoing(display.dto, opponentNick: opponentNick),
                                 opponentNick: opponentNick,
-                                authManager: authManager
-                            ) { presentedMedia = $0 }
-                                .id(message.chatId)
+                                authManager: authManager,
+                                status: display.status,
+                                onSelectMedia: { presentedMedia = $0 },
+                                onTapFailed: { failedMessageId = display.id }
+                            )
+                                .id(display.id)
                         }
                     }
                 }
@@ -144,7 +171,7 @@ struct ChatRoomView: View {
                 .padding(.vertical, 14)
             }
             .onChange(of: viewModel.messages.count) { _, _ in
-                guard let lastId = viewModel.messages.last?.chatId else {
+                guard let lastId = viewModel.messages.last?.id else {
                     return
                 }
 

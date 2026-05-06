@@ -74,14 +74,16 @@ struct ChatBubble: View {
     let isOutgoing: Bool
     let opponentNick: String
     let authManager: any AuthManaging
+    let status: ChatMessageStatus
     let onSelectMedia: (ChatMediaPresentation) -> Void
+    let onTapFailed: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
             if isOutgoing {
                 Spacer(minLength: 52)
                 timeText
-                bubbleColumn(alignment: .trailing)
+                outgoingColumn
             } else {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(message.sender.nick.isEmpty ? opponentNick : message.sender.nick)
@@ -97,6 +99,41 @@ struct ChatBubble: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: isOutgoing ? .trailing : .leading)
+    }
+
+    // 보내는 메시지에만 sending/failed 상태가 발생하므로 outgoing 전용으로 묶는다.
+    private var outgoingColumn: some View {
+        VStack(alignment: .trailing, spacing: 4) {
+            bubbleColumn(alignment: .trailing)
+            statusFooter
+        }
+        .opacity(status == .sending ? 0.6 : 1)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            // 실패 상태에서만 탭 액션을 받는다. sent/sending 시점에는 무시한다.
+            guard status == .failed else { return }
+            onTapFailed()
+        }
+    }
+
+    @ViewBuilder
+    private var statusFooter: some View {
+        switch status {
+        case .sending:
+            Text("보내는 중...")
+                .font(MainScreenTypography.timestamp)
+                .foregroundStyle(MainScreenPalette.textSecondary)
+        case .failed:
+            HStack(spacing: 4) {
+                Image(systemName: "exclamationmark.circle.fill")
+                    .font(.system(size: 11, weight: .semibold))
+                Text("전송 실패 — 탭하여 다시 시도")
+                    .font(MainScreenTypography.timestamp)
+            }
+            .foregroundStyle(Color(red: 0.72, green: 0.18, blue: 0.14))
+        case .sent:
+            EmptyView()
+        }
     }
 
     private func bubbleColumn(alignment: HorizontalAlignment) -> some View {
@@ -135,8 +172,16 @@ struct ChatBubble: View {
             .background(bubbleColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .stroke(isOutgoing ? Color.clear : MainScreenPalette.border, lineWidth: 1)
+                    .stroke(strokeColor, lineWidth: status == .failed ? 1.5 : 1)
             )
+    }
+
+    private var strokeColor: Color {
+        if status == .failed {
+            return Color(red: 0.72, green: 0.18, blue: 0.14)
+        }
+
+        return isOutgoing ? Color.clear : MainScreenPalette.border
     }
 
     private var timeText: some View {
