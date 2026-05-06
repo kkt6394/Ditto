@@ -16,75 +16,108 @@ struct ChatMediaFullScreen: View {
 
     var body: some View {
         switch media {
-        case .image(let item):
-            ChatImageFullScreen(item: item, authManager: authManager)
+        case .image(let items, let initialIndex):
+            ChatImageGalleryFullScreen(items: items, initialIndex: initialIndex)
         case .pdf(let item):
             ChatPDFPreviewSheet(item: item)
         }
     }
 }
 
-private struct ChatImageFullScreen: View {
+private struct ChatImageGalleryFullScreen: View {
     @Environment(\.dismiss) private var dismiss
+    let items: [ChatMediaItem]
+    let initialIndex: Int
+
+    @State private var currentIndex: Int
+
+    init(items: [ChatMediaItem], initialIndex: Int) {
+        self.items = items
+        // 인덱스가 범위를 벗어나는 비정상 상태 방지.
+        let safeIndex = items.indices.contains(initialIndex) ? initialIndex : 0
+        self._currentIndex = State(initialValue: safeIndex)
+        self.initialIndex = safeIndex
+    }
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            Color.black.ignoresSafeArea()
+
+            TabView(selection: $currentIndex) {
+                ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                    // 각 페이지가 자체 로딩/줌을 책임진다. TabView 가 보이는 페이지만 mount 해 메모리 부담을 줄인다.
+                    ChatImagePage(item: item)
+                        .tag(index)
+                }
+            }
+            .tabViewStyle(.page(indexDisplayMode: items.count > 1 ? .always : .never))
+            .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+            HStack {
+                Spacer()
+                if items.count > 1 {
+                    // 좌상단에 현재 위치를 표기해 몇 번째 사진을 보고 있는지 명확히 한다.
+                    Text("\(currentIndex + 1) / \(items.count)")
+                        .font(MainScreenTypography.body)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Color.black.opacity(0.45), in: Capsule())
+                }
+                Spacer()
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 17, weight: .bold))
+                        .foregroundStyle(.white)
+                        .frame(width: 40, height: 40)
+                        .background(Color.black.opacity(0.45), in: Circle())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+    }
+}
+
+private struct ChatImagePage: View {
     let item: ChatMediaItem
-    let authManager: any AuthManaging
 
     @State private var image: UIImage?
     @State private var message: String?
     @State private var scale: CGFloat = 1
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Color.black.ignoresSafeArea()
-
-            content
-
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 17, weight: .bold))
-                    .foregroundStyle(.white)
-                    .frame(width: 40, height: 40)
-                    .background(Color.black.opacity(0.45), in: Circle())
+        Group {
+            if let image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .scaleEffect(scale)
+                    .gesture(
+                        MagnificationGesture()
+                            .onChanged { value in
+                                scale = max(1, min(value, 4))
+                            }
+                    )
+            } else {
+                VStack(spacing: 12) {
+                    if message == nil {
+                        ProgressView().tint(.white)
+                    }
+                    Text(message ?? "사진을 불러오는 중입니다.")
+                        .font(MainScreenTypography.body)
+                        .foregroundStyle(.white)
+                }
+                .padding(24)
             }
-            .buttonStyle(.plain)
-            .padding(.top, 14)
-            .padding(.trailing, 14)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .task(id: item.id) {
             await load()
-        }
-        .onDisappear {
-            image = nil
-        }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        if let image {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .scaleEffect(scale)
-                .gesture(
-                    MagnificationGesture()
-                        .onChanged { value in
-                            scale = max(1, min(value, 4))
-                        }
-                )
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        } else {
-            VStack(spacing: 12) {
-                if message == nil {
-                    ProgressView().tint(.white)
-                }
-                Text(message ?? "사진을 불러오는 중입니다.")
-                    .font(MainScreenTypography.body)
-                    .foregroundStyle(.white)
-            }
-            .padding(24)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 

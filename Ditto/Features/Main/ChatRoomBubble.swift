@@ -56,13 +56,17 @@ struct ChatPDFItem: Identifiable, Equatable {
 }
 
 enum ChatMediaPresentation: Identifiable {
-    case image(ChatMediaItem)
+    // image 는 같은 메시지의 모든 사진을 한 갤러리로 묶어 좌우 스와이프가 가능하게 한다.
+    case image(items: [ChatMediaItem], initialIndex: Int)
     case pdf(ChatPDFItem)
 
     var id: String {
         switch self {
-        case .image(let item): return "image-" + item.id
-        case .pdf(let item): return "pdf-" + item.id
+        case .image(let items, let index):
+            let itemId = items.indices.contains(index) ? items[index].id : "unknown"
+            return "image-\(itemId)-\(index)"
+        case .pdf(let item):
+            return "pdf-" + item.id
         }
     }
 }
@@ -275,42 +279,65 @@ struct ChatMediaGrid: View {
 
     var body: some View {
         let displayItems = Array(items.prefix(4))
+        let extraCount = max(items.count - displayItems.count, 0)
 
         switch displayItems.count {
         case 1:
-            mediaTile(displayItems[0], width: 220, height: 220)
+            mediaTile(displayItems[0], width: 220, height: 220, index: 0, extraCount: 0)
         case 2:
             HStack(spacing: 4) {
-                mediaTile(displayItems[0], width: 130, height: 180)
-                mediaTile(displayItems[1], width: 130, height: 180)
+                mediaTile(displayItems[0], width: 130, height: 180, index: 0, extraCount: 0)
+                mediaTile(displayItems[1], width: 130, height: 180, index: 1, extraCount: 0)
             }
         case 3:
             HStack(spacing: 4) {
-                mediaTile(displayItems[0], width: 130, height: 180)
+                mediaTile(displayItems[0], width: 130, height: 180, index: 0, extraCount: 0)
                 VStack(spacing: 4) {
-                    mediaTile(displayItems[1], width: 130, height: 88)
-                    mediaTile(displayItems[2], width: 130, height: 88)
+                    mediaTile(displayItems[1], width: 130, height: 88, index: 1, extraCount: 0)
+                    mediaTile(displayItems[2], width: 130, height: 88, index: 2, extraCount: 0)
                 }
             }
         default:
+            // maxAttachmentCount = 5 이므로 displayItems 는 최대 4장.
+            // 5장째가 있으면 마지막 가시 타일에 "+1" 오버레이로 가려진 사진을 알린다.
             LazyVGrid(
                 columns: [GridItem(.fixed(130), spacing: 4), GridItem(.fixed(130), spacing: 4)],
                 spacing: 4
             ) {
-                ForEach(displayItems) { item in
-                    mediaTile(item, width: 130, height: 130)
+                ForEach(Array(displayItems.enumerated()), id: \.element.id) { index, item in
+                    let overlay = index == displayItems.count - 1 ? extraCount : 0
+                    mediaTile(item, width: 130, height: 130, index: index, extraCount: overlay)
                 }
             }
         }
     }
 
-    private func mediaTile(_ item: ChatMediaItem, width: CGFloat, height: CGFloat) -> some View {
+    private func mediaTile(
+        _ item: ChatMediaItem,
+        width: CGFloat,
+        height: CGFloat,
+        index: Int,
+        extraCount: Int
+    ) -> some View {
         Button {
-            onSelect(.image(item))
+            // 갤러리 진입 시 메시지의 전체 사진 + 누른 사진의 인덱스를 함께 전달해
+            // 풀스크린에서 좌우 스와이프로 다른 사진을 볼 수 있게 한다.
+            onSelect(.image(items: items, initialIndex: index))
         } label: {
             ChatRemoteImageView(item: item, pointSize: CGSize(width: width, height: height))
                 .frame(width: width, height: height)
                 .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .overlay {
+                    if extraCount > 0 {
+                        ZStack {
+                            Color.black.opacity(0.5)
+                            Text("+\(extraCount)")
+                                .font(.system(size: 22, weight: .bold))
+                                .foregroundStyle(.white)
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    }
+                }
         }
         .buttonStyle(.plain)
     }
@@ -321,6 +348,7 @@ private struct ChatRemoteImageView: View {
     let pointSize: CGSize
 
     @State private var image: UIImage?
+    @State private var loadFailed = false
 
     var body: some View {
         ZStack {
@@ -330,6 +358,17 @@ private struct ChatRemoteImageView: View {
                 Image(uiImage: image)
                     .resizable()
                     .scaledToFill()
+            } else if loadFailed {
+                // 네트워크/권한 등으로 이미지를 못 받았을 때 영구 스피너 대신 명확한 실패 표시.
+                VStack(spacing: 4) {
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .font(.system(size: 20, weight: .semibold))
+                    Text("불러오기 실패")
+                        .font(MainScreenTypography.timestamp)
+                        .multilineTextAlignment(.center)
+                }
+                .foregroundStyle(MainScreenPalette.textSecondary)
+                .padding(8)
             } else {
                 ProgressView().tint(MainScreenPalette.primaryBlue)
             }
@@ -341,13 +380,18 @@ private struct ChatRemoteImageView: View {
     }
 
     private func loadImage() async {
-        guard let request = item.thumbnailRequest else { return }
+        guard let request = item.thumbnailRequest else {
+            loadFailed = true
+            return
+        }
 
         do {
             let loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
             image = loaded
+            loadFailed = false
         } catch {
             image = nil
+            loadFailed = true
         }
     }
 }
@@ -374,6 +418,8 @@ private struct ChatPDFRow: View {
                         .font(MainScreenTypography.body)
                         .foregroundStyle(isOutgoing ? .white : MainScreenPalette.textPrimary)
                         .lineLimit(1)
+                        // 긴 파일명은 가운데를 생략해 확장자(.pdf)는 보존한다.
+                        .truncationMode(.middle)
                     Text("PDF")
                         .font(MainScreenTypography.timestamp)
                         .foregroundStyle(
@@ -385,13 +431,14 @@ private struct ChatPDFRow: View {
             }
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .frame(width: 260, alignment: .leading)
+            // 작은 화면(예: iPhone SE)에선 부모 폭에 맞춰 줄어들고, 넓은 화면에선 260pt 까지만 차지.
+            .frame(maxWidth: 260, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .fill(isOutgoing ? MainScreenPalette.primaryBlue : MainScreenPalette.surface)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(isOutgoing ? Color.clear : MainScreenPalette.border, lineWidth: 1)
             )
         }
