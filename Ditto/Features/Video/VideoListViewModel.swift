@@ -129,6 +129,22 @@ final class VideoListViewModel {
         return request
     }
 
+    // 외부 .vtt 파일을 받아 텍스트로 돌려준다. 실패 시 throw 하지만, 호출부에서는 자막 부재로 간주한다.
+    func loadSubtitleText(for path: String) async throws -> String {
+        guard let request = makeAuthorizedSubtitleRequest(for: path) else {
+            throw URLError(.badURL)
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        if let httpResponse = response as? HTTPURLResponse,
+           !(200..<300).contains(httpResponse.statusCode) {
+            throw URLError(.badServerResponse)
+        }
+        guard let text = String(data: data, encoding: .utf8) else {
+            throw URLError(.cannotDecodeContentData)
+        }
+        return text
+    }
+
     // 상대경로를 절대 URL로 변환한다.
     // - prefixV1ForData: true이면 `/data/...` 경로 앞에 v1을 붙인다(이미지·썸네일 규약).
     private func absoluteURL(for path: String, prefixV1ForData: Bool) -> URL? {
