@@ -16,6 +16,7 @@ struct VideoFeedView: View {
     @State private var isPaused = false
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.scenePhase) private var scenePhase
 
     init(authManager: any AuthManaging) {
         _viewModel = State(initialValue: VideoListViewModel(authManager: authManager))
@@ -56,6 +57,13 @@ struct VideoFeedView: View {
         .onChange(of: currentVideoID) { _, _ in
             // 다른 영상으로 넘어가면 일시정지 상태 초기화
             isPaused = false
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // 다른 앱·컨트롤 센터·알림으로 화면을 벗어나면 영상을 멈춰둔다.
+            // 복귀 시 자동 재생하지 않고 사용자가 명시적으로 탭하도록 한다(의도치 않은 사운드 재개 방지).
+            if newPhase != .active {
+                isPaused = true
+            }
         }
         // 무음 모드(silent switch)에서도 영상 사운드가 들리도록 .playback 카테고리로 활성화한다.
         // 화면을 닫으면 다른 앱에 다시 오디오 권한을 돌려준다.
