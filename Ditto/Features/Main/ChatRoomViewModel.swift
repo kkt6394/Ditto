@@ -211,6 +211,17 @@ final class ChatRoomViewModel {
             service.onError = { [weak self] errorMessage in
                 self?.message = errorMessage
             }
+            service.onStatusChange = { status in
+                // 소켓 라이브러리 상태를 NetworkMonitor 의 SocketStatus 로 변환해 단일 소스에 반영한다.
+                switch status {
+                case .connected:
+                    NetworkMonitor.shared.update(socketStatus: .connected)
+                case .connecting:
+                    NetworkMonitor.shared.update(socketStatus: .connecting)
+                case .disconnected:
+                    NetworkMonitor.shared.update(socketStatus: .disconnected)
+                }
+            }
             socketService = service
             service.connect()
         } catch {

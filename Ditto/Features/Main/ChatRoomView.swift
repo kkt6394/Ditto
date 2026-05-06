@@ -18,6 +18,7 @@ struct ChatRoomView: View {
     let opponentNick: String
     private let authManager: any AuthManaging
     @State private var viewModel: ChatRoomViewModel
+    @State private var networkMonitor = NetworkMonitor.shared
     @State private var composingText = ""
     @State private var pickerSelection: [PhotosPickerItem] = []
     @State private var isPresentingPhotosPicker = false
@@ -33,6 +34,10 @@ struct ChatRoomView: View {
     var body: some View {
         VStack(spacing: 0) {
             navigationBar
+
+            if networkMonitor.bannerState != .hidden {
+                ChatRoomNetworkBanner(state: networkMonitor.bannerState)
+            }
 
             if viewModel.isLoading && viewModel.messages.isEmpty {
                 ChatStateView(title: "채팅 내용을 불러오는 중입니다.", systemName: "arrow.clockwise")
@@ -50,6 +55,7 @@ struct ChatRoomView: View {
                     .padding(.vertical, 8)
             }
         }
+        .animation(.easeInOut(duration: 0.2), value: networkMonitor.bannerState)
         .background(MainScreenPalette.background.ignoresSafeArea())
         .navigationBarBackButtonHidden(true)
         .toolbar(.hidden, for: .navigationBar)

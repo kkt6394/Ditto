@@ -9,8 +9,15 @@ import Foundation
 import SocketIO
 
 final class ChatSocketService {
+    enum ConnectionStatus {
+        case connected
+        case connecting
+        case disconnected
+    }
+
     var onMessage: ((ChatResponseDTO) -> Void)?
     var onError: ((String) -> Void)?
+    var onStatusChange: ((ConnectionStatus) -> Void)?
 
     private let manager: SocketManager
     private let socket: SocketIOClient
@@ -50,18 +57,35 @@ final class ChatSocketService {
         socket.disconnect()
         socket.removeAllHandlers()
         manager.disconnect()
+        // 명시적으로 끊을 때는 외부 옵저버에도 즉시 알린다.
+        Task { @MainActor in
+            onStatusChange?(.disconnected)
+        }
     }
 }
 
 private extension ChatSocketService {
     func registerHandlers() {
-        socket.on(clientEvent: .connect) { _, _ in }
+        socket.on(clientEvent: .connect) { [weak self] _, _ in
+            self?.notifyStatus(.connected)
+        }
 
         socket.on(clientEvent: .error) { [weak self] data, _ in
             self?.notifyError(from: data)
         }
 
-        socket.on(clientEvent: .disconnect) { _, _ in }
+        socket.on(clientEvent: .disconnect) { [weak self] _, _ in
+            self?.notifyStatus(.disconnected)
+        }
+
+        socket.on(clientEvent: .reconnectAttempt) { [weak self] _, _ in
+            // 첫 연결은 .connect로 바로 들어오므로 재연결 시도일 때만 .connecting 으로 본다.
+            self?.notifyStatus(.connecting)
+        }
+
+        socket.on(clientEvent: .reconnect) { [weak self] _, _ in
+            self?.notifyStatus(.connected)
+        }
 
         socket.on("chat") { [weak self] data, _ in
             self?.decodeMessage(from: data)
@@ -115,6 +139,12 @@ private extension ChatSocketService {
 
         Task { @MainActor in
             onError?(detail)
+        }
+    }
+
+    func notifyStatus(_ status: ChatSocketService.ConnectionStatus) {
+        Task { @MainActor in
+            onStatusChange?(status)
         }
     }
 }
