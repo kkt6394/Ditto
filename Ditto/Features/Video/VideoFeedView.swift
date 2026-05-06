@@ -16,6 +16,9 @@ struct VideoFeedView: View {
     @State private var isPaused = false
     @State private var isSubtitleEnabled = false
     @State private var currentSubtitleText: String?
+    @State private var availableSubtitles: [StreamSubtitleDTO] = []
+    // 사용자가 직접 고른 자막 언어. nil이면 isDefault 자막을 자동 사용한다.
+    @State private var selectedSubtitleLanguage: String?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -116,16 +119,21 @@ struct VideoFeedView: View {
                         isActive: currentVideoID == video.videoId,
                         isPaused: currentVideoID == video.videoId && isPaused,
                         isSubtitleEnabled: isSubtitleEnabled,
+                        selectedSubtitleLanguage: selectedSubtitleLanguage,
                         onTapPlayer: {
                             if currentVideoID == video.videoId {
                                 isPaused.toggle()
                             }
                         },
-                        viewModel: viewModel
-                    ) { newText in
-                        // 활성 카드만 자막을 보내므로 그대로 받아 그린다.
-                        // 카드 전환 직후 비활성 카드의 nil 콜백이 늦게 들어와도, 다음 활성 콜백이 덮어쓴다.
-                        currentSubtitleText = newText
+                        viewModel: viewModel,
+                        onSubtitleChange: { newText in
+                            // 활성 카드만 자막을 보내므로 그대로 받아 그린다.
+                            // 카드 전환 직후 비활성 카드의 nil 콜백이 늦게 들어와도, 다음 활성 콜백이 덮어쓴다.
+                            currentSubtitleText = newText
+                        }
+                    ) { subtitles in
+                        // 활성 카드의 자막 목록을 받아 메뉴에 표시한다.
+                        availableSubtitles = subtitles
                     }
                     .containerRelativeFrame([.horizontal, .vertical])
                     .id(video.videoId)
@@ -254,19 +262,54 @@ struct VideoFeedView: View {
 
             Spacer()
 
-            // 자막 ON/OFF 토글. 좌측 X 버튼과 시각적 균형도 맞춘다(44×44).
-            Button {
-                isSubtitleEnabled.toggle()
-            } label: {
-                Image(systemName: isSubtitleEnabled ? "captions.bubble.fill" : "captions.bubble")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(Circle().fill(.black.opacity(0.35)))
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(isSubtitleEnabled ? "자막 끄기" : "자막 켜기")
+            // 자막 메뉴(끄기 + 언어 선택). 좌측 X 버튼과 시각적 균형도 맞춘다(44×44).
+            subtitleMenu
         }
+    }
+
+    private var subtitleMenu: some View {
+        Menu {
+            Button {
+                isSubtitleEnabled = false
+            } label: {
+                if isSubtitleEnabled {
+                    Text("끄기")
+                } else {
+                    Label("끄기", systemImage: "checkmark")
+                }
+            }
+            if !availableSubtitles.isEmpty {
+                Divider()
+                ForEach(availableSubtitles, id: \.language) { subtitle in
+                    Button {
+                        selectedSubtitleLanguage = subtitle.language
+                        isSubtitleEnabled = true
+                    } label: {
+                        if isCurrentlySelected(subtitle) {
+                            Label(subtitle.name, systemImage: "checkmark")
+                        } else {
+                            Text(subtitle.name)
+                        }
+                    }
+                }
+            }
+        } label: {
+            Image(systemName: isSubtitleEnabled ? "captions.bubble.fill" : "captions.bubble")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: 44, height: 44)
+                .background(Circle().fill(.black.opacity(0.35)))
+        }
+        .accessibilityLabel("자막 설정")
+    }
+
+    private func isCurrentlySelected(_ subtitle: StreamSubtitleDTO) -> Bool {
+        // 자막이 켜져 있을 때만 체크 표시. 사용자 선택값이 있으면 그것 우선, 없으면 isDefault.
+        guard isSubtitleEnabled else { return false }
+        if let selected = selectedSubtitleLanguage {
+            return selected == subtitle.language
+        }
+        return subtitle.isDefault
     }
 
     @ViewBuilder
