@@ -116,9 +116,10 @@ final class VideoListViewModel {
         return ["SeSACKey": configuration.apiKey]
     }
 
-    // 자막(WebVTT)은 헤더 인증이 필요하다.
+    // 자막(WebVTT)도 stream과 마찬가지로 /v1 접두사가 필요하지만,
+    // stream과 달리 Authorization 헤더까지 함께 요구한다. SeSACKey만 보내면 403을 받는다.
     func makeAuthorizedSubtitleRequest(for path: String) -> URLRequest? {
-        guard let url = absoluteURL(for: path, prefixV1ForData: false) else { return nil }
+        guard let url = makeStreamURL(from: path) else { return nil }
         guard let configuration = try? configurationProvider() else { return nil }
 
         var request = URLRequest(url: url)
