@@ -166,13 +166,16 @@ struct ChatBubble: View {
     }
 
     private var textBubble: some View {
+        // .frame(maxWidth:)을 background 앞에 두면 frame이 부모 가용 폭만큼 펼쳐지고
+        // 그 위에 배경이 칠해져 짧은 글자에도 말풍선이 일정 폭으로 고정된다.
+        // 부모 HStack의 Spacer(minLength: 60)가 반대편 여백을 보장하므로
+        // 텍스트는 가용 폭 안에서 자연스럽게 줄바꿈하고, 말풍선 너비는 글자 길이에 따라 동적으로 변한다.
         Text(message.content)
             .font(MainScreenTypography.body)
             .foregroundStyle(isOutgoing ? .white : MainScreenPalette.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
             .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .frame(maxWidth: 280, alignment: .leading)
             .background(bubbleColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 14, style: .continuous)
