@@ -25,13 +25,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
     func application(
         _ application: UIApplication,
-        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
     ) -> Bool {
         FirebaseApp.configure()
 
         UNUserNotificationCenter.current().delegate = self
         Messaging.messaging().delegate = self
         requestNotificationAuthorization(application: application)
+
+        // 앱이 완전히 종료된 상태에서 푸시 탭으로 켜진 경우, 그 페이로드는 launchOptions로만 들어온다.
+        // didReceive는 호출되지 않으므로 여기서 한 번만 PushNavigator에 적재한다.
+        if let remotePayload = launchOptions?[.remoteNotification] as? [AnyHashable: Any] {
+            Self.routeChatPush(from: remotePayload)
+        }
 
         return true
     }
@@ -75,6 +81,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) async -> UNNotificationPresentationOptions {
         let userInfo = notification.request.content.userInfo
 
+        #if DEBUG
+        // 서버가 실제로 보내는 페이로드 키 파악용. 사용자 식별/방 정보 키 존재 여부 확인 후 제거 예정.
+        print("Push payload: \(userInfo)")
+        #endif
+
         // 채팅 푸시는 room_id 키를 통해 식별한다. 그 외 푸시는 항상 표시한다.
         guard let roomId = userInfo["room_id"] as? String else {
             return [.banner, .badge, .sound]
@@ -87,6 +98,32 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         }
 
         return shouldSilence ? [] : [.banner, .badge, .sound]
+    }
+
+    func userNotificationCenter(
+        _: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse
+    ) async {
+        // 사용자가 푸시 배너/알림센터 항목을 탭했을 때 호출된다.
+        // 포어그라운드/백그라운드 상태 모두 이 경로로 들어오며, terminated 상태는 launchOptions에서 한 번 더 처리된다.
+        Self.routeChatPush(from: response.notification.request.content.userInfo)
+    }
+}
+
+private extension AppDelegate {
+    static func routeChatPush(from userInfo: [AnyHashable: Any]) {
+        guard let roomId = userInfo["room_id"] as? String else {
+            return
+        }
+
+        // aps.alert.subtitle에는 송신자 닉네임이 들어온다. 채팅 리스트 캐시 매칭이 실패할 때 fallback 으로 쓴다.
+        let opponentNickFallback = (userInfo["aps"] as? [String: Any])
+            .flatMap { $0["alert"] as? [String: Any] }
+            .flatMap { $0["subtitle"] as? String }
+
+        Task { @MainActor in
+            PushNavigator.shared.requestChatRoom(roomId: roomId, opponentNickFallback: opponentNickFallback)
+        }
     }
 }
 

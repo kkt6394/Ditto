@@ -153,12 +153,17 @@ struct MainView: View {
         .environment(\.likesZoomActive, zoomingActivityId != nil)
         .onAppear {
             updateChatPresence()
+            // 앱 종료 상태에서 푸시 탭으로 켜졌다면 PushNavigator에 이미 pending이 들어와 있다.
+            handlePendingChatPushIfNeeded()
         }
         .onChange(of: selectedTabID) { _, _ in
             updateChatPresence()
         }
         .onChange(of: navigationPath.count) { _, _ in
             updateChatPresence()
+        }
+        .onChange(of: PushNavigator.shared.pendingChat) { _, _ in
+            handlePendingChatPushIfNeeded()
         }
     }
 
@@ -347,6 +352,24 @@ private extension MainView {
         // 채팅 탭 루트(목록 화면) 노출 시점에만 무음 플래그를 켠다. 채팅방 진입 시엔 ChatRoomView가 activeRoomId를 갱신한다.
         let isOnChatListRoot = selectedTabID == MainTab.chat.rawValue && navigationPath.isEmpty
         ChatPresence.shared.isOnChatList = isOnChatListRoot
+    }
+
+    func handlePendingChatPushIfNeeded() {
+        guard let pending = PushNavigator.shared.pendingChat else {
+            return
+        }
+
+        // 진입에 필요한 최소 정보(상대 닉네임)를 페이로드 subtitle에서 받아온다.
+        // subtitle이 비어있는 예외 페이로드는 조용히 소비한다 — 잘못된 진입을 만들지 않는다.
+        guard let opponentNick = pending.opponentNickFallback, !opponentNick.isEmpty else {
+            PushNavigator.shared.consume()
+            return
+        }
+
+        // 채팅 탭으로 전환한 뒤 그 위에 채팅방을 push 한다. 이미 다른 화면이 쌓여 있으면 한 번에 교체한다.
+        selectedTabID = MainTab.chat.rawValue
+        navigationPath = [.chat(roomId: pending.roomId, opponentNick: opponentNick)]
+        PushNavigator.shared.consume()
     }
 
     var shouldShowComposerButton: Bool {
