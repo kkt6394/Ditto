@@ -5,6 +5,7 @@
 //  Created by Codex on 5/5/26.
 //
 
+import AVFoundation
 import SwiftUI
 
 // 쇼츠 스타일의 세로 풀스크린 영상 피드.
@@ -56,6 +57,27 @@ struct VideoFeedView: View {
             // 다른 영상으로 넘어가면 일시정지 상태 초기화
             isPaused = false
         }
+        // 무음 모드(silent switch)에서도 영상 사운드가 들리도록 .playback 카테고리로 활성화한다.
+        // 화면을 닫으면 다른 앱에 다시 오디오 권한을 돌려준다.
+        .onAppear { activateAudioSession() }
+        .onDisappear { deactivateAudioSession() }
+    }
+
+    private func activateAudioSession() {
+        do {
+            let session = AVAudioSession.sharedInstance()
+            try session.setCategory(.playback, mode: .moviePlayback)
+            try session.setActive(true)
+        } catch {
+            // 설정 실패해도 재생 자체는 가능하므로 조용히 무시한다.
+        }
+    }
+
+    private func deactivateAudioSession() {
+        try? AVAudioSession.sharedInstance().setActive(
+            false,
+            options: .notifyOthersOnDeactivation
+        )
     }
 
     @ViewBuilder
