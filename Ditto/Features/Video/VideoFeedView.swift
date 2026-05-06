@@ -14,6 +14,8 @@ struct VideoFeedView: View {
     @State private var viewModel: VideoListViewModel
     @State private var currentVideoID: String?
     @State private var isPaused = false
+    @State private var isSubtitleEnabled = false
+    @State private var currentSubtitleText: String?
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.scenePhase) private var scenePhase
@@ -37,6 +39,9 @@ struct VideoFeedView: View {
             if let video = currentVideo {
                 infoOverlay(for: video)
             }
+
+            // 자막도 카드 외부 z-order에 그려 AVPlayer view에 가려지지 않도록 한다.
+            subtitleOverlay
 
             VStack {
                 topBar
@@ -110,13 +115,18 @@ struct VideoFeedView: View {
                         video: video,
                         isActive: currentVideoID == video.videoId,
                         isPaused: currentVideoID == video.videoId && isPaused,
+                        isSubtitleEnabled: isSubtitleEnabled,
                         onTapPlayer: {
                             if currentVideoID == video.videoId {
                                 isPaused.toggle()
                             }
                         },
                         viewModel: viewModel
-                    )
+                    ) { newText in
+                        // 활성 카드만 자막을 보내므로 그대로 받아 그린다.
+                        // 카드 전환 직후 비활성 카드의 nil 콜백이 늦게 들어와도, 다음 활성 콜백이 덮어쓴다.
+                        currentSubtitleText = newText
+                    }
                     .containerRelativeFrame([.horizontal, .vertical])
                     .id(video.videoId)
                 }
@@ -244,8 +254,44 @@ struct VideoFeedView: View {
 
             Spacer()
 
-            // 좌측 버튼과 시각적 균형용 placeholder (44x44)
-            Color.clear.frame(width: 44, height: 44)
+            // 자막 ON/OFF 토글. 좌측 X 버튼과 시각적 균형도 맞춘다(44×44).
+            Button {
+                isSubtitleEnabled.toggle()
+            } label: {
+                Image(systemName: isSubtitleEnabled ? "captions.bubble.fill" : "captions.bubble")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.black.opacity(0.35)))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(isSubtitleEnabled ? "자막 끄기" : "자막 켜기")
+        }
+    }
+
+    @ViewBuilder
+    private var subtitleOverlay: some View {
+        if isSubtitleEnabled,
+           let text = currentSubtitleText,
+           !text.isEmpty {
+            VStack {
+                Spacer()
+                Text(text)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(.black.opacity(0.6))
+                    )
+                    .padding(.horizontal, 24)
+                    // bottomInfo(제목/설명/좋아요)와 겹치지 않도록 충분히 위로 띄운다.
+                    .padding(.bottom, 200)
+            }
+            .allowsHitTesting(false)
+            .transition(.opacity)
         }
     }
 }

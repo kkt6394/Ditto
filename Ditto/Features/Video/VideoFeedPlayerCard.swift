@@ -16,15 +16,29 @@ struct VideoFeedPlayerCard: View {
     let video: VideoResponseDTO
     let isActive: Bool
     let isPaused: Bool
+    let isSubtitleEnabled: Bool
     // 영상 영역 탭 시 부모에 알린다. 화면 전체에 탭 영역을 깔면 ScrollView paging이 막혀서
     // 카드 안 player view에만 한정해서 hit-test를 받도록 한다.
     let onTapPlayer: () -> Void
     let viewModel: VideoListViewModel
+    // 활성 카드의 현재 자막 텍스트를 부모로 알린다. 부모가 카드 외부 z-order에 자막을 그린다.
+    var onSubtitleChange: (String?) -> Void = { _ in }
 
     @State private var player: AVPlayer?
     @State private var streamLoadFailed = false
     @State private var isLoadingStream = false
     @State private var thumbnailImage: UIImage?
+    @State private var subtitleCues: [WebVTTCue] = []
+    @State private var currentTime: TimeInterval = 0
+    @State private var timeObserverToken: Any?
+
+    // 활성 + 자막 ON + 큐 보유 + 현재 시간이 큐 범위 안일 때만 텍스트가 살아 있다.
+    private var currentSubtitleText: String? {
+        guard isActive, isSubtitleEnabled, !subtitleCues.isEmpty else { return nil }
+        return subtitleCues
+            .first { currentTime >= $0.start && currentTime <= $0.end }?
+            .text
+    }
 
     var body: some View {
         ZStack {
@@ -68,8 +82,12 @@ struct VideoFeedPlayerCard: View {
                 player?.play()
             }
         }
+        .onChange(of: currentSubtitleText) { _, newText in
+            onSubtitleChange(newText)
+        }
         .onDisappear {
             player?.pause()
+            removeTimeObserverIfNeeded()
         }
     }
 
@@ -119,8 +137,39 @@ struct VideoFeedPlayerCard: View {
                 newPlayer.play()
             }
             player = newPlayer
+            attachTimeObserver(to: newPlayer)
+            await loadSubtitlesIfNeeded(from: response.subtitles)
         } catch {
             streamLoadFailed = true
+        }
+    }
+
+    private func attachTimeObserver(to player: AVPlayer) {
+        guard timeObserverToken == nil else { return }
+        // 0.25초 간격으로 현재 시간을 받아 자막 큐 매칭에 쓴다.
+        let interval = CMTime(seconds: 0.25, preferredTimescale: 600)
+        let token = player.addPeriodicTimeObserver(forInterval: interval, queue: .main) { time in
+            currentTime = CMTimeGetSeconds(time)
+        }
+        timeObserverToken = token
+    }
+
+    private func removeTimeObserverIfNeeded() {
+        guard let token = timeObserverToken else { return }
+        player?.removeTimeObserver(token)
+        timeObserverToken = nil
+    }
+
+    private func loadSubtitlesIfNeeded(from subtitles: [StreamSubtitleDTO]) async {
+        guard subtitleCues.isEmpty else { return }
+        // 기본 자막 → 첫 번째 자막 순서로 하나만 선택한다(다국어 선택 UI는 이번 스코프 밖).
+        let preferred = subtitles.first { $0.isDefault } ?? subtitles.first
+        guard let subtitle = preferred else { return }
+        do {
+            let text = try await viewModel.loadSubtitleText(for: subtitle.url)
+            subtitleCues = WebVTTParser.parse(text)
+        } catch {
+            // 자막 로드 실패는 영상 재생을 막지 않는다.
         }
     }
 
