@@ -14,6 +14,7 @@ import UniformTypeIdentifiers
 struct ChatRoomView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
 
     let opponentNick: String
     private let authManager: any AuthManaging
@@ -75,6 +76,20 @@ struct ChatRoomView: View {
         }
         .onChange(of: pickerSelection) { _, items in
             handlePickerChange(items)
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            // 채팅방에 머무는 동안 백그라운드↔포그라운드 전이를 ViewModel 에 위임한다.
+            // .inactive 는 잠깐 거치는 단계라 무시한다.
+            switch newPhase {
+            case .active:
+                viewModel.handleAppActive(modelContext: modelContext)
+            case .background:
+                viewModel.handleAppBackground()
+            case .inactive:
+                break
+            @unknown default:
+                break
+            }
         }
         .photosPicker(
             isPresented: $isPresentingPhotosPicker,

@@ -23,6 +23,11 @@ final class ChatRoomViewModel {
     private let readStateStore: ChatReadStateStore
     private var currentUserId: String?
     private var socketService: ChatSocketService?
+    // 소켓이 한 번 끊긴 적이 있는지 추적해 첫 연결과 재연결을 구분한다.
+    // disconnect→connect 전이만 sync 트리거로 본다.
+    private var hasBeenDisconnectedSinceConnect = false
+    private var isSyncing = false
+    private var lastSyncAt: Date?
 
     /// 채팅 파일 업로드 정책 — activity-api-docs.md `POST /v1/chats/{room_id}/files`
     /// 확장자: jpg, png, jpeg, gif, pdf / 용량: 5MB / 개수: 5개
@@ -268,16 +273,8 @@ final class ChatRoomViewModel {
             service.onError = { [weak self] errorMessage in
                 self?.message = errorMessage
             }
-            service.onStatusChange = { status in
-                // 소켓 라이브러리 상태를 NetworkMonitor 의 SocketStatus 로 변환해 단일 소스에 반영한다.
-                switch status {
-                case .connected:
-                    NetworkMonitor.shared.update(socketStatus: .connected)
-                case .connecting:
-                    NetworkMonitor.shared.update(socketStatus: .connecting)
-                case .disconnected:
-                    NetworkMonitor.shared.update(socketStatus: .disconnected)
-                }
+            service.onStatusChange = { [weak self] status in
+                self?.handleSocketStatusChange(status, modelContext: modelContext)
             }
             socketService = service
             service.connect()
@@ -353,9 +350,85 @@ final class ChatRoomViewModel {
     }
 }
 
+// MARK: - 라이프사이클 / 동기화
+// type_body_length 룰을 피하기 위해 핵심 클래스 본문 밖으로 분리한다.
+// 같은 파일 안에 있어 private 상태/메서드에 그대로 접근할 수 있다.
+extension ChatRoomViewModel {
+    // 앱이 백그라운드에서 다시 활성화되었을 때 호출. 끊겨 있던 소켓을 다시 붙이고
+    // 백그라운드 동안 받지 못한 메시지를 REST 로 보강한다.
+    func handleAppActive(modelContext: ModelContext) {
+        if socketService == nil {
+            connectSocket(modelContext: modelContext)
+        }
+        Task { await syncMissedMessages(modelContext: modelContext) }
+    }
+
+    // 앱이 백그라운드로 들어갈 때 호출. 자원 절약과 stale 소켓 방지를 위해 끊는다.
+    // 진짜 화면을 떠나는 onDisappear 와 같은 함수를 재사용한다.
+    func handleAppBackground() {
+        disconnectSocket()
+    }
+
+    // 네트워크 또는 소켓 복구 후 마지막으로 받은 sent 메시지 이후의 메시지를 보강한다.
+    // 트리거가 동시에 여러 개 발사되어도 한 번만 실제로 호출되도록 idempotent + 짧은 디바운스.
+    func syncMissedMessages(modelContext: ModelContext) async {
+        if isSyncing {
+            return
+        }
+
+        if let lastSync = lastSyncAt, Date().timeIntervalSince(lastSync) < 0.5 {
+            return
+        }
+
+        isSyncing = true
+        lastSyncAt = Date()
+        defer {
+            isSyncing = false
+        }
+
+        guard let cursor = lastSentMessage?.dto.createdAt else {
+            // 캐시가 비어 있으면 처음부터 가져오는 일반 로드로 폴백.
+            await loadMessages(modelContext: modelContext)
+            return
+        }
+
+        do {
+            let networkManager = try makeNetworkManager()
+            let query = ChatMessageListQuery(roomId: roomId, next: cursor)
+            let response: ChatListResponseDTO = try await networkManager.request(ChatRouter.messages(query))
+            try store(response.data, in: modelContext)
+            messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
+        } catch {
+            // 동기화 실패는 토스트로 띄우지 않는다. 다음 트리거에서 다시 시도된다.
+        }
+    }
+}
+
 private extension ChatRoomViewModel {
     static func makePendingId() -> String {
         "pending-" + UUID().uuidString
+    }
+
+    func handleSocketStatusChange(
+        _ status: ChatSocketService.ConnectionStatus,
+        modelContext: ModelContext
+    ) {
+        switch status {
+        case .connected:
+            NetworkMonitor.shared.update(socketStatus: .connected)
+            // disconnect 를 한 번이라도 거친 뒤 다시 connect 된 경우만 재연결로 보고
+            // 놓친 메시지 동기화를 트리거한다. 첫 연결은 .task 에서 이미 loadMessages 를 했음.
+            if hasBeenDisconnectedSinceConnect {
+                hasBeenDisconnectedSinceConnect = false
+                Task { await syncMissedMessages(modelContext: modelContext) }
+            }
+        case .connecting:
+            NetworkMonitor.shared.update(socketStatus: .connecting)
+        case .disconnected:
+            NetworkMonitor.shared.update(socketStatus: .disconnected)
+            hasBeenDisconnectedSinceConnect = true
+        }
     }
 
     static let pendingDateFormatter: ISO8601DateFormatter = {
