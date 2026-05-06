@@ -28,6 +28,9 @@ final class ChatRoomViewModel {
     private var hasBeenDisconnectedSinceConnect = false
     private var isSyncing = false
     private var lastSyncAt: Date?
+    // 재전송 중복 탭을 막기 위한 in-flight 집합. 사용자가 같은 실패 메시지를 연달아 두번 누르면
+    // 두 번째 탭은 무시한다.
+    private var retryingMessageIds: Set<String> = []
 
     /// 채팅 파일 업로드 정책 — activity-api-docs.md `POST /v1/chats/{room_id}/files`
     /// 확장자: jpg, png, jpeg, gif, pdf / 용량: 5MB / 개수: 5개
@@ -139,22 +142,9 @@ final class ChatRoomViewModel {
         // zero-width space(U+200B)는 trim에 잡히지 않아 서버 검증을 통과하면서
         // 화면에는 보이지 않는다. ChatBubble에서는 별도로 정리해 빈 텍스트 버블을 그리지 않는다.
         let payloadContent = trimmedContent.isEmpty ? "\u{200B}" : trimmedContent
-        let pendingId = Self.makePendingId()
 
-        do {
-            try insertPendingEntity(
-                pendingId: pendingId,
-                content: payloadContent,
-                files: uploadedPaths,
-                modelContext: modelContext
-            )
-        } catch {
-            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 임시 저장하지 못했습니다.")
-            return
-        }
-
-        // 입력 영역은 즉시 비워준다. 실패 시에도 사용자가 다시 타이핑하지 않도록
-        // 본문/첨부 정보는 pending 엔티티에 보존된다.
+        // 입력 영역은 즉시 비워 사용자에게 "받았다"는 신호를 주되, 화면 메시지 목록에는
+        // 임시 말풍선을 띄우지 않는다. 결과(성공 or 실패)가 도착할 때 비로소 등장한다.
         attachments.removeAll()
 
         isSending = true
@@ -163,39 +153,57 @@ final class ChatRoomViewModel {
             isSending = false
         }
 
-        await performSend(
-            pendingId: pendingId,
-            content: payloadContent,
-            files: uploadedPaths,
-            modelContext: modelContext
-        )
+        do {
+            let networkManager = try makeNetworkManager()
+            let request = ChatSendRequestDTO(
+                content: payloadContent,
+                files: hasAttachments ? uploadedPaths : nil
+            )
+            let response: ChatResponseDTO = try await networkManager.request(
+                ChatRouter.send(roomId: roomId, request: request)
+            )
+            try store([response], in: modelContext)
+            messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
+        } catch {
+            // 실패 시점에 비로소 빨간 실패 말풍선을 영속화해서 재전송/삭제 UX 가 가능하게 한다.
+            try? insertFailedEntity(
+                content: payloadContent,
+                files: uploadedPaths,
+                modelContext: modelContext
+            )
+            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 보내지 못했습니다.")
+        }
     }
 
+    // 실패 말풍선을 그대로 둔 채 조용히 REST 재시도. 성공하면 실패 엔티티를 지우고 서버 응답으로 교체.
+    // 실패 시에는 화면 변화 없음(사용자가 다시 누르면 또 시도). 중복 탭은 retryingMessageIds 로 막는다.
     func retry(messageId: String, modelContext: ModelContext) async {
         guard let entity = findEntity(chatId: messageId, in: modelContext),
-              entity.status == .failed else {
+              entity.status == .failed,
+              !retryingMessageIds.contains(messageId) else {
             return
         }
 
-        entity.setStatus(.sending)
+        retryingMessageIds.insert(messageId)
+        defer { retryingMessageIds.remove(messageId) }
+
         do {
-            try modelContext.save()
+            let networkManager = try makeNetworkManager()
+            let request = ChatSendRequestDTO(
+                content: entity.content,
+                files: entity.files.isEmpty ? nil : entity.files
+            )
+            let response: ChatResponseDTO = try await networkManager.request(
+                ChatRouter.send(roomId: roomId, request: request)
+            )
+            modelContext.delete(entity)
+            try store([response], in: modelContext)
+            messages = try cachedMessages(in: modelContext)
+            markLastReadIfPossible()
         } catch {
-            message = "재전송 준비 중 오류가 발생했습니다."
-            return
+            // 재시도 실패는 조용히 무시한다. 실패 말풍선이 그대로 남아 있어 사용자가 다시 누를 수 있다.
         }
-        messages = (try? cachedMessages(in: modelContext)) ?? messages
-
-        isSending = true
-        defer {
-            isSending = false
-        }
-        await performSend(
-            pendingId: entity.chatId,
-            content: entity.content,
-            files: entity.files,
-            modelContext: modelContext
-        )
     }
 
     func discardFailed(messageId: String, modelContext: ModelContext) {
@@ -270,9 +278,8 @@ final class ChatRoomViewModel {
             service.onMessage = { [weak self] socketMessage in
                 self?.receive(socketMessage, modelContext: modelContext)
             }
-            service.onError = { [weak self] errorMessage in
-                self?.message = errorMessage
-            }
+            // 소켓 일반 에러는 빨간 토스트로 띄우지 않는다. 연결 상태는 NetworkMonitor 배너가
+            // 단일 소스로 표현하고, 토스트는 사용자 행동이 필요한 도메인 에러에만 사용한다.
             service.onStatusChange = { [weak self] status in
                 self?.handleSocketStatusChange(status, modelContext: modelContext)
             }
@@ -310,7 +317,10 @@ final class ChatRoomViewModel {
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
 
-        return try modelContext.fetch(descriptor).map(\.displayMessage)
+        // .sending 상태는 더 이상 새로 만들지 않지만, 과거 테스트로 캐시에 남아 있을 수 있어 제외한다.
+        return try modelContext.fetch(descriptor)
+            .filter { $0.status != .sending }
+            .map(\.displayMessage)
     }
 
     private func store(_ remoteMessages: [ChatResponseDTO], in modelContext: ModelContext) throws {
@@ -369,6 +379,17 @@ extension ChatRoomViewModel {
         disconnectSocket()
     }
 
+    // 네트워크가 false → true 로 회복되었을 때 호출.
+    // Socket.IO 의 자동 재연결은 만료된 Authorization 헤더를 재사용해 무한 reconnect 루프에
+    // 빠질 수 있다. 안전하게 기존 소켓을 폐기하고 현재 토큰으로 새 인스턴스를 만든다.
+    func handleNetworkRestored(modelContext: ModelContext) {
+        if socketService != nil {
+            disconnectSocket()
+        }
+        connectSocket(modelContext: modelContext)
+        Task { await syncMissedMessages(modelContext: modelContext) }
+    }
+
     // 네트워크 또는 소켓 복구 후 마지막으로 받은 sent 메시지 이후의 메시지를 보강한다.
     // 트리거가 동시에 여러 개 발사되어도 한 번만 실제로 호출되도록 idempotent + 짧은 디바운스.
     func syncMissedMessages(modelContext: ModelContext) async {
@@ -406,8 +427,8 @@ extension ChatRoomViewModel {
 }
 
 private extension ChatRoomViewModel {
-    static func makePendingId() -> String {
-        "pending-" + UUID().uuidString
+    static func makeFailedMessageId() -> String {
+        "failed-" + UUID().uuidString
     }
 
     func handleSocketStatusChange(
@@ -417,6 +438,8 @@ private extension ChatRoomViewModel {
         switch status {
         case .connected:
             NetworkMonitor.shared.update(socketStatus: .connected)
+            // 잔여 빨간 토스트(과거 connection 에러 등)는 연결이 회복되면 의미가 없으니 비운다.
+            message = nil
             // disconnect 를 한 번이라도 거친 뒤 다시 connect 된 경우만 재연결로 보고
             // 놓친 메시지 동기화를 트리거한다. 첫 연결은 .task 에서 이미 loadMessages 를 했음.
             if hasBeenDisconnectedSinceConnect {
@@ -431,7 +454,7 @@ private extension ChatRoomViewModel {
         }
     }
 
-    static let pendingDateFormatter: ISO8601DateFormatter = {
+    static let localDateFormatter: ISO8601DateFormatter = {
         let formatter = ISO8601DateFormatter()
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         return formatter
@@ -445,15 +468,16 @@ private extension ChatRoomViewModel {
         }
     }
 
-    func insertPendingEntity(
-        pendingId: String,
+    // 전송 실패 시점에 호출. 사용자 입력을 영속화한 실패 말풍선을 생성한다.
+    // chatId 는 "failed-{UUID}" 로 두어 서버 chatId 와 충돌하지 않게 한다.
+    func insertFailedEntity(
         content: String,
         files: [String],
         modelContext: ModelContext
     ) throws {
-        let nowString = Self.pendingDateFormatter.string(from: Date())
+        let nowString = Self.localDateFormatter.string(from: Date())
         let entity = ChatMessageEntity(
-            pendingId: pendingId,
+            pendingId: Self.makeFailedMessageId(),
             roomId: roomId,
             content: content,
             files: files,
@@ -463,53 +487,10 @@ private extension ChatRoomViewModel {
             senderIntroduction: nil,
             createdAt: nowString
         )
+        entity.setStatus(.failed)
         modelContext.insert(entity)
         try modelContext.save()
         messages = try cachedMessages(in: modelContext)
-    }
-
-    func performSend(
-        pendingId: String,
-        content: String,
-        files: [String],
-        modelContext: ModelContext
-    ) async {
-        do {
-            let networkManager = try makeNetworkManager()
-            let request = ChatSendRequestDTO(
-                content: content,
-                files: files.isEmpty ? nil : files
-            )
-            let response: ChatResponseDTO = try await networkManager.request(
-                ChatRouter.send(roomId: roomId, request: request)
-            )
-            try replacePending(pendingId: pendingId, with: response, modelContext: modelContext)
-            messages = try cachedMessages(in: modelContext)
-            markLastReadIfPossible()
-        } catch {
-            markPendingFailed(pendingId: pendingId, modelContext: modelContext)
-            message = Self.makeErrorMessage(from: error, fallbackMessage: "메시지를 보내지 못했습니다.")
-        }
-    }
-
-    func replacePending(
-        pendingId: String,
-        with response: ChatResponseDTO,
-        modelContext: ModelContext
-    ) throws {
-        if let pending = findEntity(chatId: pendingId, in: modelContext) {
-            modelContext.delete(pending)
-        }
-        try store([response], in: modelContext)
-    }
-
-    func markPendingFailed(pendingId: String, modelContext: ModelContext) {
-        guard let pending = findEntity(chatId: pendingId, in: modelContext) else {
-            return
-        }
-        pending.setStatus(.failed)
-        try? modelContext.save()
-        messages = (try? cachedMessages(in: modelContext)) ?? messages
     }
 
     func uploadAttachment(_ attachment: ChatComposeAttachment) {

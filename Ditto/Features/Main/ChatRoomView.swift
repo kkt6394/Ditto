@@ -91,6 +91,12 @@ struct ChatRoomView: View {
                 break
             }
         }
+        .onChange(of: networkMonitor.isOnline) { wasOnline, isOnline in
+            // 오프라인 → 온라인 전이에서만 소켓을 강제로 새로 만든다.
+            // Socket.IO 의 stale 토큰 reconnect 루프를 끊기 위함.
+            guard !wasOnline, isOnline else { return }
+            viewModel.handleNetworkRestored(modelContext: modelContext)
+        }
         .photosPicker(
             isPresented: $isPresentingPhotosPicker,
             selection: $pickerSelection,

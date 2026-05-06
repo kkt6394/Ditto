@@ -107,7 +107,6 @@ struct ChatBubble: View {
             bubbleColumn(alignment: .trailing)
             statusFooter
         }
-        .opacity(status == .sending ? 0.6 : 1)
         .contentShape(Rectangle())
         .onTapGesture {
             // 실패 상태에서만 탭 액션을 받는다. sent/sending 시점에는 무시한다.
@@ -120,9 +119,8 @@ struct ChatBubble: View {
     private var statusFooter: some View {
         switch status {
         case .sending:
-            Text("보내는 중...")
-                .font(MainScreenTypography.timestamp)
-                .foregroundStyle(MainScreenPalette.textSecondary)
+            // 시간 자리에 hourglass 아이콘이 들어가므로 별도 푸터는 비운다.
+            EmptyView()
         case .failed:
             HStack(spacing: 4) {
                 Image(systemName: "exclamationmark.circle.fill")
@@ -184,12 +182,22 @@ struct ChatBubble: View {
         return isOutgoing ? Color.clear : MainScreenPalette.border
     }
 
+    @ViewBuilder
     private var timeText: some View {
-        Text(formattedTime)
-            .font(MainScreenTypography.timestamp)
-            .foregroundStyle(MainScreenPalette.textSecondary)
-            .lineLimit(1)
-            .padding(.bottom, 2)
+        // sending 상태에서는 시간 자리에 모래시계 아이콘을 띄워 진행 중임을 알린다.
+        // sent/failed 에서는 평소 시간 텍스트로 돌아간다.
+        if status == .sending {
+            Image(systemName: "hourglass")
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(MainScreenPalette.textSecondary)
+                .padding(.bottom, 2)
+        } else {
+            Text(formattedTime)
+                .font(MainScreenTypography.timestamp)
+                .foregroundStyle(MainScreenPalette.textSecondary)
+                .lineLimit(1)
+                .padding(.bottom, 2)
+        }
     }
 
     private var bubbleColor: Color {
