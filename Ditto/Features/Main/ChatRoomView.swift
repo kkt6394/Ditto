@@ -174,13 +174,15 @@ struct ChatRoomView: View {
                         ChatStateView(title: "아직 메시지가 없습니다.", systemName: "bubble.left.and.bubble.right")
                             .padding(.top, 80)
                     } else {
-                        ForEach(viewModel.messages) { display in
+                        ForEach(Array(viewModel.messages.enumerated()), id: \.element.id) { index, display in
                             ChatBubble(
                                 message: display.dto,
                                 isOutgoing: viewModel.isOutgoing(display.dto, opponentNick: opponentNick),
                                 opponentNick: opponentNick,
                                 authManager: authManager,
                                 status: display.status,
+                                showTime: shouldShowTime(at: index),
+                                showSenderName: shouldShowSenderName(at: index),
                                 onSelectMedia: { presentedMedia = $0 },
                                 onTapFailed: { failedMessageId = display.id }
                             )
@@ -319,4 +321,72 @@ struct ChatRoomView: View {
         }
         viewModel.appendAttachments(inputs)
     }
+}
+
+// 메시지 그룹핑 헬퍼 — 본문 밖으로 빼서 type_body_length 룰을 통과한다.
+extension ChatRoomView {
+    // 같은 발신자 연속 그룹의 첫 메시지에만 닉네임을 표시한다 (incoming 한정).
+    fileprivate func shouldShowSenderName(at index: Int) -> Bool {
+        let messages = viewModel.messages
+        guard messages.indices.contains(index) else { return false }
+
+        let previousIndex = index - 1
+        guard messages.indices.contains(previousIndex) else {
+            return true
+        }
+
+        let current = messages[index].dto
+        let previous = messages[previousIndex].dto
+        return current.sender.userId != previous.sender.userId
+    }
+
+    // 같은 분 + 같은 발신자가 연속될 때 그룹의 마지막 메시지에만 시간을 표시한다.
+    // 마지막 메시지(다음이 없음)는 항상 시간을 표시한다.
+    fileprivate func shouldShowTime(at index: Int) -> Bool {
+        let messages = viewModel.messages
+        guard messages.indices.contains(index) else { return false }
+
+        let nextIndex = index + 1
+        guard messages.indices.contains(nextIndex) else {
+            return true
+        }
+
+        let current = messages[index].dto
+        let next = messages[nextIndex].dto
+
+        if current.sender.userId != next.sender.userId {
+            return true
+        }
+
+        return !ChatTimestampHelper.isSameMinute(current.createdAt, next.createdAt)
+    }
+}
+
+private enum ChatTimestampHelper {
+    static func isSameMinute(_ lhs: String, _ rhs: String) -> Bool {
+        guard let date1 = parse(lhs), let date2 = parse(rhs) else {
+            return false
+        }
+
+        let components: Set<Calendar.Component> = [.year, .month, .day, .hour, .minute]
+        let lhsComponents = Calendar.current.dateComponents(components, from: date1)
+        let rhsComponents = Calendar.current.dateComponents(components, from: date2)
+        return lhsComponents == rhsComponents
+    }
+
+    private static func parse(_ string: String) -> Date? {
+        isoFractional.date(from: string) ?? isoBasic.date(from: string)
+    }
+
+    private static let isoFractional: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        return formatter
+    }()
+
+    private static let isoBasic: ISO8601DateFormatter = {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter
+    }()
 }

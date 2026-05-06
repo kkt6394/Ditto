@@ -75,27 +75,33 @@ struct ChatBubble: View {
     let opponentNick: String
     let authManager: any AuthManaging
     let status: ChatMessageStatus
+    // 같은 분+같은 발신자 연속 메시지를 그룹으로 묶고, 그룹의 마지막 말풍선에만 시간을 표기한다.
+    let showTime: Bool
+    // 같은 발신자 연속 메시지 그룹의 첫 말풍선에만 닉네임을 표기한다 (incoming 한정).
+    let showSenderName: Bool
     let onSelectMedia: (ChatMediaPresentation) -> Void
     let onTapFailed: () -> Void
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
             if isOutgoing {
-                Spacer(minLength: 52)
+                Spacer(minLength: 60)
                 timeText
                 outgoingColumn
             } else {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(message.sender.nick.isEmpty ? opponentNick : message.sender.nick)
-                        .font(MainScreenTypography.timestamp)
-                        .foregroundStyle(MainScreenPalette.textSecondary)
+                    if showSenderName {
+                        Text(message.sender.nick.isEmpty ? opponentNick : message.sender.nick)
+                            .font(MainScreenTypography.timestamp)
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                    }
 
                     HStack(alignment: .bottom, spacing: 6) {
                         bubbleColumn(alignment: .leading)
                         timeText
                     }
                 }
-                Spacer(minLength: 52)
+                Spacer(minLength: 60)
             }
         }
         .frame(maxWidth: .infinity, alignment: isOutgoing ? .trailing : .leading)
@@ -164,12 +170,12 @@ struct ChatBubble: View {
             .font(MainScreenTypography.body)
             .foregroundStyle(isOutgoing ? .white : MainScreenPalette.textPrimary)
             .fixedSize(horizontal: false, vertical: true)
-            .padding(.horizontal, 12)
+            .padding(.horizontal, 14)
             .padding(.vertical, 10)
-            .frame(maxWidth: 260, alignment: .leading)
-            .background(bubbleColor, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .frame(maxWidth: 280, alignment: .leading)
+            .background(bubbleColor, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
                     .stroke(strokeColor, lineWidth: status == .failed ? 1.5 : 1)
             )
     }
@@ -185,18 +191,21 @@ struct ChatBubble: View {
     @ViewBuilder
     private var timeText: some View {
         // sending 상태에서는 시간 자리에 모래시계 아이콘을 띄워 진행 중임을 알린다.
-        // sent/failed 에서는 평소 시간 텍스트로 돌아간다.
+        // sent/failed 그룹의 마지막 메시지에만 시간을 표시하고, 같은 그룹 내부 말풍선에서는
+        // 시간을 숨겨 시각적으로 묶이도록 한다.
         if status == .sending {
             Image(systemName: "hourglass")
                 .font(.system(size: 11, weight: .medium))
                 .foregroundStyle(MainScreenPalette.textSecondary)
                 .padding(.bottom, 2)
-        } else {
+        } else if showTime {
             Text(formattedTime)
                 .font(MainScreenTypography.timestamp)
                 .foregroundStyle(MainScreenPalette.textSecondary)
                 .lineLimit(1)
                 .padding(.bottom, 2)
+        } else {
+            EmptyView()
         }
     }
 
