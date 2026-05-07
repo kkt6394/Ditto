@@ -224,6 +224,12 @@ struct MainView: View {
                 },
                 composeActivityAction: {
                     navigationPath.append(MainRoute.activityCompose(mode: .create))
+                },
+                myPostTapAction: { postId in
+                    navigationPath.append(MainRoute.postDetail(postId: postId))
+                },
+                likedActivityTapAction: { activityId in
+                    navigationPath.append(MainRoute.activityDetail(activityId: activityId))
                 }
             )
             .tag(MainTab.profile.rawValue)

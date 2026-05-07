@@ -333,12 +333,19 @@ struct ProfileSectionEmpty: View {
 
 struct ProfilePostHorizontalList: View {
     let items: [ProfilePostPreview]
+    // 카드 탭 시 부모(ProfileTabView → MainView)에서 PostDetail로 라우팅한다.
+    let onSelect: (ProfilePostPreview) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(items) { item in
-                    ProfilePostCard(item: item)
+                    Button {
+                        onSelect(item)
+                    } label: {
+                        ProfilePostCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)
@@ -386,12 +393,19 @@ struct ProfilePostCard: View {
 
 struct ProfileLikedActivityHorizontalList: View {
     let items: [LikedActivity]
+    // 카드 탭 시 부모(ProfileTabView → MainView)에서 ActivityDetail로 라우팅한다.
+    let onSelect: (LikedActivity) -> Void
 
     var body: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 12) {
                 ForEach(items) { item in
-                    ProfileLikedActivityCard(activity: item)
+                    Button {
+                        onSelect(item)
+                    } label: {
+                        ProfileLikedActivityCard(activity: item)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.vertical, 4)

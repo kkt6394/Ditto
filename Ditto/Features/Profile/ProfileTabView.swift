@@ -16,6 +16,10 @@ struct ProfileTabView: View {
     let signOutAction: () -> Void
     let orderListAction: () -> Void
     let composeActivityAction: () -> Void
+    // 내 포스트 카드 탭 → 부모 NavigationStack에서 PostDetail로 push.
+    let myPostTapAction: (String) -> Void
+    // 좋아요한 액티비티 카드 탭 → 부모 NavigationStack에서 ActivityDetail로 push.
+    let likedActivityTapAction: (String) -> Void
 
     @State private var viewModel: ProfileViewModel
     @State private var isPresentingEditor = false
@@ -26,13 +30,17 @@ struct ProfileTabView: View {
         signOutMessage: String?,
         signOutAction: @escaping () -> Void,
         orderListAction: @escaping () -> Void,
-        composeActivityAction: @escaping () -> Void
+        composeActivityAction: @escaping () -> Void,
+        myPostTapAction: @escaping (String) -> Void,
+        likedActivityTapAction: @escaping (String) -> Void
     ) {
         self.isActive = isActive
         self.signOutMessage = signOutMessage
         self.signOutAction = signOutAction
         self.orderListAction = orderListAction
         self.composeActivityAction = composeActivityAction
+        self.myPostTapAction = myPostTapAction
+        self.likedActivityTapAction = likedActivityTapAction
         _viewModel = State(initialValue: ProfileViewModel(authManager: authManager))
     }
 
@@ -184,7 +192,9 @@ struct ProfileTabView: View {
         } else if viewModel.myPosts.isEmpty {
             ProfileSectionEmpty(message: viewModel.myPostsMessage ?? "아직 작성한 포스트가 없습니다.")
         } else {
-            ProfilePostHorizontalList(items: viewModel.myPosts)
+            ProfilePostHorizontalList(items: viewModel.myPosts) { post in
+                myPostTapAction(post.id)
+            }
         }
     }
 
@@ -199,7 +209,9 @@ struct ProfileTabView: View {
                 message: keepStore.likedActivitiesMessage ?? "아직 좋아요한 액티비티가 없습니다."
             )
         } else {
-            ProfileLikedActivityHorizontalList(items: keepStore.likedActivities)
+            ProfileLikedActivityHorizontalList(items: keepStore.likedActivities) { activity in
+                likedActivityTapAction(activity.id)
+            }
         }
     }
 }
