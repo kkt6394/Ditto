@@ -10,14 +10,16 @@ import SwiftUI
 // /v1/orders 응답을 LazyVStack에 표시한다. 단발 호출이라 페이지네이션은 없다.
 struct OrderListView: View {
     private let authManager: any AuthManaging
-    // (orderCode, activityId, existingReviewId?) — 영수증 + 리뷰 진입에 모두 필요한 정보
-    private let receiptAction: (String, String, String?) -> Void
+    // (orderCode, activityId, existingReviewId?, thumbnailPath?) — 영수증 + 리뷰 + PDF 추출에 필요한 정보
+    private let receiptAction: (String, String, String?, String?) -> Void
 
     @State private var viewModel: OrderListViewModel
+    // 활동 리포트 PDF Export fullScreenCover 토글.
+    @State private var isPresentingReportExport = false
 
     init(
         authManager: any AuthManaging,
-        receiptAction: @escaping (String, String, String?) -> Void
+        receiptAction: @escaping (String, String, String?, String?) -> Void
     ) {
         self.authManager = authManager
         self.receiptAction = receiptAction
@@ -26,7 +28,11 @@ struct OrderListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OrderListNavigationBar(title: "주문 내역")
+            OrderListNavigationBar(title: "주문 내역") {
+                OrderListReportButton(isDisabled: viewModel.orders.isEmpty) {
+                    isPresentingReportExport = true
+                }
+            }
 
             content
                 .padding(.top, 8)
@@ -37,6 +43,26 @@ struct OrderListView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task {
             await viewModel.load()
+        }
+        .fullScreenCover(isPresented: $isPresentingReportExport) {
+            ActivityReportExportView(
+                orders: viewModel.orders,
+                imageRequestBuilder: makeImageRequestBuilder()
+            )
+        }
+    }
+
+    // 인증 헤더가 포함된 thumbnail URLRequest를 만들어 ExportView로 주입한다.
+    private func makeImageRequestBuilder() -> (String) -> URLRequest? {
+        let configuration = try? AppConfiguration()
+        let accessToken = authManager.tokens?.accessToken
+        return { thumbnailPath in
+            guard let configuration else { return nil }
+            return ActivityFormatting.makeImageRequest(
+                from: thumbnailPath,
+                configuration: configuration,
+                accessToken: accessToken
+            )
         }
     }
 
@@ -68,7 +94,8 @@ struct OrderListView: View {
                                 receiptAction(
                                     order.orderCode,
                                     order.activity.id,
-                                    order.review?.id
+                                    order.review?.id,
+                                    order.activity.thumbnails.first
                                 )
                             }
 
@@ -85,9 +112,15 @@ struct OrderListView: View {
     }
 }
 
-private struct OrderListNavigationBar: View {
+private struct OrderListNavigationBar<Trailing: View>: View {
     @Environment(\.dismiss) private var dismiss
     let title: String
+    let trailing: () -> Trailing
+
+    init(title: String, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.trailing = trailing
+    }
 
     var body: some View {
         HStack {
@@ -109,8 +142,8 @@ private struct OrderListNavigationBar: View {
 
             Spacer()
 
-            Color.clear
-                .frame(width: 44, height: 44)
+            trailing()
+                .frame(minWidth: 44, minHeight: 44)
         }
         .padding(.horizontal, 4)
         .frame(height: 44)

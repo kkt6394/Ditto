@@ -14,22 +14,28 @@ struct ReceiptView: View {
     private let activityId: String
     // 이미 작성된 리뷰가 있으면 reviewId — 화면에 "리뷰 작성됨" 안내를 표시하고 작성 진입을 막는다.
     private let existingReviewId: String?
+    // OrderListView에서 같이 넘어온 액티비티 첫 번째 썸네일 path. PDF 출력 시 이미지로 사용.
+    private let thumbnailPath: String?
     private let authManager: any AuthManaging
 
     @State private var viewModel: ReceiptViewModel
     @State private var isPresentingReviewCompose = false
     // 화면 진입 시점엔 existingReviewId가 nil이어도, 시트에서 작성 완료 시 즉시 UI를 갱신하기 위한 플래그
     @State private var hasJustReviewed = false
+    // 영수증 PDF Export fullScreenCover 토글.
+    @State private var isPresentingPDFExport = false
 
     init(
         orderCode: String,
         activityId: String,
         existingReviewId: String?,
+        thumbnailPath: String?,
         authManager: any AuthManaging
     ) {
         self.orderCode = orderCode
         self.activityId = activityId
         self.existingReviewId = existingReviewId
+        self.thumbnailPath = thumbnailPath
         self.authManager = authManager
         _viewModel = State(
             initialValue: ReceiptViewModel(orderCode: orderCode, authManager: authManager)
@@ -38,7 +44,11 @@ struct ReceiptView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ReceiptNavigationBar(title: "영수증")
+            ReceiptNavigationBar(title: "영수증") {
+                ReceiptPDFExportButton(isDisabled: viewModel.receipt == nil) {
+                    isPresentingPDFExport = true
+                }
+            }
 
             content
                 .padding(.top, 8)
@@ -61,6 +71,33 @@ struct ReceiptView: View {
                 // 작성 성공 시 즉시 UI에 반영. OrderList로 돌아가면 서버 상태로 다시 동기화된다.
                 hasJustReviewed = true
             }
+        }
+        .fullScreenCover(isPresented: $isPresentingPDFExport) {
+            if let receipt = viewModel.receipt {
+                ReceiptExportView(
+                    activityTitle: receipt.name ?? "이름 없는 액티비티",
+                    category: nil,
+                    totalPrice: receipt.amount,
+                    paidAt: receipt.paidAt,
+                    orderCode: orderCode,
+                    thumbnailPath: thumbnailPath,
+                    imageRequestBuilder: makeImageRequestBuilder()
+                )
+            }
+        }
+    }
+
+    // 인증 헤더가 포함된 thumbnail URLRequest를 만들어 ExportView로 주입한다.
+    private func makeImageRequestBuilder() -> (String) -> URLRequest? {
+        let configuration = try? AppConfiguration()
+        let accessToken = authManager.tokens?.accessToken
+        return { thumbnailPath in
+            guard let configuration else { return nil }
+            return ActivityFormatting.makeImageRequest(
+                from: thumbnailPath,
+                configuration: configuration,
+                accessToken: accessToken
+            )
         }
     }
 
@@ -129,9 +166,15 @@ struct ReceiptView: View {
     }
 }
 
-private struct ReceiptNavigationBar: View {
+private struct ReceiptNavigationBar<Trailing: View>: View {
     @Environment(\.dismiss) private var dismiss
     let title: String
+    let trailing: () -> Trailing
+
+    init(title: String, @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }) {
+        self.title = title
+        self.trailing = trailing
+    }
 
     var body: some View {
         HStack {
@@ -153,8 +196,8 @@ private struct ReceiptNavigationBar: View {
 
             Spacer()
 
-            Color.clear
-                .frame(width: 44, height: 44)
+            trailing()
+                .frame(minWidth: 44, minHeight: 44)
         }
         .padding(.horizontal, 4)
         .frame(height: 44)

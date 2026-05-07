@@ -513,15 +513,21 @@ private extension MainView {
                 openActivityDetail(activityId: activityId)
             }
         case .orderList:
-            OrderListView(authManager: authManager) { orderCode, activityId, reviewId in
+            OrderListView(authManager: authManager) { orderCode, activityId, reviewId, thumbnailPath in
                 navigationPath.append(.receipt(
-                    orderCode: orderCode, activityId: activityId, existingReviewId: reviewId
+                    orderCode: orderCode,
+                    activityId: activityId,
+                    existingReviewId: reviewId,
+                    thumbnailPath: thumbnailPath
                 ))
             }
-        case .receipt(let orderCode, let activityId, let existingReviewId):
+        case .receipt(let orderCode, let activityId, let existingReviewId, let thumbnailPath):
             ReceiptView(
-                orderCode: orderCode, activityId: activityId,
-                existingReviewId: existingReviewId, authManager: authManager
+                orderCode: orderCode,
+                activityId: activityId,
+                existingReviewId: existingReviewId,
+                thumbnailPath: thumbnailPath,
+                authManager: authManager
             )
         case .activityCompose(let mode):
             ActivityComposeView(mode: mode, authManager: authManager) {
