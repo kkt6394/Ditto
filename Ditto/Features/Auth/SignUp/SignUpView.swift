@@ -82,9 +82,15 @@ private extension SignUpView {
                 submitLabel: .next
             )
             .focused($focusedField, equals: .email)
+            .onChange(of: viewModel.email) { _, _ in
+                // 입력이 바뀔 때마다 ViewModel이 디바운스 후 서버 검사를 수행한다.
+                viewModel.scheduleEmailCheck()
+            }
             .onSubmit {
                 focusedField = .password
             }
+
+            EmailCheckRow(state: viewModel.emailCheckState)
 
             SignUpSecureField(
                 title: "비밀번호",
@@ -283,6 +289,57 @@ private struct SignUpSecureField: View {
                     .stroke(SignUpColor.border, lineWidth: 1)
             }
     }
+}
+
+private struct EmailCheckRow: View {
+    // 이메일 검사 상태별로 아이콘·문구·색을 한 곳에서 결정해 view body는 분기를 갖지 않게 한다.
+    let state: EmailCheckState
+
+    var body: some View {
+        if let info = displayInfo {
+            HStack(spacing: 6) {
+                if case .checking = state {
+                    ProgressView()
+                        .controlSize(.mini)
+                } else {
+                    Image(systemName: info.icon)
+                }
+
+                Text(info.text)
+            }
+            .font(MainFont.pretendard(.medium, size: 12))
+            .foregroundStyle(info.color)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 4)
+        }
+    }
+
+    private var displayInfo: (text: String, icon: String, color: Color)? {
+        switch state {
+        case .idle:
+            return nil
+        case .checking:
+            return (
+                text: "이메일을 확인하는 중...",
+                icon: "circle.dotted",
+                color: SignUpColor.secondaryText
+            )
+        case .available(let message):
+            return (text: message, icon: "checkmark.circle.fill", color: SignUpColor.accent)
+        case .unavailable(let message):
+            return (text: message, icon: "xmark.circle.fill", color: Self.errorColor)
+        case .formatInvalid:
+            return (
+                text: "올바른 이메일 형식으로 입력해 주세요.",
+                icon: "exclamationmark.circle.fill",
+                color: Self.errorColor
+            )
+        case .error(let message):
+            return (text: message, icon: "exclamationmark.circle.fill", color: Self.errorColor)
+        }
+    }
+
+    private static let errorColor = Color(red: 0.72, green: 0.18, blue: 0.14)
 }
 
 private struct SignUpMessageRow: View {

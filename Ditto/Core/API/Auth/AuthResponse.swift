@@ -47,3 +47,8 @@ extension RefreshTokenResponse {
         AuthTokens(accessToken: accessToken, refreshToken: refreshToken)
     }
 }
+
+// 이메일 중복검사 API 응답이다. 200/400/409 모두 message 한 필드만 내려온다.
+struct EmailValidationResponse: Decodable, Equatable {
+    let message: String
+}

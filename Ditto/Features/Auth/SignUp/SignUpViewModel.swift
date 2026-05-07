@@ -20,8 +20,14 @@ final class SignUpViewModel {
     var introduction = ""
     private(set) var isSubmitting = false
     private(set) var message: SignUpMessage?
+    // 이메일 중복검사 결과를 enum 한 값으로 표현해 View가 분기를 깔끔하게 처리할 수 있다.
+    private(set) var emailCheckState: EmailCheckState = .idle
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
+    // 디바운스/중복 호출을 막기 위해 진행 중인 검사 Task를 보관한다.
+    private var emailCheckTask: Task<Void, Never>?
+    // 같은 이메일을 반복 검사하지 않기 위해 마지막으로 서버 응답을 받은 이메일을 보관한다.
+    private var lastCheckedEmail: String?
 
     convenience init() {
         let authManager = AuthManager()
@@ -54,7 +60,63 @@ final class SignUpViewModel {
 
     var isSignUpButtonEnabled: Bool {
         // 버튼 활성화 조건을 ViewModel에 두면 View는 화면 표현에만 집중할 수 있다.
-        !trimmedEmail.isEmpty && !password.isEmpty && !trimmedNick.isEmpty && !isSubmitting
+        // 서버에서 사용 가능 응답을 받은 이메일이어야만 가입을 시도할 수 있게 막는다.
+        !trimmedEmail.isEmpty && !password.isEmpty && !trimmedNick.isEmpty
+            && !isSubmitting && isEmailVerified
+    }
+
+    // 현재 emailCheckState가 사용 가능 상태인지 외부에서 쉽게 판별하기 위한 헬퍼다.
+    var isEmailVerified: Bool {
+        if case .available = emailCheckState { return true }
+        return false
+    }
+
+    // 이메일 입력이 바뀔 때마다 호출돼 디바운스 후 서버 검사를 수행한다.
+    func scheduleEmailCheck() {
+        // 진행 중이던 이전 검사는 즉시 취소해 최신 입력값에 대한 결과만 반영한다.
+        emailCheckTask?.cancel()
+        let target = trimmedEmail
+
+        if target.isEmpty {
+            emailCheckState = .idle
+            lastCheckedEmail = nil
+            return
+        }
+
+        // @ 기호가 없으면 서버까지 가지 않고 클라이언트에서 형식 오류로 처리한다.
+        if !target.contains("@") {
+            emailCheckState = .formatInvalid
+            lastCheckedEmail = nil
+            return
+        }
+
+        // 같은 이메일이 이미 사용 가능으로 검증됐다면 다시 호출하지 않는다.
+        if target == lastCheckedEmail, case .available = emailCheckState {
+            return
+        }
+
+        emailCheckState = .checking
+        emailCheckTask = Task { [weak self] in
+            // 600ms 디바운스: 사용자가 타이핑을 멈춘 직후 한 번만 호출되게 한다.
+            try? await Task.sleep(for: .milliseconds(600))
+            if Task.isCancelled { return }
+            await self?.performEmailCheck(email: target)
+        }
+    }
+
+    func performEmailCheck(email: String) async {
+        do {
+            let networkManager = try networkManagerProvider()
+            let response: EmailValidationResponse = try await networkManager.request(
+                AuthRouter.validateEmail(EmailValidationRequest(email: email))
+            )
+            if Task.isCancelled { return }
+            emailCheckState = .available(response.message)
+            lastCheckedEmail = email
+        } catch {
+            if Task.isCancelled { return }
+            applyEmailCheckError(error, for: email)
+        }
     }
 
     func submitSignUp() async {
@@ -147,6 +209,28 @@ private extension SignUpViewModel {
     static func makeNetworkErrorMessage(from error: NetworkError) -> String {
         NetworkErrorMapper.networkUserMessage(from: error, fallback: "회원가입 요청에 실패했습니다.")
     }
+
+    // 이메일 검사 실패는 status code별로 의미가 다르므로 분리해서 상태에 매핑한다.
+    func applyEmailCheckError(_ error: Error, for email: String) {
+        if case let NetworkError.statusCode(code, message, _) = error {
+            switch code {
+            case 409:
+                emailCheckState = .unavailable(message ?? "이미 사용 중인 이메일입니다.")
+                lastCheckedEmail = email
+                return
+            case 400:
+                emailCheckState = .formatInvalid
+                lastCheckedEmail = nil
+                return
+            default:
+                break
+            }
+        }
+
+        let fallback = "이메일 확인에 실패했습니다."
+        emailCheckState = .error(NetworkErrorMapper.userMessage(from: error, fallback: fallback))
+        lastCheckedEmail = nil
+    }
 }
 
 enum SignUpRule {
@@ -192,6 +276,16 @@ enum SignUpValidationError: Equatable {
             return "닉네임은 \(minLength)자 이상 입력해 주세요."
         }
     }
+}
+
+// 이메일 중복검사 결과를 6단계 상태로 표현해 View가 색·문구·아이콘을 분기할 수 있게 한다.
+enum EmailCheckState: Equatable {
+    case idle
+    case checking
+    case available(String)
+    case unavailable(String)
+    case formatInvalid
+    case error(String)
 }
 
 enum SignUpMessage: Equatable {
