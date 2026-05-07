@@ -19,7 +19,6 @@ struct ProfileTabView: View {
 
     @State private var viewModel: ProfileViewModel
     @State private var isPresentingEditor = false
-    @State private var isPresentingWithdrawConfirm = false
 
     init(
         authManager: any AuthManaging,
@@ -85,20 +84,6 @@ struct ProfileTabView: View {
         }
         .sheet(isPresented: $isPresentingEditor) {
             ProfileEditView(viewModel: viewModel)
-        }
-        .alert("정말 회원탈퇴 하시겠습니까?", isPresented: $isPresentingWithdrawConfirm) {
-            Button("취소", role: .cancel) { }
-            Button("탈퇴", role: .destructive) {
-                Task {
-                    let success = await viewModel.withdraw()
-                    if success {
-                        // 서버 처리는 끝났지만 화면 라우팅은 ContentView가 isAuthenticated 변화로 자동 처리한다.
-                        viewModel.actionMessage = nil
-                    }
-                }
-            }
-        } message: {
-            Text("탈퇴 후에는 복구할 수 없습니다.")
         }
     }
 
@@ -187,18 +172,6 @@ struct ProfileTabView: View {
                 )
             }
             .buttonStyle(.plain)
-
-            Button {
-                isPresentingWithdrawConfirm = true
-            } label: {
-                ProfileActionRow(
-                    title: viewModel.isWithdrawing ? "탈퇴 처리 중..." : "회원탈퇴",
-                    systemImage: "person.crop.circle.badge.xmark",
-                    style: .destructive
-                )
-            }
-            .buttonStyle(.plain)
-            .disabled(viewModel.isWithdrawing)
         }
     }
 

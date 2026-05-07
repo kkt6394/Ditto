@@ -25,10 +25,9 @@ final class ProfileViewModel {
     // 좋아요한 액티비티는 앱 전역의 KeepStore를 단일 소스로 사용한다.
     // 따라서 ProfileViewModel에는 별도 상태/로드 로직을 두지 않는다.
 
-    // 액션 진행 상태(편집/이미지 업로드/회원탈퇴)
+    // 액션 진행 상태(편집/이미지 업로드)
     private(set) var isUpdatingProfile = false
     private(set) var isUploadingImage = false
-    private(set) var isWithdrawing = false
     var actionMessage: String?
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
@@ -227,25 +226,6 @@ final class ProfileViewModel {
         }
     }
 
-    @discardableResult
-    func withdraw() async -> Bool {
-        isWithdrawing = true
-        actionMessage = nil
-        defer {
-            isWithdrawing = false
-        }
-
-        do {
-            let networkManager = try networkManagerProvider()
-            let _: WithdrawResponseDTO = try await networkManager.request(UserRouter.withdraw)
-            // 서버 측 탈퇴가 끝나면 로컬 토큰도 즉시 정리해 로그인 화면으로 돌아가게 한다.
-            try? authManager.signOut()
-            return true
-        } catch {
-            actionMessage = NetworkErrorMapper.userMessage(from: error, fallback: "회원탈퇴에 실패했습니다.")
-            return false
-        }
-    }
 }
 
 private extension ProfileViewModel {

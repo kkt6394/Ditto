@@ -27,12 +27,6 @@ struct UserInfoListResponseDTO: Decodable, Equatable {
     let data: [UserInfoResponseDTO]
 }
 
-struct WithdrawResponseDTO: Decodable, Equatable {
-    let userId: String
-    let email: String
-    let nick: String
-}
-
 struct FollowResponseDTO: Decodable, Equatable {
     let nick: String
     let opponentNick: String
