@@ -15,6 +15,8 @@ struct SearchRemoteImage: View {
     let height: CGFloat
     let cornerRadius: CGFloat
 
+    // 토큰 갱신 흐름이 적용된 로더. 진입점에서 NetworkManager가 주입되며 nil이면 폴백 로더로 떨어진다.
+    @Environment(\.imageLoader) private var imageLoader
     @State private var remoteImage: UIImage?
     @State private var didFailLoadingRemoteImage = false
 
@@ -51,10 +53,15 @@ struct SearchRemoteImage: View {
     private func loadRemoteImage(from request: URLRequest) async {
         do {
             // 검색 카드 표시 크기로 다운샘플링 — 리스트 전체 메모리 부담 절감
-            let image = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: width, height: height)
-            )
+            let pointSize = CGSize(width: width, height: height)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            // 주입이 없는 컨텍스트(프리뷰 등)에서는 기존 단순 로더로 폴백한다.
+            let image: UIImage
+            if let imageLoader {
+                image = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                image = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

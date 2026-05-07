@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import UIKit
 
 // ViewModel/Repository가 NetworkManager 구현체에 직접 의존하지 않도록 분리한 인터페이스다.
 protocol NetworkManaging {
@@ -239,6 +240,48 @@ private extension NetworkManager {
         } catch {
             throw NetworkError.requestFailed(error)
         }
+    }
+}
+
+// MARK: - AuthenticatedImageLoading
+
+extension NetworkManager: AuthenticatedImageLoading {
+    /// 인증 헤더가 필요한 이미지 GET. 매 시도 직전 SeSACKey/Authorization을 최신 토큰으로 덮어쓰고,
+    /// 419 응답이 오면 토큰 갱신 후 한 번 재시도해 자동 회복한다.
+    /// 이미지 디코딩은 기존 RemoteImageLoader.downsample을 그대로 사용해 메모리 사용량을 동일하게 유지한다.
+    func loadImage(_ request: URLRequest, pointSize: CGSize) async throws -> UIImage {
+        let data = try await imageData(for: request)
+        guard let image = RemoteImageLoader.downsample(data: data, pointSize: pointSize) else {
+            throw RemoteImageError.decodeFailed
+        }
+        return image
+    }
+}
+
+private extension NetworkManager {
+    func imageData(for original: URLRequest) async throws -> Data {
+        // 호출자가 만들어둔 URLRequest의 Authorization 헤더는 그 시점의 access token이라 만료됐을 수 있어
+        // 매 시도 직전에 현재 토큰으로 덮어쓴다.
+        do {
+            return try await perform(request: applyAuthentication(to: original))
+        } catch let NetworkError.statusCode(statusCode, _, _) where statusCode == 419 {
+            do {
+                try await refreshTokens()
+            } catch {
+                try signOutIfRefreshExpired(with: error)
+                throw error
+            }
+            return try await perform(request: applyAuthentication(to: original))
+        }
+    }
+
+    func applyAuthentication(to request: URLRequest) -> URLRequest {
+        var updated = request
+        updated.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
+        if let accessToken = authManager.tokens?.accessToken {
+            updated.setValue(accessToken, forHTTPHeaderField: "Authorization")
+        }
+        return updated
     }
 }
 

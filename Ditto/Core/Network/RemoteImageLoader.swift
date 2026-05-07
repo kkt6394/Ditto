@@ -6,12 +6,35 @@
 //
 
 import ImageIO
+import SwiftUI
 import UIKit
 
 /// 원격 이미지 로딩 시 발생할 수 있는 오류
 enum RemoteImageError: Error {
     case invalidStatus(Int)
     case decodeFailed
+}
+
+/// 인증 헤더가 필요한 이미지 GET을 책임지는 추상 인터페이스.
+///
+/// 토큰이 만료되면(서버 419) 호출자가 직접 처리하지 않고도 갱신 후 재시도까지
+/// 일관되게 처리되도록 NetworkManager가 conform한다. SearchRemoteImage 등
+/// 뷰는 환경에서 이 로더를 받아 호출한다.
+protocol AuthenticatedImageLoading {
+    func loadImage(_ request: URLRequest, pointSize: CGSize) async throws -> UIImage
+}
+
+private struct AuthenticatedImageLoaderKey: EnvironmentKey {
+    static let defaultValue: (any AuthenticatedImageLoading)? = nil
+}
+
+extension EnvironmentValues {
+    /// 토큰 갱신 흐름이 적용된 이미지 로더. 진입점(ContentView)에서 NetworkManager를 주입한다.
+    /// 환경 주입이 없는 경로(프리뷰 등)에서는 nil이며, 호출 측이 기존 폴백 로더로 떨어진다.
+    var imageLoader: (any AuthenticatedImageLoading)? {
+        get { self[AuthenticatedImageLoaderKey.self] }
+        set { self[AuthenticatedImageLoaderKey.self] = newValue }
+    }
 }
 
 /// 원격 이미지를 표시 크기에 맞게 다운샘플링해 로드하는 유틸리티

@@ -8,13 +8,18 @@
 import SwiftUI
 
 struct ContentView: View {
-    @State private var authManager = AuthManager()
+    @State private var authManager: AuthManager
     // 스플래시(헬스체크)가 끝나기 전에는 인증 분기를 노출하지 않는다.
     @State private var hasCompletedBootChecks = false
+    // 토큰 만료 시 자동 갱신·재시도가 적용된 이미지 로더. 앱 진입점에서 한 번만 만들어 환경에 박는다.
+    @State private var imageLoader: (any AuthenticatedImageLoading)?
     private let pushTokenStore: any PushNotificationTokenStoring
 
     init(pushTokenStore: any PushNotificationTokenStoring = PushNotificationTokenStore.shared) {
         self.pushTokenStore = pushTokenStore
+        let initialAuthManager = AuthManager()
+        _authManager = State(initialValue: initialAuthManager)
+        _imageLoader = State(initialValue: Self.makeImageLoader(authManager: initialAuthManager))
     }
 
     var body: some View {
@@ -28,6 +33,7 @@ struct ContentView: View {
                 }
             }
         }
+        .environment(\.imageLoader, imageLoader)
         .task {
             registerPushTokenSyncHandler()
             // 부팅 직후 이미 저장된 토큰이 있고 인증 상태이면 한 번 동기화한다.
@@ -61,6 +67,15 @@ struct ContentView: View {
 }
 
 private extension ContentView {
+    /// 환경 주입용 이미지 로더를 만든다. AppConfiguration이 실패하면 nil을 반환하고,
+    /// 그러면 SearchRemoteImage가 기존 단순 로더로 폴백한다(토큰 갱신은 못 받지만 동작은 유지).
+    static func makeImageLoader(authManager: AuthManager) -> (any AuthenticatedImageLoading)? {
+        guard let configuration = try? AppConfiguration() else {
+            return nil
+        }
+        return NetworkManager(configuration: configuration, authManager: authManager)
+    }
+
     func registerPushTokenSyncHandler() {
         // PushNotificationTokenStore가 새 FCM 토큰을 저장하면 인증 상태일 때만 서버에 PUT 한다.
         pushTokenStore.setTokenUpdateHandler { token in
