@@ -21,6 +21,16 @@ final class ActivityDetailViewModel {
     private(set) var reviewsMessage: String?
     private(set) var chatStartMessage: String?
     private(set) var currentUserId: String?
+    private(set) var reviewSentimentSummary: ReviewSentimentSummary?
+    private(set) var reviewAISummary: ReviewSummary?
+    private(set) var isAnalyzingReviews = false
+
+    // 같은 리뷰 묶음에 대해 분석을 중복 실행하지 않도록 직전 분석 시점의 리뷰 id 시그니처를 보관한다.
+    private var lastAnalyzedSignature: String?
+    private var analyzeTask: Task<Void, Never>?
+
+    private let sentimentAnalyzer = ReviewSentimentAnalyzer()
+    private let summarizer = ReviewSummarizer()
 
     private let authManager: any AuthManaging
 
@@ -71,8 +81,45 @@ final class ActivityDetailViewModel {
             if let myInfo: MyInfoResponseDTO = try? await networkManager.request(UserRouter.myProfile) {
                 currentUserId = myInfo.userId
             }
+
+            // 네트워크 응답을 화면에 먼저 그린 뒤 백그라운드로 NLP 분석을 시작한다.
+            scheduleReviewAnalysis()
         } catch {
             reviewsMessage = Self.makeReviewsErrorMessage(from: error)
+        }
+    }
+
+    // 감성 분포는 동기 계산이라 즉시 채우고, AI 요약은 LLM 응답을 기다리므로 별도 Task에 둔다.
+    private func scheduleReviewAnalysis() {
+        let signature = reviews.map { $0.reviewId }.joined(separator: ",")
+        guard signature != lastAnalyzedSignature else { return }
+        lastAnalyzedSignature = signature
+
+        analyzeTask?.cancel()
+
+        guard !reviews.isEmpty else {
+            reviewSentimentSummary = nil
+            reviewAISummary = nil
+            return
+        }
+
+        let snapshot = reviews.map { (content: $0.content, rating: $0.rating) }
+        reviewSentimentSummary = sentimentAnalyzer.summary(for: snapshot)
+
+        isAnalyzingReviews = true
+        reviewAISummary = nil
+
+        let contents = reviews.map { (content: $0.content, rating: $0.rating) }
+        let summarizer = summarizer
+
+        analyzeTask = Task { [weak self] in
+            let summary = await summarizer.summarize(reviews: contents)
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                guard let self else { return }
+                self.reviewAISummary = summary
+                self.isAnalyzingReviews = false
+            }
         }
     }
 

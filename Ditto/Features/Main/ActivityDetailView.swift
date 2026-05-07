@@ -300,6 +300,9 @@ struct ActivityDetailView: View {
             message: viewModel.reviewsMessage,
             currentUserId: viewModel.currentUserId,
             chatStartMessage: viewModel.chatStartMessage,
+            sentimentSummary: viewModel.reviewSentimentSummary,
+            aiSummary: viewModel.reviewAISummary,
+            isAnalyzing: viewModel.isAnalyzingReviews,
             imageRequestProvider: { path in
                 viewModel.reviewImageRequest(for: path)
             },

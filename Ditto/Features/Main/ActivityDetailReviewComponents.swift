@@ -14,6 +14,9 @@ struct ReviewSection: View {
     let message: String?
     let currentUserId: String?
     let chatStartMessage: String?
+    let sentimentSummary: ReviewSentimentSummary?
+    let aiSummary: ReviewSummary?
+    let isAnalyzing: Bool
     let imageRequestProvider: (String) -> URLRequest?
     let chatAction: (ReviewResponseDTO) -> Void
     let editAction: (ReviewResponseDTO) -> Void
@@ -29,6 +32,14 @@ struct ReviewSection: View {
                 Text("\(reviews.count)")
                     .font(MainScreenTypography.timestamp)
                     .foregroundStyle(MainScreenPalette.textSecondary)
+            }
+
+            if !reviews.isEmpty {
+                ReviewInsightCard(
+                    sentimentSummary: sentimentSummary,
+                    aiSummary: aiSummary,
+                    isAnalyzing: isAnalyzing
+                )
             }
 
             if isLoading && reviews.isEmpty {
@@ -246,6 +257,124 @@ private struct ReviewImageThumbnail: View {
             image = loaded
         } catch {
             didFail = true
+        }
+    }
+}
+
+// 리뷰 묶음에 대한 AI 요약 + 감성 분포를 보여주는 상단 인사이트 카드.
+private struct ReviewInsightCard: View {
+    let sentimentSummary: ReviewSentimentSummary?
+    let aiSummary: ReviewSummary?
+    let isAnalyzing: Bool
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(MainScreenPalette.primaryBlue)
+
+                Text("AI 리뷰 요약")
+                    .font(MainFont.pretendard(.bold, size: 13))
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+
+                if let aiSummary, let chipLabel = Self.modeChipLabel(for: aiSummary.source) {
+                    Text(chipLabel)
+                        .font(MainScreenTypography.timestamp)
+                        .foregroundStyle(MainScreenPalette.textSecondary)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(MainScreenPalette.border, in: Capsule())
+                }
+
+                Spacer()
+            }
+
+            Group {
+                if let aiSummary {
+                    Text(aiSummary.text)
+                        .font(MainScreenTypography.body)
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                        .fixedSize(horizontal: false, vertical: true)
+                } else if isAnalyzing {
+                    HStack(spacing: 6) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("리뷰를 요약하는 중입니다…")
+                            .font(MainScreenTypography.body)
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                    }
+                } else {
+                    Text("요약을 준비 중입니다.")
+                        .font(MainScreenTypography.body)
+                        .foregroundStyle(MainScreenPalette.textSecondary)
+                }
+            }
+
+            if let sentimentSummary, sentimentSummary.total > 0 {
+                ReviewSentimentBar(summary: sentimentSummary)
+            }
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(MainScreenPalette.surface, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(MainScreenPalette.border, lineWidth: 1)
+        )
+    }
+
+    // 어느 fallback 단계에서 만들어졌는지 사용자에게 살짝 노출하기 위한 라벨.
+    // LLM 응답일 땐 칩을 안 띄워서 일반 모드처럼 보이게 한다.
+    private static func modeChipLabel(for source: ReviewSummary.Source) -> String? {
+        switch source {
+        case .foundationModels: return nil
+        case .phraseFallback: return "구문 모드"
+        case .ratingTemplate: return "평점 모드"
+        }
+    }
+}
+
+// 긍정/중립/부정 비율을 한 줄 막대로 보여준다.
+private struct ReviewSentimentBar: View {
+    let summary: ReviewSentimentSummary
+
+    private let positiveColor = Color(red: 0.20, green: 0.62, blue: 0.36)
+    private let neutralColor = Color(red: 0.66, green: 0.66, blue: 0.66)
+    private let negativeColor = Color(red: 0.78, green: 0.24, blue: 0.20)
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            GeometryReader { proxy in
+                let total = max(summary.total, 1)
+                let positiveWidth = proxy.size.width * Double(summary.positive) / Double(total)
+                let neutralWidth = proxy.size.width * Double(summary.neutral) / Double(total)
+                let negativeWidth = proxy.size.width * Double(summary.negative) / Double(total)
+
+                HStack(spacing: 0) {
+                    Rectangle().fill(positiveColor).frame(width: positiveWidth)
+                    Rectangle().fill(neutralColor).frame(width: neutralWidth)
+                    Rectangle().fill(negativeColor).frame(width: negativeWidth)
+                }
+                .clipShape(Capsule())
+            }
+            .frame(height: 6)
+
+            HStack(spacing: 12) {
+                sentimentLegend(color: positiveColor, label: "긍정", count: summary.positive)
+                sentimentLegend(color: neutralColor, label: "중립", count: summary.neutral)
+                sentimentLegend(color: negativeColor, label: "부정", count: summary.negative)
+                Spacer()
+            }
+        }
+    }
+
+    private func sentimentLegend(color: Color, label: String, count: Int) -> some View {
+        HStack(spacing: 4) {
+            Circle().fill(color).frame(width: 6, height: 6)
+            Text("\(label) \(count)")
+                .font(MainScreenTypography.timestamp)
+                .foregroundStyle(MainScreenPalette.textSecondary)
         }
     }
 }
