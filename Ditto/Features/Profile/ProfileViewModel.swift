@@ -234,7 +234,13 @@ private extension ProfileViewModel {
         configuration: AppConfiguration,
         accessToken: String?
     ) -> ProfilePostPreview {
-        let firstImagePath = dto.files.first { path in
+        // 포스트가 액티비티에 연결돼 있으면 그 액티비티 썸네일을 먼저 보여주고,
+        // 없을 때만 포스트에 직접 첨부된 파일을 폴백으로 쓴다.
+        // 글만 쓰고 이미지는 안 올린 포스트가 많아 files 우선이면 기본 이미지가 자주 노출되는 문제를 막는다.
+        let activityThumbnail = dto.activity.flatMap { activity in
+            ActivityFormatting.firstImageThumbnail(from: activity.thumbnails)
+        }
+        let firstImagePath = activityThumbnail ?? dto.files.first { path in
             ActivityFormatting.isImagePath(path)
         }
         return ProfilePostPreview(

@@ -182,13 +182,21 @@ final class KeepStore {
         accessToken: String?
     ) -> LikedActivity {
         let title = response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티"
+        // 이미지 확장자 매칭(.jpg/.jpeg/.png/.webp)이 없을 때도 비디오가 아닌 첫 thumbnail은
+        // 시도해봐야 한다. 서버가 확장자 없는 이미지 path를 내려주는 케이스가 있어
+        // strict 매칭만 쓰면 fallback 기본 이미지가 표시되는 문제가 있다.
+        let imagePath =
+            ActivityFormatting.firstImageThumbnail(from: response.thumbnails)
+            ?? response.thumbnails.first { thumbnail in
+                !ActivityFormatting.isVideoPath(thumbnail)
+            }
         return LikedActivity(
             id: response.activityId,
             title: title,
             location: ActivityFormatting.makeLocationText(country: response.country),
             priceText: ActivityFormatting.makePriceText(response.price.final),
             imageRequest: ActivityFormatting.makeImageRequest(
-                from: ActivityFormatting.firstImageThumbnail(from: response.thumbnails),
+                from: imagePath,
                 configuration: configuration,
                 accessToken: accessToken
             )
