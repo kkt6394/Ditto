@@ -159,6 +159,7 @@ private struct ReviewRatingStars: View {
 
 private struct ReviewProfileImage: View {
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -187,10 +188,14 @@ private struct ReviewProfileImage: View {
     private func load(_ request: URLRequest) async {
         do {
             // 36×36 프로필 표시 크기로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 36, height: 36)
-            )
+            let pointSize = CGSize(width: 36, height: 36)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true
@@ -200,6 +205,7 @@ private struct ReviewProfileImage: View {
 
 private struct ReviewImageThumbnail: View {
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -229,10 +235,14 @@ private struct ReviewImageThumbnail: View {
     private func load(_ request: URLRequest) async {
         do {
             // 88×88 썸네일 표시 크기로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 88, height: 88)
-            )
+            let pointSize = CGSize(width: 88, height: 88)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true

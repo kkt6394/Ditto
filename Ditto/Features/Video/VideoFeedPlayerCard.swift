@@ -28,6 +28,7 @@ struct VideoFeedPlayerCard: View {
     // 활성 카드가 사용 가능한 자막 목록을 부모에게 알린다. 부모는 이걸로 언어 선택 메뉴를 그린다.
     var onSubtitlesAvailable: ([StreamSubtitleDTO]) -> Void = { _ in }
 
+    @Environment(\.imageLoader) private var imageLoader
     @State private var player: AVPlayer?
     @State private var streamLoadFailed = false
     @State private var isLoadingStream = false
@@ -205,7 +206,14 @@ struct VideoFeedPlayerCard: View {
         guard thumbnailImage == nil else { return }
         guard let request = viewModel.makeAuthorizedImageRequest(for: video.thumbnailUrl) else { return }
         let size = UIScreen.main.bounds.size
-        if let image = try? await RemoteImageLoader.load(request: request, pointSize: size) {
+        // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+        let image: UIImage?
+        if let imageLoader {
+            image = try? await imageLoader.loadImage(request, pointSize: size)
+        } else {
+            image = try? await RemoteImageLoader.load(request: request, pointSize: size)
+        }
+        if let image {
             thumbnailImage = image
         }
     }

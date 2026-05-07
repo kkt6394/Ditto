@@ -29,6 +29,8 @@
 - `Ditto/Features/Search/SearchActivityComponents.swift` — `SearchRemoteImage`가 `@Environment(\.imageLoader)`로 주입 받아 호출, 주입이 없을 때만 기존 로더로 폴백
 - `Ditto/ContentView.swift` — `AuthManager`로 `NetworkManager`를 한 번 만들어 `\.imageLoader` 환경값에 주입
 
-## 남은 작업 (Step 2)
+## Step 2 (완료)
 
-다른 화면들(`Likes`, `Post`, `Main` 등)에서 `RemoteImageLoader.load`를 직접 호출하는 자리들도 같은 환경 로더로 마이그레이션하면 앱 전반의 이미지 GET이 모두 토큰 갱신 흐름을 타게 된다. Step 1에서 증상이 가장 컸던 프로필/검색 경로는 처리됐다.
+`RemoteImageLoader.load`를 직접 호출하던 16곳을 모두 같은 환경 로더 패턴으로 옮겼다. 이제 앱 전반의 인증 이미지 GET이 토큰 갱신 흐름을 탄다. 환경 주입이 없는 컨텍스트(프리뷰 등)는 기존 단순 로더 폴백을 그대로 둬서 호환성 유지.
+
+대상: `PostDetail`(상세 이미지/프로필 2종, 댓글 프로필), `Likes`(카드 워밍업, 줌 오버레이), `Main`(배너/포스트 카드/NEW 액티비티/디테일 헤더), 미디어 뷰어(`ActivityPostMediaViewer`/`ChatRoomBubble`/`ChatRoomMediaViewer`), 리뷰(`ActivityDetailReviewComponents`의 프로필·썸네일 2종, `ReviewComposeView`의 첨부 썸네일), `VideoFeedPlayerCard`의 비디오 썸네일.

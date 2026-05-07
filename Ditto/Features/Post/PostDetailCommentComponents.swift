@@ -354,6 +354,7 @@ struct PostCommentComposer: View {
 
 private struct PostCommentProfileImage: View {
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -382,10 +383,13 @@ private struct PostCommentProfileImage: View {
     private func load(_ request: URLRequest) async {
         do {
             // 32×32 프로필 표시 크기로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 32, height: 32)
-            )
+            let pointSize = CGSize(width: 32, height: 32)
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true

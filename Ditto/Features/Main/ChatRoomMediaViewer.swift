@@ -86,6 +86,7 @@ private struct ChatImageGalleryFullScreen: View {
 private struct ChatImagePage: View {
     let item: ChatMediaItem
 
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var message: String?
     @State private var scale: CGFloat = 1
@@ -131,7 +132,13 @@ private struct ChatImagePage: View {
         let target = CGSize(width: screenSize.width * 2, height: screenSize.height * 2)
 
         do {
-            let loaded = try await RemoteImageLoader.load(request: request, pointSize: target)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: target)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: target)
+            }
             image = loaded
         } catch {
             message = "사진을 불러올 수 없습니다."

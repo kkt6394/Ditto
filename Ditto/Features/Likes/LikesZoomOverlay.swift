@@ -140,6 +140,7 @@ struct LikesZoomOverlay: View {
 private struct LikesZoomImage: View {
     let activityId: String
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var remoteImage: UIImage?
 
     var body: some View {
@@ -161,10 +162,14 @@ private struct LikesZoomImage: View {
             guard let request, remoteImage == nil else { return }
             // 줌 오버레이 표시 크기 = 화면 전체 → 화면 크기 기준 다운샘플링
             let zoomSize = UIScreen.main.bounds.size
-            if let img = try? await RemoteImageLoader.load(
-                request: request,
-                pointSize: zoomSize
-            ) {
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage?
+            if let imageLoader {
+                loaded = try? await imageLoader.loadImage(request, pointSize: zoomSize)
+            } else {
+                loaded = try? await RemoteImageLoader.load(request: request, pointSize: zoomSize)
+            }
+            if let img = loaded {
                 remoteImage = img
                 LikesActivityImageCache.shared.store(img, for: activityId)
             }

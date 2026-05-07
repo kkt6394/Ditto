@@ -11,6 +11,7 @@ import UIKit
 
 struct ActivityPostMediaViewer: View {
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.imageLoader) private var imageLoader
 
     let media: MainPostMedia
     private let authManager: any AuthManaging
@@ -130,10 +131,13 @@ struct ActivityPostMediaViewer: View {
         let targetSize = CGSize(width: screenSize.width * 2, height: screenSize.height * 2)
 
         do {
-            let loadedImage = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: targetSize
-            )
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loadedImage: UIImage
+            if let imageLoader {
+                loadedImage = try await imageLoader.loadImage(request, pointSize: targetSize)
+            } else {
+                loadedImage = try await RemoteImageLoader.load(request: request, pointSize: targetSize)
+            }
             image = loadedImage
         } catch RemoteImageError.invalidStatus, RemoteImageError.decodeFailed {
             message = "사진을 불러올 수 없습니다."

@@ -362,6 +362,7 @@ private struct NewActivityCard: View {
 
 private struct NewActivityImage: View {
     let item: MainNewActivity
+    @Environment(\.imageLoader) private var imageLoader
     @State private var remoteImage: UIImage?
     @State private var didFailLoadingRemoteImage = false
 
@@ -399,10 +400,14 @@ private struct NewActivityImage: View {
     private func loadRemoteImage(from request: URLRequest) async {
         do {
             // NEW 액티비티 카드 표시 크기(316×474) 기준 다운샘플링
-            let image = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 316, height: 474)
-            )
+            let pointSize = CGSize(width: 316, height: 474)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let image: UIImage
+            if let imageLoader {
+                image = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                image = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

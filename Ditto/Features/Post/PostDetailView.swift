@@ -271,6 +271,7 @@ private struct PostDetailHeroSection: View {
 
 private struct PostDetailRemoteImage: View {
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -300,10 +301,14 @@ private struct PostDetailRemoteImage: View {
     private func load(_ request: URLRequest) async {
         do {
             // 280×200 표시 크기로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 280, height: 200)
-            )
+            let pointSize = CGSize(width: 280, height: 200)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true
@@ -338,6 +343,7 @@ private struct PostDetailAuthorRow: View {
 
 private struct PostDetailProfileImage: View {
     let request: URLRequest?
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -366,10 +372,13 @@ private struct PostDetailProfileImage: View {
     private func load(_ request: URLRequest) async {
         do {
             // 40×40 프로필 표시 크기로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 40, height: 40)
-            )
+            let pointSize = CGSize(width: 40, height: 40)
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true

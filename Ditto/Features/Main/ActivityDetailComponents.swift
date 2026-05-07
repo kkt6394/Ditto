@@ -14,6 +14,7 @@ struct ActivityDetailRemoteImage: View {
     let request: URLRequest?
     let fallbackImageName: String
 
+    @Environment(\.imageLoader) private var imageLoader
     @State private var remoteImage: UIImage?
     @State private var didFailLoadingRemoteImage = false
 
@@ -51,10 +52,13 @@ struct ActivityDetailRemoteImage: View {
         // 화면 너비 × 360 헤더 — 디바이스 화면 너비 기준으로 다운샘플링
         let pointSize = CGSize(width: UIScreen.main.bounds.width, height: 360)
         do {
-            let image = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: pointSize
-            )
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let image: UIImage
+            if let imageLoader {
+                image = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                image = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true

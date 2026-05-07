@@ -322,6 +322,7 @@ private struct ReviewComposeThumbnail: View {
     let request: URLRequest?
     let onRemove: () -> Void
 
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var didFail = false
 
@@ -364,10 +365,14 @@ private struct ReviewComposeThumbnail: View {
     private func load(_ request: URLRequest) async {
         do {
             // 정사각 썸네일 표시 크기 기준으로 다운샘플링
-            let loaded = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: 120, height: 120)
-            )
+            let pointSize = CGSize(width: 120, height: 120)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
         } catch {
             didFail = true

@@ -179,6 +179,7 @@ private struct StaggeredCardAppear: ViewModifier {
 
 struct LikedActivityCard: View {
     let activity: LikedActivity
+    @Environment(\.imageLoader) private var imageLoader
 
     var body: some View {
         cardBody
@@ -190,10 +191,14 @@ struct LikedActivityCard: View {
                 }
                 // 캐시는 카드와 줌 오버레이가 공유한다. 줌 표시 크기(화면 크기) 기준으로 다운샘플링한다.
                 let zoomSize = UIScreen.main.bounds.size
-                if let image = try? await RemoteImageLoader.load(
-                    request: request,
-                    pointSize: zoomSize
-                ) {
+                // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+                let loaded: UIImage?
+                if let imageLoader {
+                    loaded = try? await imageLoader.loadImage(request, pointSize: zoomSize)
+                } else {
+                    loaded = try? await RemoteImageLoader.load(request: request, pointSize: zoomSize)
+                }
+                if let image = loaded {
                     LikesActivityImageCache.shared.store(image, for: activity.id)
                 }
             }

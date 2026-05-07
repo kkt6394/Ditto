@@ -347,6 +347,7 @@ private struct ChatRemoteImageView: View {
     let item: ChatMediaItem
     let pointSize: CGSize
 
+    @Environment(\.imageLoader) private var imageLoader
     @State private var image: UIImage?
     @State private var loadFailed = false
 
@@ -386,7 +387,13 @@ private struct ChatRemoteImageView: View {
         }
 
         do {
-            let loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let loaded: UIImage
+            if let imageLoader {
+                loaded = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                loaded = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             image = loaded
             loadFailed = false
         } catch {

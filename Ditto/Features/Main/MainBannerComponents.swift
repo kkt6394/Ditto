@@ -106,6 +106,7 @@ private struct MainBannerCard: View {
     let banner: MainBanner
     let width: CGFloat
     let height: CGFloat
+    @Environment(\.imageLoader) private var imageLoader
     @State private var remoteImage: UIImage?
     @State private var didFailLoadingRemoteImage = false
 
@@ -168,10 +169,14 @@ private struct MainBannerCard: View {
     private func loadRemoteImage(from request: URLRequest) async {
         do {
             // 배너 표시 크기로 다운샘플링 — 원본 풀 디코딩 메모리 회피
-            let image = try await RemoteImageLoader.load(
-                request: request,
-                pointSize: CGSize(width: width, height: height)
-            )
+            let pointSize = CGSize(width: width, height: height)
+            // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
+            let image: UIImage
+            if let imageLoader {
+                image = try await imageLoader.loadImage(request, pointSize: pointSize)
+            } else {
+                image = try await RemoteImageLoader.load(request: request, pointSize: pointSize)
+            }
             remoteImage = image
         } catch {
             didFailLoadingRemoteImage = true
