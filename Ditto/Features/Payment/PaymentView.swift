@@ -10,6 +10,8 @@ import SwiftUI
 
 struct PaymentView: View {
     @Environment(\.dismiss) private var dismiss
+    // 백그라운드 → active 복귀 감지를 위해 사용. PG 결제창이 너무 오래 응답 없으면 stalled로 마킹.
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var viewModel: PaymentViewModel
     @State private var configurationError: String?
@@ -36,6 +38,12 @@ struct PaymentView: View {
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
         .task { loadConfiguration() }
+        .onChange(of: scenePhase) { _, newPhase in
+            // 백그라운드에서 돌아온 직후 결제창이 너무 오래 응답이 없는지 체크해 사용자에게 결정권을 넘긴다.
+            if newPhase == .active {
+                viewModel.checkAwaitingPaymentStaleness()
+            }
+        }
         .fullScreenCover(item: launcherBinding) { context in
             PaymentLauncher(
                 userCode: context.userCode,
@@ -76,6 +84,31 @@ struct PaymentView: View {
                 secondaryAction: { dismiss() }
             )
             // swiftlint:enable trailing_closure
+        case .validationFailed(_, _, let message):
+            // 결제는 PG 단계까지 끝났고 서버 검증만 일시 실패한 상태. 다시 결제하지 않도록 안내하고
+            // 같은 impUid로 검증만 재시도시킨다. 닫기 버튼은 두지 않아 영수증 유실을 막는다.
+            PaymentResultView(
+                style: .failure,
+                title: "결제 확인이 필요해요",
+                message: "결제는 정상 처리됐지만 확인이 지연되고 있어요. 잠시 후 다시 시도해 주세요.\n\n\(message)",
+                primaryActionTitle: "결제 확인 다시 시도"
+            ) {
+                Task { @MainActor in
+                    await viewModel.retryValidation()
+                }
+            }
+        case .awaitingPaymentStalled:
+            // PG 결제창이 너무 오래 응답이 없어 fullScreenCover가 닫히고 본체로 돌아온 상태.
+            // 결제가 진행됐을 가능성이 있어 결제내역 확인 후 다시 시도하도록 명시적으로 안내한다.
+            PaymentResultView(
+                style: .failure,
+                title: "결제 응답이 늦어요",
+                message: "결제창이 응답하지 않아요. 결제내역에서 정상 결제 여부를 확인하신 뒤 다시 시도해 주세요.",
+                primaryActionTitle: "결제 취소하고 닫기"
+            ) {
+                viewModel.cancelStalledPayment()
+                dismiss()
+            }
         default:
             ScrollView {
                 VStack(alignment: .leading, spacing: 24) {

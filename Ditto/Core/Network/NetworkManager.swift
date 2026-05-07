@@ -111,6 +111,10 @@ private extension NetworkManager {
 
         var request = URLRequest(url: url)
         request.httpMethod = router.method.rawValue
+        // 라우터별로 짧은 timeout이 필요할 때만 적용한다. 결제처럼 사용자 대기를 줄여야 하는 호출이 대상.
+        if let timeout = router.timeoutInterval {
+            request.timeoutInterval = timeout
+        }
         // 모든 API에 공통으로 필요한 API key header다.
         request.setValue(configuration.apiKey, forHTTPHeaderField: "SeSACKey")
 

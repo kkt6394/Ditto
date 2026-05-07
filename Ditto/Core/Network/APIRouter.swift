@@ -18,6 +18,9 @@ protocol APIRouter {
     var multipartFormData: MultipartFormData? { get }
     var requiresAuthentication: Bool { get }
     var allowsTokenRefreshRetry: Bool { get }
+    // nil이면 URLSession 기본값(60초)을 사용한다. 결제처럼 빨리 실패해서 retry로 넘기는 게 나은
+    // 호출은 여기에 짧은 값을 지정해 사용자가 오래 멈춰 있는 경험을 줄인다.
+    var timeoutInterval: TimeInterval? { get }
 }
 
 extension APIRouter {
@@ -44,6 +47,10 @@ extension APIRouter {
 
     var allowsTokenRefreshRetry: Bool {
         requiresAuthentication
+    }
+
+    var timeoutInterval: TimeInterval? {
+        nil
     }
 }
 

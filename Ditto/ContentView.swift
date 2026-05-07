@@ -32,6 +32,8 @@ struct ContentView: View {
             registerPushTokenSyncHandler()
             // 부팅 직후 이미 저장된 토큰이 있고 인증 상태이면 한 번 동기화한다.
             await syncDeviceTokenIfPossible(token: pushTokenStore.currentToken)
+            // 앱이 검증 단계에서 죽어 결제 영수증이 미검증으로 남아 있으면 조용히 다시 검증한다.
+            await recoverPendingPaymentValidationIfPossible()
         }
         .onChange(of: authManager.isAuthenticated) { _, isAuthenticated in
             // 로그인 직후 이미 알고 있던 푸시 토큰을 서버에 반영해 누락을 막는다.
@@ -40,6 +42,7 @@ struct ContentView: View {
             }
             Task {
                 await syncDeviceTokenIfPossible(token: pushTokenStore.currentToken)
+                await recoverPendingPaymentValidationIfPossible()
             }
         }
     }
@@ -86,6 +89,22 @@ private extension ContentView {
             print("Device token sync failed: \(error)")
             #endif
         }
+    }
+
+    func recoverPendingPaymentValidationIfPossible() async {
+        // 인증되지 않은 상태에서는 검증 호출에 토큰이 없어 의미 없으므로 다음 기회로 미룬다.
+        guard authManager.isAuthenticated else {
+            return
+        }
+
+        let store = PendingPaymentValidationStore()
+        let service = PaymentRecoveryService(
+            store: store,
+            networkManagerFactory: { [authManager] in
+                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
+            }
+        )
+        await service.recoverIfNeeded()
     }
 }
 
