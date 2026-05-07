@@ -222,6 +222,9 @@ struct MainView: View {
                 orderListAction: {
                     navigationPath.append(MainRoute.orderList)
                 },
+                composeActivityCardAction: {
+                    navigationPath.append(MainRoute.activityCardCompose)
+                },
                 composeActivityAction: {
                     navigationPath.append(MainRoute.activityCompose(mode: .create))
                 },
@@ -533,6 +536,8 @@ private extension MainView {
             ActivityComposeView(mode: mode, authManager: authManager) {
                 // 작성 후 후처리는 후속 커밋에서 — 일단 화면만 닫는다.
             }
+        case .activityCardCompose:
+            ActivityCardComposeSelectorView(authManager: authManager)
         }
     }
 }

@@ -14,8 +14,6 @@ struct OrderListView: View {
     private let receiptAction: (String, String, String?, String?) -> Void
 
     @State private var viewModel: OrderListViewModel
-    // 활동 리포트 PDF Export fullScreenCover 토글.
-    @State private var isPresentingReportExport = false
 
     init(
         authManager: any AuthManaging,
@@ -28,11 +26,7 @@ struct OrderListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            OrderListNavigationBar(title: "주문 내역") {
-                OrderListReportButton(isDisabled: viewModel.orders.isEmpty) {
-                    isPresentingReportExport = true
-                }
-            }
+            OrderListNavigationBar(title: "주문 내역")
 
             content
                 .padding(.top, 8)
@@ -43,26 +37,6 @@ struct OrderListView: View {
         .toolbar(.hidden, for: .navigationBar)
         .task {
             await viewModel.load()
-        }
-        .fullScreenCover(isPresented: $isPresentingReportExport) {
-            ActivityReportExportView(
-                orders: viewModel.orders,
-                imageRequestBuilder: makeImageRequestBuilder()
-            )
-        }
-    }
-
-    // 인증 헤더가 포함된 thumbnail URLRequest를 만들어 ExportView로 주입한다.
-    private func makeImageRequestBuilder() -> (String) -> URLRequest? {
-        let configuration = try? AppConfiguration()
-        let accessToken = authManager.tokens?.accessToken
-        return { thumbnailPath in
-            guard let configuration else { return nil }
-            return ActivityFormatting.makeImageRequest(
-                from: thumbnailPath,
-                configuration: configuration,
-                accessToken: accessToken
-            )
         }
     }
 

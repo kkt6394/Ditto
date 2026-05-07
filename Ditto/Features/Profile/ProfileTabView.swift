@@ -15,6 +15,7 @@ struct ProfileTabView: View {
     let signOutMessage: String?
     let signOutAction: () -> Void
     let orderListAction: () -> Void
+    let composeActivityCardAction: () -> Void
     let composeActivityAction: () -> Void
     // 내 포스트 카드 탭 → 부모 NavigationStack에서 PostDetail로 push.
     let myPostTapAction: (String) -> Void
@@ -30,6 +31,7 @@ struct ProfileTabView: View {
         signOutMessage: String?,
         signOutAction: @escaping () -> Void,
         orderListAction: @escaping () -> Void,
+        composeActivityCardAction: @escaping () -> Void,
         composeActivityAction: @escaping () -> Void,
         myPostTapAction: @escaping (String) -> Void,
         likedActivityTapAction: @escaping (String) -> Void
@@ -38,6 +40,7 @@ struct ProfileTabView: View {
         self.signOutMessage = signOutMessage
         self.signOutAction = signOutAction
         self.orderListAction = orderListAction
+        self.composeActivityCardAction = composeActivityCardAction
         self.composeActivityAction = composeActivityAction
         self.myPostTapAction = myPostTapAction
         self.likedActivityTapAction = likedActivityTapAction
@@ -158,6 +161,15 @@ struct ProfileTabView: View {
                 ProfileActionRow(
                     title: "주문 내역",
                     systemImage: "doc.text",
+                    style: .secondary
+                )
+            }
+            .buttonStyle(.plain)
+
+            Button(action: composeActivityCardAction) {
+                ProfileActionRow(
+                    title: "액티비티 카드 만들기",
+                    systemImage: "photo.on.rectangle.angled",
                     style: .secondary
                 )
             }

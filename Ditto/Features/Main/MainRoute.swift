@@ -21,4 +21,5 @@ enum MainRoute: Hashable {
         thumbnailPath: String?
     )
     case activityCompose(mode: ActivityComposeMode)
+    case activityCardCompose
 }

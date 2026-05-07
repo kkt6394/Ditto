@@ -1,4 +1,65 @@
-# 액티비티 PDF 추출 v2 (사진 wrap-around + 월/년 단위)
+# 액티비티 추출 v5 — Phase A (PNG 캔버스 + 디자인 매칭)
+
+## 한 줄 요약
+단건 액티비티는 이제 PDF가 아니라 PNG 이미지로 추출된다. 디자인 reference(Pencil POy3e "Activity Memory PDF Template")를 SwiftUI로 재현한 캔버스를 `ImageRenderer`로 PNG 변환.
+
+## v5 동작 흐름 (구어체)
+영수증 화면에서 "PDF" 버튼을 누르면 fullScreenCover로 ExportView가 올라온다. 진입 직후 액티비티 thumbnail을 백그라운드 다운로드(loadingImage). 받으면 markup 단계로 넘어가 PaperKit 캔버스에서 추억 메모를 그릴 수 있다.
+
+"이미지 미리보기"를 누르면 `ActivityMemoryCanvasView`(SwiftUI ZStack)에 데이터가 채워진 채로 `ImageRenderer`가 SwiftUI View → UIImage로 굽는다. scale 3로 595×842 디자인을 1785×2526 고해상도로. PNG 인코딩 후 임시 파일 저장 → 미리보기 화면에서 Image 표시 → ShareLink로 시스템 공유 시트.
+
+캔버스 구성: 종이 톤(#FFF9EC) 배경 + 좌상단 Ditto 큰 italic + 우상단 "activity journal" + 회전 sticky note 4개(DATE 노랑 -2°, GUESTS 핑크 +3°, SCHEDULE 핑크 -1°, TOTAL 노랑 +2°) + 메인 사진(검은 외곽선 4px·그림자) + 민트 mainLabel "활동 이름"(-2°) + 민트 DONE 도장(-8°) + 흰 quote "saved this moment!"(+4°) + 데코(빨간 하트·SF Symbol 화살표·종이클립·✦·@·#) + 큰 "MY ACTIVITY PAGE"(-2°) + 청록 밑줄.
+
+## 왜 PDF에서 PNG로 갔나
+사용자가 명시적으로 "굳이 PDF가 아니라 이미지 파일로 추출하는 게 낫겠다"고 했다. 이미지 파일은 SNS/메신저 공유에 더 자연스럽고, PDF 뷰어가 필요 없다. 또한 후속으로 인터랙티브 편집(Phase B)을 붙일 때도 SwiftUI 캔버스 기반이 PDF Renderer 기반보다 훨씬 자연스럽다.
+
+## 다음 단계 (Phase B, 미구현)
+- 노드 드래그(`@State` 좌표 + `DragGesture`)
+- 텍스트 박스 추가(long-press → 새 텍스트 노드)
+- 이미지 추가(`PhotosPicker` + Photos library)
+- 손글씨 레이어(`PKCanvasView` ZStack 위)
+- 편집 후 동일 `ImageRenderer`로 최종 PNG export
+
+## 핵심 새 파일
+- `Ditto/Features/PDFExport/Receipt/ActivityMemoryCanvasView.swift` — SwiftUI 캔버스 (디자인 reference 재현) + `ActivityMemorySnapshot` + `MemoryPalette` + `MemoryFont`
+
+## 변경
+- `Ditto/Core/PDF/PDFFileNaming.swift` — `activityMemoryPNG(orderCode:)` 추가
+- `Ditto/Features/PDFExport/Receipt/ReceiptExportViewModel.swift` — `Phase.ready(URL, UIImage)`, `ImageRenderer` 사용
+- `Ditto/Features/PDFExport/Receipt/ReceiptExportView.swift` — `PDFPreviewView` → `Image(uiImage:)` ScrollView
+- `Ditto/Features/PDFExport/Receipt/ReceiptPDFSnapshot.swift`, `ReceiptPDFRenderer.swift` — 호출처 없는 dead code (Phase B에서 정리 예정)
+
+## 솔직한 한계
+- Pencil 디자인의 Playfair Display Italic이 번들에 없어 시스템 serif italic으로 대체 (정확 매칭 안 됨)
+- 손그림 화살표는 SF Symbol(`arrow.right`, `arrow.down.right`)로 대체 (디자인의 손맛 path와 다름)
+- ReceiptViewModel이 받는 PaymentResponseDTO에 카테고리/일정/인원 정보가 없어서 SCHEDULE/GUESTS 박스는 placeholder("결제 완료" / "1명") — 추후 OrderReviewResponseDTO 통째로 받게 시그니처 확장 시 정확한 값으로 채워짐
+
+---
+
+# 액티비티 PDF 추출 v3 (한 장 방사형 마인드맵) — 활동 리포트는 v3 그대로 유지
+
+## v3 변경 한 줄
+활동 리포트의 본문이 N장 wrap-around → 한 장 방사형 마인드맵 PDF로 갈아엎혔다. Pinterest "Mindmapping" 핀 톤 (파스텔 노드 + 깔끔한 곡선 연결)을 참고했다.
+
+## v3 동작 흐름 (구어체)
+주문 내역 → "리포트 PDF" → scope 선택 → 손글씨 메모 단계는 v2와 같다. "PDF 미리보기"를 누르는 순간이 달라진다. 이제 Renderer는 한 페이지 안에 방사형 마인드맵을 그린다.
+
+`computeLayout(in:)`이 먼저 좌표를 계산한다. 페이지 컨텐츠 사각형 한가운데를 중심점으로 두고, 카테고리 별로 묶은 액티비티를 등각 360°로 펼친다. 카테고리 노드는 중심에서 R1, 액티비티 노드는 카테고리 노드에서 부채꼴 모양으로 R2 거리에 들어간다. `PDFPalette.categoryHue(_:)`가 카테고리 이름의 hash로 파스텔 색을 매핑해주니 같은 카테고리는 항상 같은 색을 받는다.
+
+그리는 순서는 연결선(노드 뒤에 깔리도록 먼저) → 카테고리 노드 → 액티비티 노드(작은 둥근 썸네일이 노드 안에 aspect-fill로 잘려 들어감) → 중심 노드(scope 라벨이 흰 글씨로). 좌하단에 "총 활동 N건 · 총 지출 …", 우하단에 PaperKit 손글씨 이미지가 합성되고, 페이지 푸터에 "Ditto · 한 장에 모인 나의 (scope) 활동" 한 줄.
+
+단건 추억 PDF는 그대로다. 한 페이지짜리니 마인드맵으로 바꿀 의미가 없다.
+
+## 왜 한 장 마인드맵?
+v2는 액티비티 1개당 1페이지라 활동이 많으면 PDF가 두꺼워졌고, 첫인상이 "정보 나열"에 가까웠다. 사용자 피드백("한 장에 다 들어오게 / 마인드맵처럼 / 힙하게")으로 컨셉을 갈아엎었다. 한 장에 다 들어오면 그 자체가 시각적 임팩트가 되고, scope 필터(월/년)와 결합하면 "내 2026년 5월 한 장 요약" 같은 모양이 자연스럽게 나온다.
+
+## 핵심 새 파일
+- `Ditto/Core/PDF/PDFPaper.swift` (수정) — `PDFPalette.pastels` + `categoryHue(for:)` 추가
+- `Ditto/Features/PDFExport/ActivityReport/ActivityReportPDFRenderer.swift` (전면 재작성) — `MindMapLayout`(중심·카테고리·액티비티 노드 좌표·연결선) + `computeLayout(in:)` + 그리기 함수들(extension 분리)
+
+---
+
+# 액티비티 PDF 추출 v2 (사진 wrap-around + 월/년 단위) — 이전 버전 보존
 
 ## 한 줄 요약
 이 기능은 사용자가 결제·참여한 액티비티 내역을 활동 리포트(월/년 단위) 또는 단건 추억 페이지 PDF로 추출하게 해준다. 본문은 액티비티 사진을 큼직하게 깔고 텍스트가 사진 주변을 따라 흐르도록 TextKit `exclusionPaths`를 사용한다.

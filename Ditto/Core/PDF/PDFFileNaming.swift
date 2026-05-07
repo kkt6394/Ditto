@@ -17,6 +17,11 @@ enum PDFFileNaming {
         "Ditto_영수증_\(sanitize(orderCode)).pdf"
     }
 
+    // 단건 액티비티 추억 PNG. v5부터 PDF가 아닌 PNG로 추출.
+    static func activityMemoryPNG(orderCode: String) -> String {
+        "Ditto_액티비티_\(sanitize(orderCode)).png"
+    }
+
     // 파일 시스템에서 문제될 수 있는 문자만 _로 치환. 한글은 그대로 둔다.
     private static func sanitize(_ raw: String) -> String {
         let unsafe = CharacterSet(charactersIn: "/:\\?%*|\"<>")

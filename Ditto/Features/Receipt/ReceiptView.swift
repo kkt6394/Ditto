@@ -22,8 +22,6 @@ struct ReceiptView: View {
     @State private var isPresentingReviewCompose = false
     // 화면 진입 시점엔 existingReviewId가 nil이어도, 시트에서 작성 완료 시 즉시 UI를 갱신하기 위한 플래그
     @State private var hasJustReviewed = false
-    // 영수증 PDF Export fullScreenCover 토글.
-    @State private var isPresentingPDFExport = false
 
     init(
         orderCode: String,
@@ -44,11 +42,7 @@ struct ReceiptView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            ReceiptNavigationBar(title: "영수증") {
-                ReceiptPDFExportButton(isDisabled: viewModel.receipt == nil) {
-                    isPresentingPDFExport = true
-                }
-            }
+            ReceiptNavigationBar(title: "영수증")
 
             content
                 .padding(.top, 8)
@@ -71,33 +65,6 @@ struct ReceiptView: View {
                 // 작성 성공 시 즉시 UI에 반영. OrderList로 돌아가면 서버 상태로 다시 동기화된다.
                 hasJustReviewed = true
             }
-        }
-        .fullScreenCover(isPresented: $isPresentingPDFExport) {
-            if let receipt = viewModel.receipt {
-                ReceiptExportView(
-                    activityTitle: receipt.name ?? "이름 없는 액티비티",
-                    category: nil,
-                    totalPrice: receipt.amount,
-                    paidAt: receipt.paidAt,
-                    orderCode: orderCode,
-                    thumbnailPath: thumbnailPath,
-                    imageRequestBuilder: makeImageRequestBuilder()
-                )
-            }
-        }
-    }
-
-    // 인증 헤더가 포함된 thumbnail URLRequest를 만들어 ExportView로 주입한다.
-    private func makeImageRequestBuilder() -> (String) -> URLRequest? {
-        let configuration = try? AppConfiguration()
-        let accessToken = authManager.tokens?.accessToken
-        return { thumbnailPath in
-            guard let configuration else { return nil }
-            return ActivityFormatting.makeImageRequest(
-                from: thumbnailPath,
-                configuration: configuration,
-                accessToken: accessToken
-            )
         }
     }
 
