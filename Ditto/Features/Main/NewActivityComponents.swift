@@ -125,6 +125,19 @@ private struct NewActivityCard: View {
         }
         .frame(width: 316, height: 316)
         .clipped()
+        .overlay(alignment: .bottom) {
+            // 흰 텍스트 가독성 확보용 하단 그라데이션. 이미지의 밝은 영역 위에서도 글자가 묻히지 않도록 한다.
+            LinearGradient(
+                colors: [
+                    Color.black.opacity(0.55),
+                    Color.black.opacity(0.0)
+                ],
+                startPoint: .bottom,
+                endPoint: .top
+            )
+            .frame(height: 180)
+            .allowsHitTesting(false)
+        }
         .overlay(alignment: .topLeading) {
             LocationCapsule(text: item.location)
                 .padding(.top, 16)
@@ -160,6 +173,8 @@ private struct NewActivityCard: View {
                     .frame(width: 260, alignment: .leading)
             }
             .frame(width: 260, alignment: .leading)
+            // 그라데이션이 못 잡는 미세한 밝은 픽셀 케이스에도 글자 외곽이 살아있도록 가벼운 그림자를 더한다.
+            .shadow(color: Color.black.opacity(0.45), radius: 4, y: 1)
             .padding(.bottom, 20)
             .padding(.leading, 20)
         }
