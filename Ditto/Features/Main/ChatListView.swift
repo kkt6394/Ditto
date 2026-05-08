@@ -132,6 +132,7 @@ struct ChatListView: View {
                         ChatListRow(
                             room: room,
                             opponentNick: opponent?.nick ?? "알 수 없음",
+                            opponentImageRequest: opponentImageRequest(for: opponent),
                             hasUnread: viewModel.unreadIndicators.contains(room.roomId),
                             unreadCount: viewModel.unreadCounts[room.roomId]
                         )
@@ -145,6 +146,20 @@ struct ChatListView: View {
             }
             .padding(.bottom, 100)
         }
+    }
+
+    // 상대방 프로필 이미지를 ChatBubble과 동일한 인증 흐름으로 요청한다.
+    // ProfileAvatar는 nil을 받으면 placeholder를 그리므로 opponent가 없거나 설정 로드가 실패해도 안전.
+    private func opponentImageRequest(for opponent: UserInfoResponseDTO?) -> URLRequest? {
+        guard let opponent,
+              let configuration = try? AppConfiguration() else {
+            return nil
+        }
+        return ActivityFormatting.makeImageRequest(
+            from: opponent.profileImage,
+            configuration: configuration,
+            accessToken: authManager.tokens?.accessToken
+        )
     }
 }
 
@@ -272,16 +287,14 @@ final class ChatListViewModel {
 private struct ChatListRow: View {
     let room: ChatRoomResponseDTO
     let opponentNick: String
+    // 상대 프로필 이미지를 인증 헤더 포함해 만든 요청. nil이면 ProfileAvatar가 placeholder로 그린다.
+    let opponentImageRequest: URLRequest?
     let hasUnread: Bool
     let unreadCount: Int?
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "person.crop.circle.fill")
-                .resizable()
-                .scaledToFit()
-                .foregroundStyle(MainScreenPalette.textMuted)
-                .frame(width: 48, height: 48)
+            ProfileAvatar(imageRequest: opponentImageRequest, size: 48)
                 .padding(.leading, 16)
 
             VStack(alignment: .leading, spacing: 4) {
