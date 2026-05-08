@@ -11,13 +11,13 @@ import Observation
 @MainActor
 @Observable
 final class MainViewModel {
-    private(set) var newActivities = MainNewActivity.samples
+    private(set) var newActivities: [MainNewActivity] = []
     private(set) var isLoadingNewActivities = false
     private(set) var newActivitiesMessage: String?
     private(set) var mainBanners: [MainBanner] = []
     private(set) var isLoadingMainBanners = false
     private(set) var mainBannersMessage: String?
-    private(set) var activityPosts = MainActivityPost.samples
+    private(set) var activityPosts: [MainActivityPost] = []
     private(set) var isLoadingActivityPosts = false
     private(set) var activityPostsMessage: String?
     private(set) var chatStartMessage: String?
