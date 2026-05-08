@@ -30,8 +30,9 @@ struct ChatListView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack {
-                Text("채팅")
-                    .font(MainFont.pretendard(.bold, size: 24))
+                Text("Chat")
+                    .font(.system(size: 26, design: .serif))
+                    .italic()
                     .foregroundStyle(MainScreenPalette.textPrimary)
 
                 Spacer()

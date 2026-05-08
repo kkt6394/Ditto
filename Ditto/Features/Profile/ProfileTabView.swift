@@ -100,9 +100,10 @@ struct ProfileTabView: View {
 
     private var header: some View {
         HStack {
-            Text("프로필")
-                .font(MainScreenTypography.brand)
-                .foregroundStyle(MainScreenPalette.primaryBlue)
+            Text("Profile")
+                .font(.system(size: 26, design: .serif))
+                .italic()
+                .foregroundStyle(MainScreenPalette.textPrimary)
             Spacer()
             Button {
                 isPresentingEditor = true

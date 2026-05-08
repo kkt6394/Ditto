@@ -41,15 +41,15 @@ struct LikesView: View {
 
     private var header: some View {
         HStack {
-            Text("좋아요")
-                .font(MainScreenTypography.brand)
-                .foregroundStyle(MainScreenPalette.primaryBlue)
+            Text("Likes")
+                .font(.system(size: 26, design: .serif))
+                .italic()
+                .foregroundStyle(MainScreenPalette.textPrimary)
             Spacer()
         }
         .padding(.horizontal, 20)
         .padding(.top, 12)
         .padding(.bottom, 12)
-        .frame(height: 44)
     }
 
     @ViewBuilder
