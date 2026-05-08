@@ -183,7 +183,7 @@ struct MainView: View {
                 }
             )
                 .id(searchViewResetID)
-                .tag(MainTab.explore.rawValue)
+                .tag(MainTab.feed.rawValue)
 
             ChatListView(authManager: authManager) { roomId, opponentNick in
                 navigationPath.append(MainRoute.chat(roomId: roomId, opponentNick: opponentNick))
@@ -428,7 +428,7 @@ private extension MainView {
         navigationPath = []
 
         if selectedTabID == item.id {
-            if MainTab(rawValue: item.id) == .explore {
+            if MainTab(rawValue: item.id) == .feed {
                 searchViewResetID = UUID()
             } else if MainTab(rawValue: item.id) == .home {
                 homeScrollToTopTrigger.toggle()

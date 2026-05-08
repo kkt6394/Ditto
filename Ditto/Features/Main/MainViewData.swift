@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 struct MainCountryFilter: Identifiable {
     let id: String
@@ -24,14 +25,70 @@ struct MainCountryFilter: Identifiable {
 struct MainCategoryFilter: Identifiable {
     let id: String
     let title: String
+    let sfSymbol: String
+    let accentColor: Color
 
     static let samples: [MainCategoryFilter] = [
-        .init(id: "all", title: "전체"),
-        .init(id: "sightseeing", title: "관광"),
-        .init(id: "tour", title: "투어"),
-        .init(id: "package", title: "패키지"),
-        .init(id: "exciting", title: "익사이팅"),
-        .init(id: "experience", title: "체험")
+        .init(
+            id: "all",
+            title: "전체",
+            sfSymbol: "square.grid.3x3.fill",
+            accentColor: Color(red: 0.530, green: 0.710, blue: 0.863)
+        ),
+        .init(
+            id: "sightseeing",
+            title: "관광",
+            sfSymbol: "building.columns.fill",
+            accentColor: Color(red: 0.898, green: 0.776, blue: 0.475)
+        ),
+        .init(
+            id: "tour",
+            title: "투어",
+            sfSymbol: "map.fill",
+            accentColor: Color(red: 0.420, green: 0.749, blue: 0.541)
+        ),
+        .init(
+            id: "package",
+            title: "패키지",
+            sfSymbol: "suitcase.fill",
+            accentColor: Color(red: 0.851, green: 0.541, blue: 0.400)
+        ),
+        .init(
+            id: "exciting",
+            title: "익사이팅",
+            sfSymbol: "bolt.fill",
+            accentColor: Color(red: 0.949, green: 0.749, blue: 0.302)
+        ),
+        .init(
+            id: "experience",
+            title: "체험",
+            sfSymbol: "sparkles",
+            accentColor: Color(red: 0.741, green: 0.561, blue: 0.847)
+        ),
+        .init(
+            id: "fitness",
+            title: "피트니스",
+            sfSymbol: "dumbbell.fill",
+            accentColor: Color(red: 0.878, green: 0.451, blue: 0.451)
+        ),
+        .init(
+            id: "beauty",
+            title: "뷰티",
+            sfSymbol: "leaf.fill",
+            accentColor: Color(red: 0.949, green: 0.651, blue: 0.722)
+        ),
+        .init(
+            id: "outdoor",
+            title: "아웃도어",
+            sfSymbol: "mountain.2.fill",
+            accentColor: Color(red: 0.451, green: 0.647, blue: 0.490)
+        ),
+        .init(
+            id: "sports",
+            title: "스포츠",
+            sfSymbol: "trophy.fill",
+            accentColor: Color(red: 0.596, green: 0.510, blue: 0.847)
+        )
     ]
 }
 
@@ -219,16 +276,16 @@ struct MainTabItem: Identifiable {
 
     static let samples: [MainTabItem] = [
         .init(id: MainTab.home.rawValue, systemName: "house.fill", title: "홈"),
-        .init(id: MainTab.explore.rawValue, systemName: "magnifyingglass", title: "검색"),
-        .init(id: MainTab.chat.rawValue, systemName: "bubble.left.and.bubble.right", title: "채팅"),
-        .init(id: MainTab.likes.rawValue, systemName: "heart", title: "좋아요"),
-        .init(id: MainTab.profile.rawValue, systemName: "person", title: "프로필")
+        .init(id: MainTab.feed.rawValue, systemName: "square.grid.2x2.fill", title: "피드"),
+        .init(id: MainTab.chat.rawValue, systemName: "bubble.left.and.bubble.right.fill", title: "채팅"),
+        .init(id: MainTab.likes.rawValue, systemName: "heart.fill", title: "좋아요"),
+        .init(id: MainTab.profile.rawValue, systemName: "person.fill", title: "프로필")
     ]
 }
 
 enum MainTab: String {
     case home
-    case explore
+    case feed
     case chat
     case likes
     case profile
