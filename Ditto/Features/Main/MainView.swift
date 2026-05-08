@@ -273,21 +273,17 @@ struct MainView: View {
                         }
                         .padding(.top, 16)
 
-                        ActivityPostsSection(
-                            posts: viewModel.activityPosts,
-                            isLoading: viewModel.isLoadingActivityPosts,
-                            message: viewModel.activityPostsMessage,
-                            mediaAction: { media in
-                                selectedMedia = media
-                            },
-                            detailAction: { post in
-                                openPostDetail(for: post)
-                            },
-                            chatAction: { post in
-                                startChat(with: post)
-                            }
-                        )
-                        .padding(.top, 24)
+                        MainSectionTitleRow(title: "추천 액티비티")
+                            .padding(.top, 28)
+
+                        HomeRecommendationRow(
+                            items: viewModel.homeRecommendations,
+                            isLoading: viewModel.isLoadingHomeRecommendations,
+                            message: viewModel.homeRecommendationsMessage
+                        ) { activityId in
+                            openActivityDetail(activityId: activityId)
+                        }
+                        .padding(.top, 12)
 
                         if let chatStartMessage = viewModel.chatStartMessage {
                             Text(chatStartMessage)
@@ -314,11 +310,8 @@ struct MainView: View {
             .task {
                 await viewModel.loadMainBanners()
             }
-            .task(id: newActivitiesQueryID) {
-                await viewModel.loadActivityPosts(
-                    country: selectedCountryName,
-                    category: selectedCategoryTitle
-                )
+            .task {
+                await viewModel.loadHomeRecommendations()
             }
         }
     }

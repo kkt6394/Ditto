@@ -20,6 +20,9 @@ final class MainViewModel {
     private(set) var activityPosts: [MainActivityPost] = []
     private(set) var isLoadingActivityPosts = false
     private(set) var activityPostsMessage: String?
+    private(set) var homeRecommendations: [MainNewActivity] = []
+    private(set) var isLoadingHomeRecommendations = false
+    private(set) var homeRecommendationsMessage: String?
     private(set) var chatStartMessage: String?
 
     // 화면 재진입 시 동일 조건의 NEW 액티비티를 다시 fetch하지 않도록 마지막 query key를 보관한다.
@@ -193,6 +196,40 @@ final class MainViewModel {
             coordinate: nil,
             maxDistanceMeters: nil
         )
+    }
+
+    // 홈 본문 하단의 추천 row용. country/category 필터 없이 가져온다.
+    // SearchView의 추천 라우터와 동일한 ActivityRouter.new(country:nil, category:nil) 호출이다.
+    func loadHomeRecommendations() async {
+        isLoadingHomeRecommendations = true
+        homeRecommendationsMessage = nil
+        defer {
+            isLoadingHomeRecommendations = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let configuration = try configurationProvider()
+            let query = ActivityPreviewQuery(country: nil, category: nil)
+            let response: ActivitySummaryArrayResponseDTO = try await networkManager.request(ActivityRouter.new(query))
+            let mapped = response.data.enumerated().map { index, activity in
+                Self.makeNewActivity(
+                    from: activity,
+                    fallbackIndex: index,
+                    configuration: configuration,
+                    accessToken: authManager?.tokens?.accessToken
+                )
+            }
+
+            if mapped.isEmpty {
+                homeRecommendations = []
+                homeRecommendationsMessage = "추천 액티비티가 없습니다."
+            } else {
+                homeRecommendations = mapped
+            }
+        } catch {
+            homeRecommendationsMessage = Self.makeErrorMessage(from: error)
+        }
     }
 
     static func makeNewActivity(
