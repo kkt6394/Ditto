@@ -72,7 +72,8 @@ enum HomeRecommendationLayout {
     static let cardWidth: CGFloat = 200
     static let cardHeight: CGFloat = 252
     static let imageHeight: CGFloat = 132
-    static let textInset: CGFloat = 4
+    // 이미지와 텍스트의 좌측을 정확히 맞춰 카드끼리 시각 정렬을 통일한다.
+    static let textInset: CGFloat = 0
     static let stackSpacing: CGFloat = 8
 }
 

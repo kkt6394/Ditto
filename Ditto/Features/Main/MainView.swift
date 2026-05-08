@@ -8,7 +8,7 @@
 // MainView는 5탭 컨테이너 + NavigationPath 라우팅 + 시트/오버레이 코디네이터 역할을 한 곳에서 책임진다.
 // @State private 속성이 라우팅·트랜지션과 강하게 묶여 있어 internal 격상 없이 본체에서 분리하기 어려워,
 // file_length/type_body_length 룰은 이 파일에 한해 의도적으로 풀어둔다.
-// swiftlint:disable file_length
+// swiftlint:disable file_length type_body_length
 
 import SwiftUI
 
@@ -189,6 +189,11 @@ struct MainView: View {
                 },
                 chatAction: { post in
                     startChat(with: post)
+                },
+                activityAction: { post in
+                    if let activityId = post.activityId {
+                        openActivityDetail(activityId: activityId)
+                    }
                 }
             )
                 .tag(MainTab.feed.rawValue)
@@ -377,7 +382,7 @@ private extension MainView {
     }
 
     var shouldShowComposerButton: Bool {
-        navigationPath.isEmpty && selectedTabID == MainTab.home.rawValue
+        navigationPath.isEmpty && selectedTabID == MainTab.feed.rawValue
     }
 
     // 카테고리 리스트 화면도 검색 탭의 연장으로 보고 탭바를 유지한다.
@@ -551,4 +556,4 @@ private extension MainView {
 }
 
 #Preview { MainView(authManager: AuthManager()) }
-// swiftlint:enable file_length
+// swiftlint:enable file_length type_body_length

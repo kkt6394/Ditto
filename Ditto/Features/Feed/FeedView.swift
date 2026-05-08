@@ -15,6 +15,7 @@ struct FeedView: View {
     let mediaAction: (MainPostMedia) -> Void
     let detailAction: (MainActivityPost) -> Void
     let chatAction: (MainActivityPost) -> Void
+    let activityAction: (MainActivityPost) -> Void
 
     @State private var orderBy: PostOrderBy = .createdAt
 
@@ -40,10 +41,12 @@ struct FeedView: View {
                                 post: post,
                                 mediaAction: mediaAction,
                                 detailAction: detailAction,
-                                chatAction: chatAction
-                            ) { tappedPost in
-                                Task { await viewModel.togglePostLike(postId: tappedPost.id) }
-                            }
+                                chatAction: chatAction,
+                                likeAction: { tappedPost in
+                                    Task { await viewModel.togglePostLike(postId: tappedPost.id) }
+                                },
+                                activityAction: activityAction
+                            )
                             Divider()
                                 .padding(.horizontal, 20)
                                 .overlay(MainScreenPalette.border)

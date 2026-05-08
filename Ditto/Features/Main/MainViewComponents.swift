@@ -210,6 +210,8 @@ struct CategoryIconGrid: View {
 private struct CategoryIconCell: View {
     let item: MainCategoryFilter
     let isSelected: Bool
+    // 선택 시점에만 증가시키는 트리거. deselect 시에는 변하지 않아 bounce가 일어나지 않는다.
+    @State private var bounceTrigger = 0
 
     var body: some View {
         VStack(spacing: 6) {
@@ -229,10 +231,16 @@ private struct CategoryIconCell: View {
                 Image(systemName: item.sfSymbol)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(item.accentColor)
-                    .symbolEffect(.bounce, value: isSelected)
+                    .symbolEffect(.bounce, value: bounceTrigger)
             }
             .scaleEffect(isSelected ? 1.08 : 1.0)
             .animation(.spring(response: 0.32, dampingFraction: 0.6), value: isSelected)
+            .onChange(of: isSelected) { _, newValue in
+                // 선택으로 전환되는 순간에만 bounce를 1회 트리거. 해제 시에는 트리거하지 않는다.
+                if newValue {
+                    bounceTrigger += 1
+                }
+            }
 
             Text(item.title)
                 .font(MainScreenTypography.category)

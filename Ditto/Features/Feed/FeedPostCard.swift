@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 // 피드 탭의 액티비티 포스트 카드. 헤더(작성자) + 메시지 버튼 + ActivityPostImageCollage 재사용 + 본문 + CTA + 소셜 액션.
 // 메시지 버튼 = 채팅 액션, 콜라주 탭 = 풀스크린 미디어 뷰어, 본문 탭 = 포스트 상세.
@@ -15,6 +16,7 @@ struct FeedPostCard: View {
     let detailAction: (MainActivityPost) -> Void
     let chatAction: (MainActivityPost) -> Void
     let likeAction: (MainActivityPost) -> Void
+    let activityAction: (MainActivityPost) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -24,6 +26,15 @@ struct FeedPostCard: View {
                 .padding(.horizontal, 20)
 
             bodyAndChips
+
+            // 본문 아래 활동 미리보기 — 포스트가 가리키는 액티비티 카드 한 줄 요약
+            if post.activityId != nil {
+                FeedActivityPreviewCard(post: post)
+                    .padding(.horizontal, 22)
+                    .onTapGesture {
+                        activityAction(post)
+                    }
+            }
 
             socialActions
         }
@@ -150,4 +161,96 @@ struct FeedPostCard: View {
         )
     }
 
+}
+
+// 피드 카드 본문 아래에 노출되는 활동 한 줄 미리보기.
+// 좌측 작은 썸네일 + 우측 카테고리·제목·가격 + 끝 chevron으로 활동 진입을 유도한다.
+private struct FeedActivityPreviewCard: View {
+    let post: MainActivityPost
+
+    var body: some View {
+        HStack(spacing: 12) {
+            FeedActivityThumbnail(post: post)
+                .frame(width: 56, height: 56)
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            VStack(alignment: .leading, spacing: 2) {
+                if let category = post.activityCategory {
+                    Text(category)
+                        .font(MainScreenTypography.activityMetaCompact)
+                        .foregroundStyle(MainScreenPalette.primaryBlue)
+                }
+
+                Text(post.activityTitle ?? post.category)
+                    .font(MainScreenTypography.postTitle)
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .lineLimit(1)
+
+                if let price = post.activityFinalPrice {
+                    Text(price)
+                        .font(MainScreenTypography.activityPriceCompact)
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(MainScreenPalette.textSecondary)
+        }
+        .padding(10)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(MainScreenPalette.primaryBlueSoft.opacity(0.5))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(MainScreenPalette.borderBlue, lineWidth: 1)
+        )
+        .contentShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+}
+
+private struct FeedActivityThumbnail: View {
+    let post: MainActivityPost
+    @Environment(\.imageLoader) private var imageLoader
+    @State private var remoteImage: UIImage?
+    @State private var didFail = false
+
+    var body: some View {
+        ZStack {
+            if let remoteImage {
+                Image(uiImage: remoteImage)
+                    .resizable()
+                    .scaledToFill()
+            } else if let request = post.activityImageRequest, !didFail {
+                Color(MainScreenPalette.border)
+                    .task(id: request.url?.absoluteString) {
+                        await load(request: request)
+                    }
+            } else {
+                Color(MainScreenPalette.border)
+                    .overlay {
+                        Image(systemName: "figure.outdoor.cycle")
+                            .font(.system(size: 18, weight: .medium))
+                            .foregroundStyle(MainScreenPalette.textSecondary)
+                    }
+            }
+        }
+        .clipped()
+    }
+
+    private func load(request: URLRequest) async {
+        do {
+            let image: UIImage
+            if let imageLoader {
+                image = try await imageLoader.loadImage(request, pointSize: CGSize(width: 56, height: 56))
+            } else {
+                image = try await RemoteImageLoader.load(request: request, pointSize: CGSize(width: 56, height: 56))
+            }
+            remoteImage = image
+        } catch {
+            didFail = true
+        }
+    }
 }

@@ -94,10 +94,22 @@ extension MainViewModel {
         let imageRequests = imagePaths(from: response.files).map {
             ActivityFormatting.makeImageRequest(from: $0, configuration: configuration, accessToken: accessToken)
         }
+        let activitySummary = response.activity
+        let activityImageRequest: URLRequest? = activitySummary.flatMap { activity in
+            ActivityFormatting.makeImageRequest(
+                from: ActivityFormatting.firstImageThumbnail(from: activity.thumbnails),
+                configuration: configuration,
+                accessToken: accessToken
+            )
+        }
 
         return MainActivityPost(
             id: response.postId,
             activityId: response.activity?.id,
+            activityTitle: activitySummary?.title.flatMap { $0.isEmpty ? nil : $0 },
+            activityCategory: activitySummary?.category,
+            activityFinalPrice: activitySummary.map { ActivityFormatting.makePriceText($0.price.final) },
+            activityImageRequest: activityImageRequest,
             creatorId: response.creator.userId,
             author: response.creator.nick,
             timeText: makeRelativeTimeText(from: response.createdAt),

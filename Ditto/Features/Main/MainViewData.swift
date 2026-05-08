@@ -173,6 +173,11 @@ struct MainBanner: Identifiable {
 struct MainActivityPost: Identifiable {
     let id: String
     let activityId: String?
+    // 피드 카드 하단 미리보기에 쓰는 활동 메타.
+    let activityTitle: String?
+    let activityCategory: String?
+    let activityFinalPrice: String?
+    let activityImageRequest: URLRequest?
     let creatorId: String
     let author: String
     let timeText: String
@@ -195,6 +200,10 @@ struct MainActivityPost: Identifiable {
         .init(
             id: "taipei-snorkeling",
             activityId: "DXWNE",
+            activityTitle: "타이페이 스노쿨링 초보자 스쿨 2기",
+            activityCategory: "체험",
+            activityFinalPrice: "89,000원",
+            activityImageRequest: nil,
             creatorId: "sample-user-1",
             author: "씩씩한 새싹이",
             timeText: "1시간 34분 전",
@@ -220,6 +229,10 @@ struct MainActivityPost: Identifiable {
         .init(
             id: "interlaken-paragliding",
             activityId: "DXWNE",
+            activityTitle: "알프스 설산 글라이딩 초보자 가이드",
+            activityCategory: "익사이팅",
+            activityFinalPrice: "240,000원",
+            activityImageRequest: nil,
             creatorId: "sample-user-2",
             author: "하늘색 새싹",
             timeText: "3시간 50분 전",
