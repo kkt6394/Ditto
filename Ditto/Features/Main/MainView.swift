@@ -404,9 +404,12 @@ private extension MainView {
     }
 
     func reloadActivityPostsAfterCompose() async {
+        // Feed 탭에서는 country/category 필터 없이 전체 글을 다시 가져온다.
+        // 다른 탭에서 컴포저를 띄운 경우엔 기존 선택값을 유지해 화면 컨텍스트를 흩뜨리지 않는다.
+        let isOnFeedTab = selectedTabID == MainTab.feed.rawValue
         await viewModel.loadActivityPosts(
-            country: selectedCountryName,
-            category: selectedCategoryTitle
+            country: isOnFeedTab ? nil : selectedCountryName,
+            category: isOnFeedTab ? nil : selectedCategoryTitle
         )
     }
 

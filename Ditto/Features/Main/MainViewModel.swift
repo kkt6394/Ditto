@@ -20,6 +20,9 @@ final class MainViewModel {
     private(set) var activityPosts: [MainActivityPost] = []
     private(set) var isLoadingActivityPosts = false
     private(set) var activityPostsMessage: String?
+    // 액티비티 포스트 무한 스크롤용 cursor. nil이면 추가 페이지가 없거나 아직 첫 로드 전.
+    private(set) var activityPostsNextCursor: String?
+    private(set) var isLoadingMoreActivityPosts = false
     private(set) var homeRecommendations: [MainNewActivity] = []
     private(set) var isLoadingHomeRecommendations = false
     private(set) var homeRecommendationsMessage: String?
@@ -146,7 +149,8 @@ final class MainViewModel {
         category: String?,
         coordinate: UserCoordinate? = nil,
         maxDistanceMeters: Int? = nil,
-        orderBy: PostOrderBy = .createdAt
+        orderBy: PostOrderBy = .createdAt,
+        limit: Int = 20
     ) async {
         isLoadingActivityPosts = true
         activityPostsMessage = nil
@@ -163,7 +167,7 @@ final class MainViewModel {
                 longitude: coordinate?.longitude,
                 latitude: coordinate?.latitude,
                 maxDistance: coordinate == nil ? nil : maxDistanceMeters,
-                limit: 5,
+                limit: limit,
                 next: nil,
                 orderBy: orderBy
             )
@@ -179,6 +183,9 @@ final class MainViewModel {
                 )
             }
 
+            // 첫 페이지 호출이므로 cursor를 응답 기준으로 새로 설정한다. 빈 문자열은 더 이상 페이지가 없다는 신호로 nil 처리.
+            activityPostsNextCursor = response.nextCursor.isEmpty ? nil : response.nextCursor
+
             if mappedPosts.isEmpty {
                 activityPosts = []
                 activityPostsMessage = "선택한 조건의 액티비티 포스트가 없습니다."
@@ -187,6 +194,62 @@ final class MainViewModel {
             }
         } catch {
             activityPostsMessage = Self.makeActivityPostErrorMessage(from: error)
+        }
+    }
+
+    // 무한 스크롤용 — 다음 페이지가 남아 있을 때만 호출되며, 결과를 기존 activityPosts 뒤에 append한다.
+    // 첫 페이지 fetch와 동일한 country/category/orderBy/coordinate 조합을 호출자가 그대로 전달한다.
+    func loadMoreActivityPosts(
+        country: String?,
+        category: String?,
+        coordinate: UserCoordinate? = nil,
+        maxDistanceMeters: Int? = nil,
+        orderBy: PostOrderBy = .createdAt,
+        limit: Int = 20
+    ) async {
+        // 동시 추가 fetch 방지 + 첫 로딩 중에는 더 가져오지 않는다.
+        guard !isLoadingMoreActivityPosts, !isLoadingActivityPosts else { return }
+        guard let cursor = activityPostsNextCursor, !cursor.isEmpty else { return }
+
+        isLoadingMoreActivityPosts = true
+        defer {
+            isLoadingMoreActivityPosts = false
+        }
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let configuration = try configurationProvider()
+            let query = PostGeolocationQuery(
+                country: country,
+                category: category,
+                longitude: coordinate?.longitude,
+                latitude: coordinate?.latitude,
+                maxDistance: coordinate == nil ? nil : maxDistanceMeters,
+                limit: limit,
+                next: cursor,
+                orderBy: orderBy
+            )
+            let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
+                PostRouter.geolocation(query)
+            )
+
+            // 다음 페이지 cursor 갱신. 빈 문자열이면 끝.
+            activityPostsNextCursor = response.nextCursor.isEmpty ? nil : response.nextCursor
+
+            // append 시 fallbackIndex가 기존 카드들 뒤로 이어지도록 누적 카운트를 시작 인덱스로 사용한다.
+            let baseIndex = activityPosts.count
+            let mapped = response.data.enumerated().map { offset, post in
+                Self.makeActivityPost(
+                    from: post,
+                    fallbackIndex: baseIndex + offset,
+                    configuration: configuration,
+                    accessToken: authManager?.tokens?.accessToken
+                )
+            }
+            activityPosts.append(contentsOf: mapped)
+        } catch {
+            // 무한 스크롤 실패는 첫 로드 메시지를 덮지 않도록 별도 처리하지 않는다.
+            // 사용자가 다시 끝에 도달하면 자동으로 재시도된다.
         }
     }
 

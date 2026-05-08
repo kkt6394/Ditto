@@ -73,6 +73,8 @@ struct PostComposeView: View {
                 .padding(.top, 18)
                 .padding(.bottom, 36)
             }
+            // 스크롤을 끌어내리는 동안 키보드를 점진적으로 같이 내려 자연스럽게 닫는다.
+            .scrollDismissesKeyboard(.interactively)
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
         .onChange(of: pickerSelection) { _, items in

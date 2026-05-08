@@ -118,6 +118,7 @@ struct PostDetailView: View {
             commentSection(for: post)
                 .padding(.horizontal, 20)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func postMetadataSection(for post: PostResponseDTO) -> some View {
@@ -132,12 +133,14 @@ struct PostDetailView: View {
                 .font(MainFont.paperlogyBlack(size: 22))
                 .foregroundStyle(MainScreenPalette.textPrimary)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(post.content)
                 .font(MainScreenTypography.postBody)
                 .foregroundStyle(MainScreenPalette.textSecondary)
                 .lineSpacing(5)
                 .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             PostDetailMetaRow(
                 location: post.country,
@@ -152,6 +155,7 @@ struct PostDetailView: View {
                 Task { await viewModel.toggleLike() }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func commentSection(for post: PostResponseDTO) -> some View {
@@ -253,18 +257,32 @@ private struct PostDetailHeroSection: View {
     let imagePaths: [String]
     let imageRequestProvider: (String) -> URLRequest?
 
+    // 홈 NEW 액티비티 carousel과 동일한 layout 패턴 — 이미지 너비 고정,
+    // sideInset = (컨테이너 - 이미지 너비) / 2 로 가운데 정렬, viewAligned로 페이지 단위 정렬.
+    private let imageWidth: CGFloat = 316
+    private let imageHeight: CGFloat = 200
+    private let imageSpacing: CGFloat = 12
+
     var body: some View {
         if imagePaths.isEmpty {
             EmptyView()
         } else {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
-                    ForEach(Array(imagePaths.enumerated()), id: \.offset) { _, path in
-                        PostDetailRemoteImage(request: imageRequestProvider(path))
+            GeometryReader { proxy in
+                let sideInset = max((proxy.size.width - imageWidth) / 2, 20)
+
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(alignment: .top, spacing: imageSpacing) {
+                        ForEach(Array(imagePaths.enumerated()), id: \.offset) { _, path in
+                            PostDetailRemoteImage(request: imageRequestProvider(path))
+                                .frame(width: imageWidth, height: imageHeight)
+                        }
                     }
+                    .scrollTargetLayout()
+                    .padding(.horizontal, sideInset)
                 }
-                .padding(.horizontal, 20)
+                .scrollTargetBehavior(.viewAligned)
             }
+            .frame(height: imageHeight + 20)
         }
     }
 }
@@ -294,14 +312,16 @@ private struct PostDetailRemoteImage: View {
                     .background(MainScreenPalette.border)
             }
         }
-        .frame(width: 280, height: 200)
+        // 외부 frame이 제안하는 width를 그대로 받아 clipShape가 정확한 영역을 자르도록 한다.
+        // maxWidth: .infinity로 두지 않으면 scaledToFill이 자연 비율로 width를 키워 인접 사진과 겹친다.
+        .frame(maxWidth: .infinity, maxHeight: 200)
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     }
 
     private func load(_ request: URLRequest) async {
         do {
-            // 280×200 표시 크기로 다운샘플링
-            let pointSize = CGSize(width: 280, height: 200)
+            // 가로 너비는 디스플레이 크기에 따라 가변이라 짧은 변(높이) 기준으로 다운샘플링한다.
+            let pointSize = CGSize(width: 400, height: 200)
             // 환경에 인증 로더가 주입되어 있으면 토큰 만료(419) 자동 갱신 흐름을 탄다.
             let loaded: UIImage
             if let imageLoader {

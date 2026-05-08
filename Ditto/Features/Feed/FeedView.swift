@@ -33,7 +33,7 @@ struct FeedView: View {
                             .padding(.horizontal, 20)
                             .padding(.top, 12)
                     } else {
-                        ForEach(viewModel.activityPosts) { post in
+                        ForEach(Array(viewModel.activityPosts.enumerated()), id: \.element.id) { index, post in
                             FeedPostCard(
                                 post: post,
                                 mediaAction: mediaAction,
@@ -44,9 +44,27 @@ struct FeedView: View {
                                 },
                                 activityAction: activityAction
                             )
+                            .onAppear {
+                                // 마지막 카드가 보이기 시작하면 다음 페이지를 prefetch.
+                                // ViewModel이 cursor 없거나 동시 호출이면 내부에서 무시한다.
+                                if index == viewModel.activityPosts.count - 1 {
+                                    Task {
+                                        await viewModel.loadMoreActivityPosts(
+                                            country: nil,
+                                            category: nil,
+                                            orderBy: orderBy
+                                        )
+                                    }
+                                }
+                            }
                             Divider()
                                 .padding(.horizontal, 20)
                                 .overlay(MainScreenPalette.border)
+                        }
+
+                        if viewModel.isLoadingMoreActivityPosts {
+                            ProgressView()
+                                .padding(.vertical, 16)
                         }
                     }
                 }
@@ -55,6 +73,7 @@ struct FeedView: View {
         }
         .background(MainScreenPalette.background.ignoresSafeArea())
         .task(id: orderBy) {
+            // 정렬 토글 시 첫 페이지부터 다시 로드한다 (cursor도 첫 페이지 응답으로 reset됨).
             await viewModel.loadActivityPosts(
                 country: nil,
                 category: nil,
