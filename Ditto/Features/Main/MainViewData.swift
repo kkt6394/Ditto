@@ -195,6 +195,9 @@ struct MainActivityPost: Identifiable {
     let subImageBottomRequest: URLRequest?
     let media: [MainPostMedia]
     var isLiked: Bool
+    var likeCount: Int
+    // PostSummaryResponseDTO에 comment_count 필드가 부재해 1차에는 0으로 채운다. 서버 보강 시 mapper에서 매핑.
+    let commentCount: Int
 
     static let samples: [MainActivityPost] = [
         .init(
@@ -224,7 +227,9 @@ struct MainActivityPost: Identifiable {
                 .image(id: "taipei-snorkeling-1", request: nil, fallbackImageName: "FigmaMainPostSub11"),
                 .image(id: "taipei-snorkeling-2", request: nil, fallbackImageName: "FigmaMainPostSub12")
             ],
-            isLiked: false
+            isLiked: false,
+            likeCount: 24,
+            commentCount: 3
         ),
         .init(
             id: "interlaken-paragliding",
@@ -253,7 +258,9 @@ struct MainActivityPost: Identifiable {
                 .image(id: "interlaken-paragliding-1", request: nil, fallbackImageName: "FigmaMainPostSub21"),
                 .image(id: "interlaken-paragliding-2", request: nil, fallbackImageName: "FigmaMainPostSub22")
             ],
-            isLiked: true
+            isLiked: true,
+            likeCount: 87,
+            commentCount: 12
         )
     ]
 }

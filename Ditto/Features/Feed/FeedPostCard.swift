@@ -114,24 +114,38 @@ struct FeedPostCard: View {
 
     private var socialActions: some View {
         HStack(spacing: 18) {
-            // 좋아요 — 탭 시 좋아요 토글, 활성 시 symbolEffect.bounce로 인터랙션 강조
-            Image(systemName: post.isLiked ? "heart.fill" : "heart")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(post.isLiked ? MainScreenPalette.primaryBlue : MainScreenPalette.textPrimary)
-                .symbolEffect(.bounce, value: post.isLiked)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    likeAction(post)
-                }
+            // 좋아요 — 아이콘 + 카운트. 탭 시 좋아요 토글, 활성 시 symbolEffect.bounce
+            HStack(spacing: 4) {
+                Image(systemName: post.isLiked ? "heart.fill" : "heart")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(post.isLiked ? MainScreenPalette.primaryBlue : MainScreenPalette.textPrimary)
+                    .symbolEffect(.bounce, value: post.isLiked)
 
-            // 댓글 — 탭 시 포스트 상세로 진입(댓글 영역까지 스크롤은 후속)
-            Image(systemName: "bubble.right")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(MainScreenPalette.textPrimary)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    detailAction(post)
-                }
+                Text("\(post.likeCount)")
+                    .font(MainScreenTypography.action)
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .contentTransition(.numericText())
+                    .animation(.snappy, value: post.likeCount)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                likeAction(post)
+            }
+
+            // 댓글 — 아이콘 + 카운트. PostSummaryResponseDTO에 comment_count 부재로 카운트는 placeholder(0).
+            HStack(spacing: 4) {
+                Image(systemName: "bubble.right")
+                    .font(.system(size: 18, weight: .medium))
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+
+                Text("\(post.commentCount)")
+                    .font(MainScreenTypography.action)
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture {
+                detailAction(post)
+            }
 
             // 북마크 — DTO에 플래그 부재로 1차 placeholder. 회색 비활성.
             Image(systemName: "bookmark")

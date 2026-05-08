@@ -199,14 +199,16 @@ final class MainViewModel {
         )
     }
 
-    // 피드 카드의 하트 탭 시 호출. optimistic update 후 실패 시 원상 복귀한다.
+    // 피드 카드의 하트 탭 시 호출. optimistic update(좋아요 상태 + 카운트) 후 실패 시 원상 복귀한다.
     func togglePostLike(postId: String) async {
         guard let index = activityPosts.firstIndex(where: { $0.id == postId }) else {
             return
         }
         let originalLike = activityPosts[index].isLiked
+        let originalCount = activityPosts[index].likeCount
         let nextLike = !originalLike
         activityPosts[index].isLiked = nextLike
+        activityPosts[index].likeCount = max(0, originalCount + (nextLike ? 1 : -1))
 
         do {
             let networkManager = try networkManagerProvider()
@@ -221,6 +223,7 @@ final class MainViewModel {
             // 실패 시 원래 상태로 복귀
             if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
                 activityPosts[idx].isLiked = originalLike
+                activityPosts[idx].likeCount = originalCount
             }
         }
     }

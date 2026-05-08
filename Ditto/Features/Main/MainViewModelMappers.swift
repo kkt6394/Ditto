@@ -135,7 +135,10 @@ extension MainViewModel {
                 configuration: configuration,
                 accessToken: accessToken
             ),
-            isLiked: response.isLike
+            isLiked: response.isLike,
+            likeCount: Int(response.likeCount),
+            // PostSummaryResponseDTO에 comment_count가 부재해 0으로 채운다.
+            commentCount: 0
         )
     }
 
