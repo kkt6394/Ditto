@@ -20,6 +20,8 @@ struct FeedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            feedTitle
+
             sortRow
 
             ScrollView(showsIndicators: false) {
@@ -61,6 +63,20 @@ struct FeedView: View {
                 orderBy: orderBy
             )
         }
+    }
+
+    // 공통 TopBar 아래 피드 탭 식별 라벨. 검색·영상 액션은 TopBar가 책임진다.
+    private var feedTitle: some View {
+        HStack {
+            Text("Feed")
+                .font(.system(size: 26, design: .serif))
+                .italic()
+                .foregroundStyle(MainScreenPalette.textPrimary)
+
+            Spacer()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
     }
 
     private var sortRow: some View {
