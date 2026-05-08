@@ -89,7 +89,8 @@ struct PostDetailView: View {
             Text("삭제한 포스트는 복구할 수 없습니다.")
         }
         // 댓글 갯수가 변경될 때마다 호출자에게 알린다 (피드 카드의 commentCount 동기화용).
-        .onChange(of: viewModel.post?.comments.count ?? -1) { _, newCount in
+        // PostDetail 헤더 표시와 동일하게 원 댓글 + 대댓글 합산 기준으로 전달.
+        .onChange(of: viewModel.post?.comments.totalCommentCount ?? -1) { _, newCount in
             if newCount >= 0 {
                 onCommentCountChange?(newCount)
             }

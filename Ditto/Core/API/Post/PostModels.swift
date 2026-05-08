@@ -133,6 +133,13 @@ struct PostCommentResponseDTO: Decodable, Equatable {
     let replies: [CommentReplyResponseDTO]
 }
 
+extension Array where Element == PostCommentResponseDTO {
+    // 원 댓글 + 모든 대댓글의 합. PostDetail 헤더와 피드 카드 갯수가 같은 기준을 쓰도록 통일.
+    var totalCommentCount: Int {
+        reduce(0) { $0 + 1 + $1.replies.count }
+    }
+}
+
 struct CommentResponseDTO: Decodable, Equatable {
     let commentId: String
     let content: String

@@ -56,7 +56,7 @@ struct PostCommentSection: View {
     }
 
     private var totalCommentCount: Int {
-        comments.reduce(0) { $0 + 1 + $1.replies.count }
+        comments.totalCommentCount
     }
 
     @ViewBuilder

@@ -317,7 +317,8 @@ final class MainViewModel {
                 PostRouter.detail(postId: postId)
             )
             if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
-                activityPosts[idx].commentCount = response.comments.count
+                // PostDetail 헤더 표시와 동일하게 원 댓글 + 대댓글 합산 기준.
+                activityPosts[idx].commentCount = response.comments.totalCommentCount
             }
         } catch {
             // 실패는 조용히 무시 — 다음 prefetch 시도에서 재시도되도록 cache flag만 풀어준다.
