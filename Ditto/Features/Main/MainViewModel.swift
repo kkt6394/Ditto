@@ -194,6 +194,9 @@ final class MainViewModel {
                 activityPostsMessage = "선택한 조건의 액티비티 포스트가 없습니다."
             } else {
                 activityPosts = mappedPosts
+                // 새 페이지 fetch 시 cache flag도 reset해 일괄 prefetch 시작.
+                commentCountFetchedPostIds.removeAll()
+                prefetchCommentCounts(for: mappedPosts.map(\.id))
             }
         } catch {
             activityPostsMessage = Self.makeActivityPostErrorMessage(from: error)
@@ -250,6 +253,8 @@ final class MainViewModel {
                 )
             }
             activityPosts.append(contentsOf: mapped)
+            // 새로 받은 카드들에 대해서도 일괄 prefetch.
+            prefetchCommentCounts(for: mapped.map(\.id))
         } catch {
             // 무한 스크롤 실패는 첫 로드 메시지를 덮지 않도록 별도 처리하지 않는다.
             // 사용자가 다시 끝에 도달하면 자동으로 재시도된다.
@@ -271,6 +276,18 @@ final class MainViewModel {
         guard !commentCountFetchedPostIds.contains(postId) else { return }
         commentCountFetchedPostIds.insert(postId)
         await fetchAndApplyCommentCount(forPostId: postId)
+    }
+
+    // loadActivityPosts/loadMoreActivityPosts 직후 호출. 응답 받은 글들에 대해
+    // 백그라운드 task로 일괄 prefetch 시작. onAppear 시점에 의존하지 않아 더 신뢰성이 높다.
+    func prefetchCommentCounts(for postIds: [String]) {
+        for postId in postIds {
+            guard !commentCountFetchedPostIds.contains(postId) else { continue }
+            commentCountFetchedPostIds.insert(postId)
+            Task { [weak self] in
+                await self?.fetchAndApplyCommentCount(forPostId: postId)
+            }
+        }
     }
 
     // PostDetail에서 댓글 작성/삭제 후 호출. cache flag와 무관하게 다시 fetch해 갱신한다.
