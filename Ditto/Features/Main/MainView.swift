@@ -326,8 +326,9 @@ struct MainView: View {
                 }
             }
             .task(id: newActivitiesQueryID) {
+                // 홈 NEW 액티비티는 국가 필터 없이 전체에서 카테고리 기준으로만 필터한다.
                 await viewModel.loadNewActivities(
-                    country: selectedCountryName,
+                    country: nil,
                     category: selectedCategoryTitle
                 )
             }
@@ -484,7 +485,8 @@ private extension MainView {
     }
 
     var newActivitiesQueryID: String {
-        "\(selectedCountryID)-\(selectedCategoryID)"
+        // 홈 NEW 액티비티는 country를 nil로 호출하므로 query 키도 카테고리만 반영한다.
+        selectedCategoryID
     }
 
     // 라우트 케이스가 늘어나며 함수 본문이 길어졌지만, switch 한 곳에서 라우팅을 책임지는 게 가독성에 유리해 룰을 풀어둔다.
