@@ -20,9 +20,7 @@ struct FeedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            feedTitle
-
-            sortRow
+            titleSortRow
 
             ScrollView(showsIndicators: false) {
                 LazyVStack(spacing: 0) {
@@ -65,22 +63,14 @@ struct FeedView: View {
         }
     }
 
-    // 공통 TopBar 아래 피드 탭 식별 라벨. 검색·영상 액션은 TopBar가 책임진다.
-    private var feedTitle: some View {
-        HStack {
+    // 공통 TopBar 아래 한 줄 — 좌측 Feed 타이틀, 우측 정렬 메뉴.
+    private var titleSortRow: some View {
+        HStack(alignment: .firstTextBaseline) {
             Text("Feed")
                 .font(.system(size: 26, design: .serif))
                 .italic()
                 .foregroundStyle(MainScreenPalette.textPrimary)
 
-            Spacer()
-        }
-        .padding(.horizontal, 20)
-        .padding(.top, 8)
-    }
-
-    private var sortRow: some View {
-        HStack {
             Spacer()
 
             Menu {
