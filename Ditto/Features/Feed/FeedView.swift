@@ -82,16 +82,19 @@ struct FeedView: View {
                     .padding(.bottom, 100)
                 }
                 .task(id: orderBy) {
-                    // 정렬 토글 시 스크롤을 즉시 맨 위로 보내고 첫 페이지부터 다시 로드한다.
-                    // 새 데이터가 들어오기 전에 스크롤을 reset해 깜빡임 없이 위에서부터 채워지도록 한다.
-                    withAnimation(.easeOut(duration: 0.2)) {
-                        proxy.scrollTo(topAnchorID, anchor: .top)
-                    }
+                    // 정렬 토글 시 우선 sentinel anchor로 위로 이동시켜 깜빡임을 줄이고,
+                    // fetch 끝난 뒤 새 첫 카드 id로 한 번 더 정렬해 화면에 정확히 노출되게 한다.
+                    proxy.scrollTo(topAnchorID, anchor: .top)
                     await viewModel.loadActivityPosts(
                         country: nil,
                         category: nil,
                         orderBy: orderBy
                     )
+                    if let firstId = viewModel.activityPosts.first?.id {
+                        withAnimation(.easeOut(duration: 0.2)) {
+                            proxy.scrollTo(firstId, anchor: .top)
+                        }
+                    }
                 }
             }
         }
