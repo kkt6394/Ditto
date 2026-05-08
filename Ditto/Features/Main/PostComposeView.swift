@@ -78,6 +78,11 @@ struct PostComposeView: View {
         .onChange(of: pickerSelection) { _, items in
             handlePickerChange(items)
         }
+        .onChange(of: viewModel.country) { _, _ in
+            // 국가 변경 시 이전 국가의 액티비티 후보·선택값을 정리하고 새 country 기준으로 다시 로드한다.
+            viewModel.selectActivity(nil)
+            Task { await viewModel.loadActivitiesByCategory() }
+        }
         .sheet(isPresented: $isPresentingActivityPicker) {
             PostComposeActivityPickerSheet(viewModel: viewModel)
         }
