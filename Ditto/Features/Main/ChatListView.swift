@@ -29,10 +29,6 @@ struct ChatListView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MainTopBar()
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
             HStack {
                 Text("채팅")
                     .font(MainFont.pretendard(.bold, size: 24))
