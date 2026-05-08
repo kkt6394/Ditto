@@ -17,11 +17,14 @@ extension MainViewModel {
         accessToken: String?
     ) -> MainNewActivity {
         let fallback = MainNewActivity.samples[fallbackIndex % MainNewActivity.samples.count]
-        let category = response.category ?? "액티비티"
+        let categoryRaw = response.category ?? "액티비티"
         let title = response.title.flatMap { $0.isEmpty ? nil : $0 } ?? "제목 없는 액티비티"
         let summary = response.tags.isEmpty
-            ? "새롭게 등록된 \(category) 액티비티입니다."
+            ? "새롭게 등록된 \(categoryRaw) 액티비티입니다."
             : response.tags.joined(separator: " · ")
+        let originalPrice = response.price.original
+        let finalPrice = response.price.final
+        let discountRate = makeDiscountRate(originalPrice: originalPrice, finalPrice: finalPrice)
 
         return MainNewActivity(
             id: response.activityId,
@@ -30,7 +33,10 @@ extension MainViewModel {
             longitude: response.geolocation.longitude,
             location: ActivityFormatting.makeLocationText(country: response.country),
             title: title,
-            price: ActivityFormatting.makePriceText(response.price.final),
+            category: response.category,
+            originalPrice: discountRate == nil ? nil : ActivityFormatting.makePriceText(originalPrice),
+            finalPrice: ActivityFormatting.makePriceText(finalPrice),
+            discountRate: discountRate,
             summary: summary,
             imageName: fallback.imageName,
             imageRequest: ActivityFormatting.makeImageRequest(
@@ -40,6 +46,15 @@ extension MainViewModel {
             ),
             isKeep: response.isKeep
         )
+    }
+
+    // 할인율(원가 > 최종가일 때만). SearchViewModel과 동일 규칙.
+    static func makeDiscountRate(originalPrice: Double, finalPrice: Double) -> String? {
+        guard originalPrice > finalPrice, originalPrice > 0 else {
+            return nil
+        }
+        let discount = ((originalPrice - finalPrice) / originalPrice * 100).rounded()
+        return "\(Int(discount))%"
     }
 
     static func makeErrorMessage(from error: Error) -> String {

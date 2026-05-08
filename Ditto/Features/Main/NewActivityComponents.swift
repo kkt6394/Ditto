@@ -147,7 +147,7 @@ private struct NewActivityCard: View {
                         .font(.system(size: 16))
                         .foregroundStyle(.white)
 
-                    Text(item.price)
+                    Text(item.finalPrice)
                         .font(MainScreenTypography.activityPriceFeatured)
                         .foregroundStyle(.white)
                 }

@@ -27,7 +27,10 @@ struct HomeRecommendationRow: View {
                     LazyHStack(spacing: 12) {
                         ForEach(items) { item in
                             HomeRecommendationCard(item: item)
-                                .frame(width: 200)
+                                .frame(
+                                    width: HomeRecommendationLayout.cardWidth,
+                                    height: HomeRecommendationLayout.cardHeight
+                                )
                                 .onTapGesture {
                                     activityDetailAction(item.id)
                                 }
@@ -45,7 +48,10 @@ struct HomeRecommendationRow: View {
                 ForEach(0..<3, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: 16, style: .continuous)
                         .fill(MainScreenPalette.border)
-                        .frame(width: 200, height: 180)
+                        .frame(
+                            width: HomeRecommendationLayout.cardWidth,
+                            height: HomeRecommendationLayout.cardHeight
+                        )
                 }
             }
             .padding(.horizontal, 20)
@@ -62,26 +68,115 @@ struct HomeRecommendationRow: View {
     }
 }
 
+enum HomeRecommendationLayout {
+    static let cardWidth: CGFloat = 200
+    static let cardHeight: CGFloat = 252
+    static let imageHeight: CGFloat = 132
+    static let textInset: CGFloat = 4
+    static let stackSpacing: CGFloat = 8
+}
+
 private struct HomeRecommendationCard: View {
     let item: MainNewActivity
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: HomeRecommendationLayout.stackSpacing) {
+            // 이미지 + 좌상단 카테고리 칩(D) + 우상단 Keep 하트(C)
             HomeRecommendationImage(item: item)
-                .frame(height: 140)
+                .frame(height: HomeRecommendationLayout.imageHeight)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                .overlay(alignment: .topLeading) {
+                    if let category = item.category {
+                        CategoryChip(text: category, color: accentColor(for: category))
+                            .padding(.top, 8)
+                            .padding(.leading, 8)
+                    }
+                }
+                .overlay(alignment: .topTrailing) {
+                    if item.isKeep {
+                        KeepBadge()
+                            .padding(.top, 8)
+                            .padding(.trailing, 8)
+                    }
+                }
 
-            Text(item.title)
-                .font(MainScreenTypography.activityTitleCompact)
-                .foregroundStyle(MainScreenPalette.textPrimary)
-                .lineLimit(1)
+            // 텍스트 영역 — 카드 좌우 padding 일관성 (이미지 모서리와 살짝 안쪽 정렬)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(item.title)
+                    .font(MainScreenTypography.activityTitleCompact)
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .lineLimit(1)
 
-            Text(item.location)
-                .font(MainScreenTypography.activityMetaFeatured)
-                .foregroundStyle(MainScreenPalette.textSecondary)
-                .lineLimit(1)
+                Text(item.location)
+                    .font(MainScreenTypography.activityMetaFeatured)
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+                    .lineLimit(1)
+
+                // B. summary 짧은 설명/태그
+                Text(item.summary)
+                    .font(MainScreenTypography.bodyCompact)
+                    .foregroundStyle(MainScreenPalette.textMuted)
+                    .lineLimit(1)
+
+                // A. 가격 — 원가(취소선) + 최종가 + 할인율
+                priceRow
+                    .padding(.top, 2)
+            }
+            .padding(.horizontal, HomeRecommendationLayout.textInset)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+    }
+
+    private var priceRow: some View {
+        HStack(spacing: 4) {
+            if let originalPrice = item.originalPrice {
+                Text(originalPrice)
+                    .font(MainScreenTypography.bodyCompact)
+                    .foregroundStyle(MainScreenPalette.textMuted)
+                    .strikethrough()
+            }
+
+            Text(item.finalPrice)
+                .font(MainScreenTypography.activityPriceCompact)
+                .foregroundStyle(MainScreenPalette.textPrimary)
+
+            if let discountRate = item.discountRate {
+                Text(discountRate)
+                    .font(MainScreenTypography.activityPriceCompact)
+                    .foregroundStyle(MainScreenPalette.primaryBlue)
+            }
+        }
+    }
+
+    // 카테고리 라벨로 강조색을 lookup. 매칭 안 되면 primaryBlue로 폴백.
+    private func accentColor(for category: String) -> Color {
+        MainCategoryFilter.samples.first { $0.title == category }?.accentColor
+            ?? MainScreenPalette.primaryBlue
+    }
+}
+
+private struct CategoryChip: View {
+    let text: String
+    let color: Color
+
+    var body: some View {
+        Text(text)
+            .font(MainScreenTypography.activityMetaCompact)
+            .foregroundStyle(.white)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule(style: .continuous).fill(color))
+    }
+}
+
+private struct KeepBadge: View {
+    var body: some View {
+        Image(systemName: "heart.fill")
+            .font(.system(size: 11, weight: .bold))
+            .foregroundStyle(MainScreenPalette.primaryBlue)
+            .padding(7)
+            .background(Circle().fill(.white.opacity(0.95)))
+            .shadow(color: Color.black.opacity(0.10), radius: 4, y: 2)
     }
 }
 
