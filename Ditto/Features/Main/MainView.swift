@@ -174,16 +174,19 @@ struct MainView: View {
             homeTab
                 .tag(MainTab.home.rawValue)
 
-            SearchView(
-                authManager: authManager,
-                activityDetailAction: { activityId in
-                    openActivityDetail(activityId: activityId)
+            FeedView(
+                viewModel: viewModel,
+                searchAction: { isPresentingSearch = true },
+                mediaAction: { media in
+                    selectedMedia = media
                 },
-                categorySelectedAction: { category in
-                    navigationPath.append(MainRoute.searchCategory(category))
+                detailAction: { post in
+                    openPostDetail(for: post)
+                },
+                chatAction: { post in
+                    startChat(with: post)
                 }
             )
-                .id(searchViewResetID)
                 .tag(MainTab.feed.rawValue)
 
             ChatListView(authManager: authManager) { roomId, opponentNick in

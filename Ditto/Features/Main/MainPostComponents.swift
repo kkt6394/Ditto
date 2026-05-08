@@ -181,7 +181,8 @@ private struct ActivityPostCard: View {
     }
 }
 
-private struct ActivityPostImageCollage: View {
+// FeedPostCard 등 다른 파일에서 재사용하므로 internal 가시성으로 노출한다.
+struct ActivityPostImageCollage: View {
     let post: MainActivityPost
     let mediaAction: (MainPostMedia) -> Void
 

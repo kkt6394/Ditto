@@ -145,7 +145,8 @@ final class MainViewModel {
         country: String?,
         category: String?,
         coordinate: UserCoordinate? = nil,
-        maxDistanceMeters: Int? = nil
+        maxDistanceMeters: Int? = nil,
+        orderBy: PostOrderBy = .createdAt
     ) async {
         isLoadingActivityPosts = true
         activityPostsMessage = nil
@@ -164,7 +165,7 @@ final class MainViewModel {
                 maxDistance: coordinate == nil ? nil : maxDistanceMeters,
                 limit: 5,
                 next: nil,
-                orderBy: .createdAt
+                orderBy: orderBy
             )
             let response: PostSummaryPaginationResponseDTO = try await networkManager.request(
                 PostRouter.geolocation(query)
