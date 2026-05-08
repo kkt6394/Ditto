@@ -7,11 +7,10 @@
 
 import SwiftUI
 
-// 피드 탭. 헤더(타이틀 + 검색 버튼) + 정렬 메뉴 + LazyVStack(FeedPostCard) 구조.
-// 별도 ViewModel을 두지 않고 MainViewModel.activityPosts/loadActivityPosts를 그대로 사용한다.
+// 피드 탭. 정렬 메뉴 + LazyVStack(FeedPostCard) 구조.
+// 검색·영상·로고는 MainView가 모든 탭에 공통으로 띄우는 상단 바에서 처리한다.
 struct FeedView: View {
     @Bindable var viewModel: MainViewModel
-    let searchAction: () -> Void
     let mediaAction: (MainPostMedia) -> Void
     let detailAction: (MainActivityPost) -> Void
     let chatAction: (MainActivityPost) -> Void
@@ -21,8 +20,6 @@ struct FeedView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
-
             sortRow
 
             ScrollView(showsIndicators: false) {
@@ -64,28 +61,6 @@ struct FeedView: View {
                 orderBy: orderBy
             )
         }
-    }
-
-    private var header: some View {
-        HStack {
-            Text("Feed")
-                .font(.system(size: 26, design: .serif))
-                .italic()
-                .foregroundStyle(MainScreenPalette.textPrimary)
-
-            Spacer()
-
-            Button(action: searchAction) {
-                Image(systemName: "magnifyingglass")
-                    .font(.system(size: 19, weight: .medium))
-                    .foregroundStyle(MainScreenPalette.textPrimary)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-        }
-        .frame(height: 56)
-        .padding(.horizontal, 20)
-        .padding(.top, 12)
     }
 
     private var sortRow: some View {

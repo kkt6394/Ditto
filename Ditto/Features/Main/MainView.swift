@@ -8,7 +8,7 @@
 // MainView는 5탭 컨테이너 + NavigationPath 라우팅 + 시트/오버레이 코디네이터 역할을 한 곳에서 책임진다.
 // @State private 속성이 라우팅·트랜지션과 강하게 묶여 있어 internal 격상 없이 본체에서 분리하기 어려워,
 // file_length/type_body_length 룰은 이 파일에 한해 의도적으로 풀어둔다.
-// swiftlint:disable file_length type_body_length
+// swiftlint:disable file_length
 
 import SwiftUI
 
@@ -43,6 +43,14 @@ struct MainView: View {
         ZStack(alignment: .bottomTrailing) {
             NavigationStack(path: $navigationPath) {
                 VStack(spacing: 0) {
+                    // 모든 탭에 공통 노출되는 상단 바: 영상 진입 / Ditto 로고 / 검색 진입
+                    MainTopBar(
+                        openVideoFeedAction: { isPresentingVideoFeed = true },
+                        searchAction: { navigationPath.append(MainRoute.search) }
+                    )
+                    .padding(.horizontal, 20)
+                    .padding(.top, 12)
+
                     content
                 }
                 .background(
@@ -180,7 +188,6 @@ struct MainView: View {
 
             FeedView(
                 viewModel: viewModel,
-                searchAction: { navigationPath.append(MainRoute.search) },
                 mediaAction: { media in
                     selectedMedia = media
                 },
@@ -255,8 +262,6 @@ struct MainView: View {
 
     private var homeTab: some View {
         VStack(spacing: 0) {
-            fixedHeader
-
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 0) {
@@ -335,14 +340,6 @@ struct MainView: View {
         }
     }
 
-    private var fixedHeader: some View {
-        MainTopBar(
-            openVideoFeedAction: { isPresentingVideoFeed = true },
-            searchAction: { navigationPath.append(MainRoute.search) }
-        )
-            .padding(.horizontal, 20)
-            .padding(.top, 12)
-    }
 }
 
 private extension MainView {
@@ -556,4 +553,4 @@ private extension MainView {
 }
 
 #Preview { MainView(authManager: AuthManager()) }
-// swiftlint:enable file_length type_body_length
+// swiftlint:enable file_length
