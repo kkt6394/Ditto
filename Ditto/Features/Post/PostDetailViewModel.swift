@@ -43,6 +43,8 @@ final class PostDetailViewModel {
         self.postId = postId
         self.networkManagerProvider = networkManagerProvider
         self.authManager = authManager
+        // 로그인 시 캐시해 둔 본인 user_id를 우선 적용. load() 안의 myProfile fetch는 fallback.
+        self.currentUserId = authManager.currentUserId
     }
 
     func load() async {
@@ -55,10 +57,13 @@ final class PostDetailViewModel {
             let response: PostResponseDTO = try await networkManager.request(PostRouter.detail(postId: postId))
             post = response
 
-            // 본인 댓글 판별을 위해 내 user_id를 함께 캐시한다 (실패는 무시).
+            // 본인 글/댓글 판별을 위해 내 user_id를 함께 캐시한다 (실패는 무시).
+            // AuthManager에 저장된 값이 우선 적용되었으므로 nil인 경우에만 fallback fetch.
             if currentUserId == nil {
                 if let myInfo: MyInfoResponseDTO = try? await networkManager.request(UserRouter.myProfile) {
                     currentUserId = myInfo.userId
+                    // 다른 화면들도 즉시 본인 판별이 가능하도록 AuthManager에 저장.
+                    authManager.setCurrentUserId(myInfo.userId)
                 }
             }
         } catch {

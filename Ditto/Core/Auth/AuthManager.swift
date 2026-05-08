@@ -14,11 +14,15 @@ protocol AuthManaging: AnyObject {
     var tokens: AuthTokens? { get }
     // 마지막 sign-out이 어떤 사유로 발생했는지 화면 단에서 한 번만 소비할 수 있게 노출한다.
     var lastSignOutReason: SignOutReason? { get }
+    // 로그인 시 myProfile로 받아둔 본인 user_id. 본인 글/댓글 판별 등에 활용한다.
+    var currentUserId: String? { get }
 
     func authenticate(with tokens: AuthTokens) throws
     func signOut(reason: SignOutReason) throws
     // 한 번 안내한 뒤에는 사유를 비워, 같은 토스트가 반복 노출되지 않도록 한다.
     func consumeSignOutReason()
+    // 로그인/회원가입 흐름에서 받아온 my user_id를 캐시한다.
+    func setCurrentUserId(_ userId: String?)
 }
 
 extension AuthManaging {
@@ -43,10 +47,15 @@ enum AuthManagerError: Error {
 @MainActor
 @Observable
 final class AuthManager: AuthManaging {
+    private static let currentUserIdKey = "auth.currentUserId"
+
     private let tokenStore: any TokenStoring
+    private let userDefaults: UserDefaults
     private(set) var tokens: AuthTokens?
     // 인증이 풀린 사유를 LoginView에 한 번만 노출하기 위한 일회성 상태다.
     private(set) var lastSignOutReason: SignOutReason?
+    // 로그인 시 myProfile에서 받아 캐시한 본인 user_id. UserDefaults에 영속화해 앱 재실행 시도 유지.
+    private(set) var currentUserId: String?
 
     var isAuthenticated: Bool {
         tokens != nil
@@ -56,10 +65,12 @@ final class AuthManager: AuthManaging {
         self.init(tokenStore: KeychainTokenStore())
     }
 
-    init(tokenStore: any TokenStoring) {
+    init(tokenStore: any TokenStoring, userDefaults: UserDefaults = .standard) {
         self.tokenStore = tokenStore
+        self.userDefaults = userDefaults
         // 저장 토큰을 읽지 못하더라도 앱 자체는 시작할 수 있어야 하므로 실패 시 비로그인 상태로 둔다.
         tokens = try? tokenStore.loadTokens()
+        currentUserId = userDefaults.string(forKey: Self.currentUserIdKey)
     }
 
     func authenticate(with tokens: AuthTokens) throws {
@@ -78,6 +89,8 @@ final class AuthManager: AuthManaging {
             try tokenStore.deleteTokens()
             tokens = nil
             lastSignOutReason = reason
+            // sign-out 시 캐시된 본인 user_id도 함께 정리.
+            setCurrentUserId(nil)
         } catch {
             throw AuthManagerError.tokenDeleteFailed
         }
@@ -85,5 +98,14 @@ final class AuthManager: AuthManaging {
 
     func consumeSignOutReason() {
         lastSignOutReason = nil
+    }
+
+    func setCurrentUserId(_ userId: String?) {
+        currentUserId = userId
+        if let userId, !userId.isEmpty {
+            userDefaults.set(userId, forKey: Self.currentUserIdKey)
+        } else {
+            userDefaults.removeObject(forKey: Self.currentUserIdKey)
+        }
     }
 }

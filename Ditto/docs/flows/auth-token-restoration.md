@@ -21,6 +21,15 @@ flag 위치를 UserDefaults → Keychain으로 옮기는 절충안도 검토했�
 - 처음엔 Keychain flag 저장 방식으로 옮길까 고민했지만, 보안 효과가 같이 무효화되는 점에서 제거와 사실상 동일했다. 그러면 단순한 쪽이 낫다고 판단.
 - 기존 테스트 두 건(`initClearsStoredTokensOnFirstLaunchAfterInstall`, `initKeepsStoredTokensAfterFirstLaunchPreparation`) 은 prepare 로직 자체를 검증하던 거라 의미가 사라져서 제거하고, 일반적인 "저장된 토큰을 그대로 복원" / "토큰 없으면 비인증" 두 케이스만 남겼다.
 
+## currentUserId 캐시 (관련 작업)
+PostDetail 본인 글 판별을 위해서는 myProfile API가 성공해야 했는데, fetch 실패 등으로 nil이 되면 trash 버튼이 노출되지 않는 문제가 있었다. 이 문제를 해결하기 위해 AuthManager에 `currentUserId` 를 캐시하는 흐름을 추가했다.
+
+LoginResponse(이메일/카카오/애플 모두) 는 이미 `userId` 를 함께 내려 주므로, 로그인 직후 `authManager.setCurrentUserId(response.userId)` 한 줄로 저장해 둔다. 이 값은 UserDefaults `auth.currentUserId` 키에도 영속화돼서 앱 재실행 후에도 유지된다 (만료/sign-out 시는 자동 정리).
+
+PostDetailViewModel은 init에서 `authManager.currentUserId` 를 먼저 받아 currentUserId를 즉시 채우고, 비어 있을 때만 load() 안의 myProfile fetch fallback을 시도한다. 그 fallback에서도 성공하면 AuthManager에 저장해 다른 화면들이 즉시 본인 판별을 할 수 있도록 한다.
+
 ## 핵심 파일
-- `Ditto/Core/Auth/AuthManager.swift` — `prepareKeychainIfNeeded` 제거, init이 `tokenStore.loadTokens()` 만 호출.
-- `DittoTests/Core/Auth/AuthManagerTests.swift` — prepare 동작 검증 테스트 제거 + 시그니처 정리.
+- `Ditto/Core/Auth/AuthManager.swift` — `prepareKeychainIfNeeded` 제거, `currentUserId` 상태 + UserDefaults 영속화 + `setCurrentUserId` 추가, sign-out 시 함께 정리.
+- `Ditto/Features/Auth/Login/LoginViewModel.swift` — 이메일/카카오/애플 로그인 성공 시 `authManager.setCurrentUserId(response.userId)` 호출.
+- `Ditto/Features/Post/PostDetailViewModel.swift` — init에서 authManager.currentUserId로 즉시 초기화, fallback fetch 성공 시 authManager에 역방향 저장.
+- `DittoTests/...` — 4개 stub(`StubAuthManager`/`StubLoginAuthManager`/`StubSearchAuthManager`/`StubMainAuthManager`)에 `currentUserId`, `lastSignOutReason`, `setCurrentUserId(_:)`, `signOut(reason:)` 등 protocol 변경분 반영.

@@ -86,6 +86,8 @@ final class LoginViewModel {
             let networkManager = try networkManagerProvider()
             let response: LoginResponse = try await networkManager.request(AuthRouter.login(makeLoginRequest()))
             try authManager.authenticate(with: response.tokens)
+            // 본인 user_id를 캐시 — 본인 글/댓글 판별 등 모든 화면에서 fetch 없이 즉시 사용 가능.
+            authManager.setCurrentUserId(response.userId)
             await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
@@ -113,6 +115,8 @@ final class LoginViewModel {
             let request = KakaoLoginRequest(oauthToken: oauthToken, deviceToken: nil)
             let response: LoginResponse = try await networkManager.request(AuthRouter.loginKakao(request))
             try authManager.authenticate(with: response.tokens)
+            // 본인 user_id를 캐시 — 본인 글/댓글 판별 등 모든 화면에서 fetch 없이 즉시 사용 가능.
+            authManager.setCurrentUserId(response.userId)
             await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true
@@ -135,6 +139,8 @@ final class LoginViewModel {
             let request = AppleLoginRequest(idToken: idToken, deviceToken: nil)
             let response: LoginResponse = try await networkManager.request(AuthRouter.loginApple(request))
             try authManager.authenticate(with: response.tokens)
+            // 본인 user_id를 캐시 — 본인 글/댓글 판별 등 모든 화면에서 fetch 없이 즉시 사용 가능.
+            authManager.setCurrentUserId(response.userId)
             await updateDeviceTokenIfNeeded(using: networkManager)
             message = .success("\(response.nick)님, 다시 오신 걸 환영해요.")
             return true

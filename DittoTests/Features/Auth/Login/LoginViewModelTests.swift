@@ -181,6 +181,8 @@ struct LoginViewModelTests {
 @MainActor
 private final class StubLoginAuthManager: AuthManaging {
     private(set) var tokens: AuthTokens?
+    private(set) var lastSignOutReason: SignOutReason?
+    private(set) var currentUserId: String?
 
     var isAuthenticated: Bool {
         tokens != nil
@@ -194,8 +196,18 @@ private final class StubLoginAuthManager: AuthManaging {
         self.tokens = tokens
     }
 
-    func signOut() throws {
+    func signOut(reason: SignOutReason) throws {
         tokens = nil
+        lastSignOutReason = reason
+        currentUserId = nil
+    }
+
+    func consumeSignOutReason() {
+        lastSignOutReason = nil
+    }
+
+    func setCurrentUserId(_ userId: String?) {
+        currentUserId = userId
     }
 }
 
