@@ -155,9 +155,9 @@ struct PostComposeActivityPickerSheet: View {
                 }
             }
             .task {
-                if viewModel.activityCandidates.isEmpty {
-                    await viewModel.loadActivitiesByCategory()
-                }
+                // 진입 시 카테고리 칩을 "전체"(activityCategoryFilter=nil)로 리셋하고 검색어도 비운 뒤 새로 로드한다.
+                keyword = ""
+                await viewModel.selectActivityCategory(nil)
             }
         }
         .presentationDetents([.medium, .large])
