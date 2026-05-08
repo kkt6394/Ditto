@@ -329,8 +329,7 @@ private struct ReviewInsightCard: View {
     private static func modeChipLabel(for source: ReviewSummary.Source) -> String? {
         switch source {
         case .foundationModels: return nil
-        case .phraseFallback: return "구문 모드"
-        case .ratingTemplate: return "평점 모드"
+        case .statsTemplate: return "통계 모드"
         }
     }
 }
