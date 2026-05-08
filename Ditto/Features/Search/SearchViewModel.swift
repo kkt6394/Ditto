@@ -41,6 +41,8 @@ final class SearchViewModel {
     private(set) var recommendedActivitiesMessage: String?
     private(set) var categoryActivitiesMessage: String?
     private(set) var nearbyActivitiesMessage: String?
+    // 검색 시트 상단 국가 카드의 현재 선택값. 카테고리 결과 호출 시 country query로 활용된다.
+    var selectedCountryID: String = SearchCountryFilter.samples[0].id
 
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration

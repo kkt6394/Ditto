@@ -63,6 +63,29 @@ struct MainView: View {
             .sheet(item: $presentedBannerWebView) { presentation in
                 BannerWebViewLauncher.makeWebView(for: presentation, authManager: authManager)
             }
+            .sheet(isPresented: $isPresentingSearch) {
+                NavigationStack {
+                    SearchView(
+                        authManager: authManager,
+                        activityDetailAction: { activityId in
+                            // 시트 dismiss 후 메인 path push — hero zoom·탭바 일관성을 위해 메인 컨텍스트로 보낸다.
+                            isPresentingSearch = false
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(150))
+                                navigationPath.append(MainRoute.activityDetail(activityId: activityId))
+                            }
+                        },
+                        categorySelectedAction: { category in
+                            // 카테고리 push도 일단 시트 dismiss → 메인 path. 시트 안 push는 후속에서 다듬는다.
+                            isPresentingSearch = false
+                            Task { @MainActor in
+                                try? await Task.sleep(for: .milliseconds(150))
+                                navigationPath.append(MainRoute.searchCategory(category))
+                            }
+                        }
+                    )
+                }
+            }
             .fullScreenCover(isPresented: $isPresentingVideoFeed) {
                 VideoFeedView(authManager: authManager)
             }

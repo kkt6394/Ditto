@@ -12,6 +12,7 @@ struct SearchView: View {
     private let activityDetailAction: (String) -> Void
     private let categorySelectedAction: (SearchCategory) -> Void
 
+    @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var viewModel: SearchViewModel
     @State private var locationManager = UserLocationManager()
@@ -29,12 +30,8 @@ struct SearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            MainTopBar()
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-            titleRow
-                .padding(.top, 2)
+            sheetHeader
+                .padding(.top, 6)
 
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
@@ -45,9 +42,13 @@ struct SearchView: View {
                         .padding(.top, 18)
 
                     SearchCategoryGrid(
-                        items: SearchCategory.samples,
-                        onSelect: categorySelectedAction
-                    )
+                        categories: SearchCategory.samples,
+                        countries: SearchCountryFilter.samples,
+                        selectedCountryID: viewModel.selectedCountryID,
+                        onCategorySelect: categorySelectedAction
+                    ) { country in
+                        viewModel.selectedCountryID = country.id
+                    }
                         .padding(.top, 10)
 
                     SearchSectionHeader(title: "내 주변 액티비티")
@@ -156,16 +157,32 @@ struct SearchView: View {
         UIApplication.shared.open(url)
     }
 
-    private var titleRow: some View {
+    private var sheetHeader: some View {
         HStack {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+
+            Spacer()
+
             Text("검색")
-                .font(MainFont.pretendard(.bold, size: 24))
+                .font(MainFont.pretendard(.bold, size: 18))
                 .foregroundStyle(MainScreenPalette.textPrimary)
 
             Spacer()
+
+            // 좌우 균형용 placeholder
+            Color.clear
+                .frame(width: 28, height: 28)
         }
         .padding(.horizontal, 20)
-        .frame(height: 32)
+        .frame(height: 48)
     }
 }
 
@@ -219,25 +236,76 @@ struct SearchSectionHeader: View {
 }
 
 private struct SearchCategoryGrid: View {
-    let items: [SearchCategory]
-    let onSelect: (SearchCategory) -> Void
+    let categories: [SearchCategory]
+    let countries: [SearchCountryFilter]
+    let selectedCountryID: String
+    let onCategorySelect: (SearchCategory) -> Void
+    let onCountrySelect: (SearchCountryFilter) -> Void
     private let columns = [
         GridItem(.flexible(), spacing: 10),
         GridItem(.flexible(), spacing: 10)
     ]
 
     var body: some View {
-        LazyVGrid(columns: columns, spacing: 10) {
-            ForEach(items) { item in
-                Button {
-                    onSelect(item)
-                } label: {
-                    SearchCategoryCard(item: item)
+        VStack(spacing: 14) {
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(categories) { item in
+                    Button {
+                        onCategorySelect(item)
+                    } label: {
+                        SearchCategoryCard(item: item)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            }
+
+            // 카테고리 카드 아래 국가 필터 row — 카테고리 카드와 동일 톤
+            SearchSectionHeader(title: "국가")
+
+            LazyVGrid(columns: columns, spacing: 10) {
+                ForEach(countries) { item in
+                    Button {
+                        onCountrySelect(item)
+                    } label: {
+                        SearchCountryCard(item: item, isSelected: item.id == selectedCountryID)
+                    }
+                    .buttonStyle(.plain)
+                }
             }
         }
         .padding(.horizontal, 20)
+    }
+}
+
+private struct SearchCountryCard: View {
+    let item: SearchCountryFilter
+    let isSelected: Bool
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(item.backgroundColor)
+
+            Text(item.title)
+                .font(MainFont.pretendard(.bold, size: 18))
+                .foregroundStyle(.white)
+                .padding(.top, 12)
+                .padding(.leading, 12)
+
+            Text(item.flag)
+                .font(.system(size: 52))
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+                .padding(.top, 6)
+                .padding(.trailing, 10)
+                .shadow(color: Color.black.opacity(0.16), radius: 4, y: 2)
+        }
+        .frame(height: 86)
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(isSelected ? Color.white : Color.clear, lineWidth: 2)
+        )
+        .accessibilityLabel(item.title)
     }
 }
 
@@ -402,67 +470,6 @@ private struct SearchRecommendationCard: View {
         .background(MainScreenPalette.surface)
         .accessibilityLabel(item.title)
     }
-}
-
-struct SearchCategory: Identifiable, Hashable {
-    let id: String
-    let title: String
-    let navigationTitle: String
-    let backgroundColor: Color
-    let imageName: String
-
-    static func == (lhs: SearchCategory, rhs: SearchCategory) -> Bool {
-        lhs.id == rhs.id
-    }
-
-    func hash(into hasher: inout Hasher) {
-        hasher.combine(id)
-    }
-
-    static let samples: [SearchCategory] = [
-        .init(
-            id: "sightseeing",
-            title: "관광",
-            navigationTitle: "SIGHTSEEING",
-            backgroundColor: Color(red: 0.773, green: 0.416, blue: 0.231),
-            imageName: "SearchCategorySightseeing"
-        ),
-        .init(
-            id: "tour",
-            title: "투어",
-            navigationTitle: "TOUR",
-            backgroundColor: Color(red: 0.176, green: 0.478, blue: 0.420),
-            imageName: "SearchCategoryTour"
-        ),
-        .init(
-            id: "package",
-            title: "패키지",
-            navigationTitle: "PACKAGE",
-            backgroundColor: Color(red: 0.176, green: 0.227, blue: 0.290),
-            imageName: "SearchCategoryPackage"
-        ),
-        .init(
-            id: "exciting",
-            title: "익사이팅",
-            navigationTitle: "EXCITING",
-            backgroundColor: Color(red: 0.141, green: 0.439, blue: 0.816),
-            imageName: "SearchCategoryExciting"
-        ),
-        .init(
-            id: "experience",
-            title: "체험",
-            navigationTitle: "EXPERIENCE",
-            backgroundColor: Color(red: 0.478, green: 0.353, blue: 0.239),
-            imageName: "SearchCategoryExperience"
-        ),
-        .init(
-            id: "all",
-            title: "전체",
-            navigationTitle: "ALL",
-            backgroundColor: Color(red: 0.475, green: 0.196, blue: 0.749),
-            imageName: "SearchCategoryRandom"
-        )
-    ]
 }
 
 #Preview {
