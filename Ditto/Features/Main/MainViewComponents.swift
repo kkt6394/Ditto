@@ -19,6 +19,8 @@ enum MainScreenPalette {
     static let border = Color(red: 0.918, green: 0.918, blue: 0.918)
     static let borderBlue = Color(red: 0.839, green: 0.898, blue: 0.918)
     static let shadow = Color.black.opacity(0.12)
+    static let glassFill = Color.white.opacity(0.8)
+    static let glassStroke = Color.white.opacity(0.6)
     static let overlay = LinearGradient(
         colors: [Color.black.opacity(0.10), Color.black.opacity(0.55)],
         startPoint: .top,

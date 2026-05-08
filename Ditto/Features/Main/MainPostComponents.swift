@@ -399,73 +399,65 @@ struct MainBottomTabBar: View {
     let selectionAction: (MainTabItem) -> Void
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                ForEach(items) { item in
-                    Button {
-                        selectionAction(item)
-                    } label: {
-                        let isSelected = item.id == selectedID
-                        let isLikesTab = item.id == MainTab.likes.rawValue
+        HStack(spacing: 4) {
+            ForEach(items) { item in
+                Button {
+                    selectionAction(item)
+                } label: {
+                    let isSelected = item.id == selectedID
+                    let isLikesTab = item.id == MainTab.likes.rawValue
 
-                        VStack(spacing: 6) {
-                            Image(systemName: item.systemName)
-                                .font(.system(size: 20, weight: isSelected ? .bold : .medium))
-                                .foregroundStyle(
-                                    isSelected
-                                        ? MainScreenPalette.textPrimary
-                                        : MainScreenPalette.textMuted
-                                )
-                                .symbolEffect(
-                                    .bounce,
-                                    value: isLikesTab ? keepStore.keptActivityIDs.count : 0
-                                )
-                                .anchorPreference(
-                                    key: ActivityHeartAnchorKey.self,
-                                    value: .center
-                                ) { anchor in
-                                    isLikesTab
-                                        ? [ActivityHeartAnchorKey.tabSentinelID: anchor]
-                                        : [:]
-                                }
+                    VStack(spacing: 4) {
+                        Image(systemName: item.systemName)
+                            .font(.system(size: 18, weight: isSelected ? .semibold : .medium))
+                            .foregroundStyle(
+                                isSelected ? Color.white : MainScreenPalette.textMuted
+                            )
+                            .symbolEffect(
+                                .bounce,
+                                value: isLikesTab ? keepStore.keptActivityIDs.count : 0
+                            )
+                            .anchorPreference(
+                                key: ActivityHeartAnchorKey.self,
+                                value: .center
+                            ) { anchor in
+                                isLikesTab
+                                    ? [ActivityHeartAnchorKey.tabSentinelID: anchor]
+                                    : [:]
+                            }
 
-                            Text(item.title)
-                                .font(MainScreenTypography.tab)
-                                .foregroundStyle(
-                                    isSelected
-                                        ? MainScreenPalette.textPrimary
-                                        : MainScreenPalette.textMuted
-                                )
-                        }
-                        .frame(maxWidth: .infinity)
-                        .frame(height: 50)
+                        Text(item.title)
+                            .font(MainScreenTypography.tab)
+                            .foregroundStyle(
+                                isSelected ? Color.white : MainScreenPalette.textMuted
+                            )
                     }
-                    .buttonStyle(.plain)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(
+                        Capsule(style: .continuous)
+                            .fill(MainScreenPalette.primaryBlue)
+                            .padding(.vertical, 4)
+                            .opacity(isSelected ? 1.0 : 0.0)
+                            .animation(.easeOut(duration: 0.2), value: isSelected)
+                    )
+                    .contentShape(Capsule(style: .continuous))
                 }
+                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 18)
-            .padding(.top, 10)
         }
-        .padding(.bottom, 0)
-        .frame(maxWidth: .infinity)
-        .background(
-            MainScreenPalette.surface
-                .ignoresSafeArea(edges: .bottom)
-        )
-        .background(alignment: .top) {
-            Divider()
-                .overlay(MainScreenPalette.borderBlue.opacity(0.35))
+        .padding(.horizontal, 6)
+        .frame(height: 62)
+        .background {
+            Capsule(style: .continuous)
+                .fill(MainScreenPalette.glassFill)
+                .background(.ultraThinMaterial, in: Capsule(style: .continuous))
         }
-        .background(
-            UnevenRoundedRectangle(
-                topLeadingRadius: 20,
-                bottomLeadingRadius: 0,
-                bottomTrailingRadius: 0,
-                topTrailingRadius: 20,
-                style: .continuous
-            )
-                .fill(MainScreenPalette.surface)
-                .shadow(color: MainScreenPalette.shadow, radius: 6, y: -1)
+        .overlay(
+            Capsule(style: .continuous)
+                .stroke(MainScreenPalette.glassStroke, lineWidth: 1)
         )
+        .shadow(color: Color.black.opacity(0.10), radius: 24, x: 0, y: 10)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 8)
     }
 }
