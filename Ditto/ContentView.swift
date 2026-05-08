@@ -113,12 +113,9 @@ private extension ContentView {
         }
 
         let store = PendingPaymentValidationStore()
-        let service = PaymentRecoveryService(
-            store: store,
-            networkManagerFactory: { [authManager] in
-                NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
-            }
-        )
+        let service = PaymentRecoveryService(store: store) { [authManager] in
+            NetworkManager(configuration: try AppConfiguration(), authManager: authManager)
+        }
         await service.recoverIfNeeded()
     }
 }

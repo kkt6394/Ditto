@@ -130,11 +130,12 @@ struct VideoFeedView: View {
                             // 활성 카드만 자막을 보내므로 그대로 받아 그린다.
                             // 카드 전환 직후 비활성 카드의 nil 콜백이 늦게 들어와도, 다음 활성 콜백이 덮어쓴다.
                             currentSubtitleText = newText
+                        },
+                        onSubtitlesAvailable: { subtitles in
+                            // 활성 카드의 자막 목록을 받아 메뉴에 표시한다.
+                            availableSubtitles = subtitles
                         }
-                    ) { subtitles in
-                        // 활성 카드의 자막 목록을 받아 메뉴에 표시한다.
-                        availableSubtitles = subtitles
-                    }
+                    )
                     .containerRelativeFrame([.horizontal, .vertical])
                     .id(video.videoId)
                 }

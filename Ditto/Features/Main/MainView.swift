@@ -5,6 +5,11 @@
 //  Created by 김기태 on 4/24/26.
 //
 
+// MainView는 5탭 컨테이너 + NavigationPath 라우팅 + 시트/오버레이 코디네이터 역할을 한 곳에서 책임진다.
+// @State private 속성이 라우팅·트랜지션과 강하게 묶여 있어 internal 격상 없이 본체에서 분리하기 어려워,
+// file_length/type_body_length 룰은 이 파일에 한해 의도적으로 풀어둔다.
+// swiftlint:disable file_length type_body_length
+
 import SwiftUI
 
 struct MainView: View {
@@ -558,3 +563,4 @@ private extension MainView {
 }
 
 #Preview { MainView(authManager: AuthManager()) }
+// swiftlint:enable file_length type_body_length

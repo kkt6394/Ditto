@@ -314,29 +314,35 @@ private struct EmailCheckRow: View {
         }
     }
 
-    private var displayInfo: (text: String, icon: String, color: Color)? {
+    private var displayInfo: DisplayInfo? {
         switch state {
         case .idle:
             return nil
         case .checking:
-            return (
+            return DisplayInfo(
                 text: "이메일을 확인하는 중...",
                 icon: "circle.dotted",
                 color: SignUpColor.secondaryText
             )
         case .available(let message):
-            return (text: message, icon: "checkmark.circle.fill", color: SignUpColor.accent)
+            return DisplayInfo(text: message, icon: "checkmark.circle.fill", color: SignUpColor.accent)
         case .unavailable(let message):
-            return (text: message, icon: "xmark.circle.fill", color: Self.errorColor)
+            return DisplayInfo(text: message, icon: "xmark.circle.fill", color: Self.errorColor)
         case .formatInvalid:
-            return (
+            return DisplayInfo(
                 text: "올바른 이메일 형식으로 입력해 주세요.",
                 icon: "exclamationmark.circle.fill",
                 color: Self.errorColor
             )
         case .error(let message):
-            return (text: message, icon: "exclamationmark.circle.fill", color: Self.errorColor)
+            return DisplayInfo(text: message, icon: "exclamationmark.circle.fill", color: Self.errorColor)
         }
+    }
+
+    private struct DisplayInfo {
+        let text: String
+        let icon: String
+        let color: Color
     }
 
     private static let errorColor = Color(red: 0.72, green: 0.18, blue: 0.14)

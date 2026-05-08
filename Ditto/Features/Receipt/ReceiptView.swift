@@ -256,7 +256,7 @@ private struct ReceiptRow: View {
 // 화면이 attach되면 부모 UINavigationController를 찾아 interactivePopGestureRecognizer의 delegate를 nil로 풀어
 // 시스템이 back button 존재 여부와 무관하게 제스처를 처리하게 만든다.
 private struct InteractivePopGestureEnabler: UIViewRepresentable {
-    func makeUIView(context: Context) -> UIView {
+    func makeUIView(context _: Context) -> UIView {
         let view = UIView()
         // 뷰 계층에 붙은 직후엔 nav controller가 아직 nil일 수 있어 다음 runloop에서 시도한다.
         DispatchQueue.main.async {
@@ -267,7 +267,7 @@ private struct InteractivePopGestureEnabler: UIViewRepresentable {
         return view
     }
 
-    func updateUIView(_ uiView: UIView, context: Context) {}
+    func updateUIView(_: UIView, context _: Context) {}
 }
 
 private extension UIView {

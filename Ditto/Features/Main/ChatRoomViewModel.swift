@@ -5,6 +5,11 @@
 //  Created by Codex on 5/2/26.
 //
 
+// 소켓 라이프사이클·REST 동기화·SwiftData 캐시까지 한 객체가 책임지므로 파일이 길어진다.
+// 분리하려면 lifecycle/socket helper들을 internal로 격상해야 해서 캡슐화 trade-off가 커,
+// file_length 룰은 이 파일에 한해 의도적으로 풀어둔다.
+// swiftlint:disable file_length
+
 import Foundation
 import Observation
 import SwiftData
@@ -535,3 +540,4 @@ private extension ChatRoomViewModel {
         self.message = message
     }
 }
+// swiftlint:enable file_length
