@@ -62,7 +62,7 @@ struct OrderListView: View {
                         Array(viewModel.orders.enumerated()),
                         id: \.element.orderId
                     ) { index, order in
-                        OrderRowCard(order: order)
+                        OrderRowCard(order: order, imageRequest: imageRequest(for: order))
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 receiptAction(
@@ -84,6 +84,19 @@ struct OrderListView: View {
             }
         }
     }
+
+    // 액티비티 썸네일을 ChatBubble/SearchRemoteImage와 동일한 인증 흐름(SeSACKey + Authorization)으로 요청한다.
+    private func imageRequest(for order: OrderReviewResponseDTO) -> URLRequest? {
+        guard let path = order.activity.thumbnails.first,
+              let configuration = try? AppConfiguration() else {
+            return nil
+        }
+        return ActivityFormatting.makeImageRequest(
+            from: path,
+            configuration: configuration,
+            accessToken: authManager.tokens?.accessToken
+        )
+    }
 }
 
 private struct OrderListNavigationBar<Trailing: View>: View {
@@ -97,27 +110,29 @@ private struct OrderListNavigationBar<Trailing: View>: View {
     }
 
     var body: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 20, weight: .semibold))
-                    .foregroundStyle(MainScreenPalette.textPrimary)
-                    .frame(width: 44, height: 44)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
+        // 타이틀은 ZStack 중앙에 고정한다. trailing이 EmptyView일 때 minWidth 프레임이 SwiftUI에서
+        // 실제 폭을 안 잡아 좌측 chevron(44pt)과 비대칭으로 어긋나던 문제를 끊는 패턴.
+        ZStack {
             Text(title)
                 .font(MainScreenTypography.brand)
                 .foregroundStyle(MainScreenPalette.primaryBlue)
 
-            Spacer()
+            HStack {
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 20, weight: .semibold))
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
 
-            trailing()
-                .frame(minWidth: 44, minHeight: 44)
+                Spacer()
+
+                trailing()
+                    .frame(minWidth: 44, minHeight: 44)
+            }
         }
         .padding(.horizontal, 4)
         .frame(height: 44)
@@ -126,16 +141,20 @@ private struct OrderListNavigationBar<Trailing: View>: View {
 
 private struct OrderRowCard: View {
     let order: OrderReviewResponseDTO
+    // 인증 헤더 박힌 액티비티 썸네일 요청. nil이면 SearchRemoteImage가 fallback 이미지를 그린다.
+    let imageRequest: URLRequest?
 
     var body: some View {
         HStack(alignment: .top, spacing: 12) {
-            // 인증된 imageRequest 빌드는 별도 작업으로 분리. 우선 fallback 이미지로 표시한다.
-            Image("FigmaMainNewActivity1")
-                .resizable()
-                .scaledToFill()
-                .frame(width: 84, height: 84)
-                .clipped()
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            SearchRemoteImage(
+                request: imageRequest,
+                fallbackImageName: "FigmaMainNewActivity1",
+                width: 84,
+                height: 84,
+                cornerRadius: 12
+            )
+            // URL 변경 시 캐시된 UIImage가 그대로 보이는 걸 막기 위해 URL 기반 id로 강제 재생성.
+            .id(imageRequest?.url?.absoluteString ?? "")
 
             VStack(alignment: .leading, spacing: 6) {
                 Text(order.activity.title ?? "이름 없는 액티비티")
