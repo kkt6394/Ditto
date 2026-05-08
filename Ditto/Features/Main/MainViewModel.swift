@@ -239,12 +239,14 @@ final class MainViewModel {
                 PostRouter.geolocation(query)
             )
 
-            // 다음 페이지 cursor 갱신. 빈 문자열이면 끝.
-            activityPostsNextCursor = response.nextCursor.isEmpty ? nil : response.nextCursor
+            // 서버가 이전과 동일한 cursor 또는 빈 문자열을 반환하면 더 이상 페이지가 없는 신호로 처리한다.
+            // (cursor를 그대로 유지하면 같은 페이지를 무한히 다시 fetch해 동일 글이 누적된다.)
+            let advanced = !response.nextCursor.isEmpty && response.nextCursor != cursor
+            activityPostsNextCursor = advanced ? response.nextCursor : nil
 
             // append 시 fallbackIndex가 기존 카드들 뒤로 이어지도록 누적 카운트를 시작 인덱스로 사용한다.
             let baseIndex = activityPosts.count
-            let mapped = response.data.enumerated().map { offset, post in
+            let mappedAll = response.data.enumerated().map { offset, post in
                 Self.makeActivityPost(
                     from: post,
                     fallbackIndex: baseIndex + offset,
@@ -252,9 +254,17 @@ final class MainViewModel {
                     accessToken: authManager?.tokens?.accessToken
                 )
             }
-            activityPosts.append(contentsOf: mapped)
-            // 새로 받은 카드들에 대해서도 일괄 prefetch.
-            prefetchCommentCounts(for: mapped.map(\.id))
+            // 서버가 동일 글을 다시 섞어 보내는 경우 방어. 이미 노출 중인 id는 제외.
+            let existingIds = Set(activityPosts.map(\.id))
+            let mapped = mappedAll.filter { !existingIds.contains($0.id) }
+            // 새로 추가된 카드가 0개면 다음 페이지가 사실상 없는 것으로 간주해 cursor를 종료한다.
+            if mapped.isEmpty {
+                activityPostsNextCursor = nil
+            } else {
+                activityPosts.append(contentsOf: mapped)
+                // 새로 받은 카드들에 대해서만 일괄 prefetch.
+                prefetchCommentCounts(for: mapped.map(\.id))
+            }
         } catch {
             // 무한 스크롤 실패는 첫 로드 메시지를 덮지 않도록 별도 처리하지 않는다.
             // 사용자가 다시 끝에 도달하면 자동으로 재시도된다.
