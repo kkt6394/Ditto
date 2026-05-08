@@ -23,28 +23,33 @@ struct HomeRecommendationRow: View {
             } else if items.isEmpty {
                 emptyState(text: message ?? "추천 액티비티가 없습니다.")
             } else {
-                HStack(spacing: 12) {
-                    ForEach(items.prefix(2)) { item in
-                        HomeRecommendationCard(item: item)
-                            .onTapGesture {
-                                activityDetailAction(item.id)
-                            }
+                ScrollView(.horizontal, showsIndicators: false) {
+                    LazyHStack(spacing: 12) {
+                        ForEach(items) { item in
+                            HomeRecommendationCard(item: item)
+                                .frame(width: 200)
+                                .onTapGesture {
+                                    activityDetailAction(item.id)
+                                }
+                        }
                     }
+                    .padding(.horizontal, 20)
                 }
-                .padding(.horizontal, 20)
             }
         }
     }
 
     private var placeholder: some View {
-        HStack(spacing: 12) {
-            ForEach(0..<2, id: \.self) { _ in
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .fill(MainScreenPalette.border)
-                    .frame(height: 180)
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { _ in
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(MainScreenPalette.border)
+                        .frame(width: 200, height: 180)
+                }
             }
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
     }
 
     private func emptyState(text: String) -> some View {

@@ -175,7 +175,7 @@ struct MainActivityPost: Identifiable {
     let subImageBottomName: String
     let subImageBottomRequest: URLRequest?
     let media: [MainPostMedia]
-    let isLiked: Bool
+    var isLiked: Bool
 
     static let samples: [MainActivityPost] = [
         .init(

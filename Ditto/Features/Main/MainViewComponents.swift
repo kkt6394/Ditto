@@ -214,21 +214,25 @@ private struct CategoryIconCell: View {
     var body: some View {
         VStack(spacing: 6) {
             ZStack {
-                // 컬러 캡슐 — 카테고리 강조색의 옅은 톤
+                // 컬러 캡슐 — 카테고리 강조색의 옅은 톤. 선택 시 캡슐 자체가 진해진다.
                 Circle()
-                    .fill(item.accentColor.opacity(0.18))
+                    .fill(item.accentColor.opacity(isSelected ? 0.32 : 0.18))
                     .frame(width: 52, height: 52)
 
-                // 선택 링
+                // 선택 링 — opacity와 scale로 spring 등장
                 Circle()
                     .strokeBorder(item.accentColor, lineWidth: 2)
                     .frame(width: 52, height: 52)
+                    .scaleEffect(isSelected ? 1.0 : 0.85)
                     .opacity(isSelected ? 1 : 0)
 
                 Image(systemName: item.sfSymbol)
                     .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(item.accentColor)
+                    .symbolEffect(.bounce, value: isSelected)
             }
+            .scaleEffect(isSelected ? 1.08 : 1.0)
+            .animation(.spring(response: 0.32, dampingFraction: 0.6), value: isSelected)
 
             Text(item.title)
                 .font(MainScreenTypography.category)
@@ -237,11 +241,13 @@ private struct CategoryIconCell: View {
                 )
                 .lineLimit(1)
 
-            // 활성 닷 — 선택 시에만 표시되는 작은 강조점
+            // 활성 닷 — 선택 시에만 표시되는 작은 강조점. scale로 spring 등장.
             Circle()
                 .fill(item.accentColor)
                 .frame(width: 4, height: 4)
+                .scaleEffect(isSelected ? 1.0 : 0.1)
                 .opacity(isSelected ? 1 : 0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.55), value: isSelected)
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())

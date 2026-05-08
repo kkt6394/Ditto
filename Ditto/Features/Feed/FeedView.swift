@@ -41,7 +41,9 @@ struct FeedView: View {
                                 mediaAction: mediaAction,
                                 detailAction: detailAction,
                                 chatAction: chatAction
-                            )
+                            ) { tappedPost in
+                                Task { await viewModel.togglePostLike(postId: tappedPost.id) }
+                            }
                             Divider()
                                 .padding(.horizontal, 20)
                                 .overlay(MainScreenPalette.border)

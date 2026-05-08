@@ -8,7 +8,7 @@
 // MainView는 5탭 컨테이너 + NavigationPath 라우팅 + 시트/오버레이 코디네이터 역할을 한 곳에서 책임진다.
 // @State private 속성이 라우팅·트랜지션과 강하게 묶여 있어 internal 격상 없이 본체에서 분리하기 어려워,
 // file_length/type_body_length 룰은 이 파일에 한해 의도적으로 풀어둔다.
-// swiftlint:disable file_length type_body_length
+// swiftlint:disable file_length
 
 import SwiftUI
 
@@ -32,7 +32,6 @@ struct MainView: View {
     @State private var isPresentingPostComposer = false
     @State private var presentedBannerWebView: BannerWebViewPresentation?
     @State private var isPresentingVideoFeed = false
-    @State private var isPresentingSearch = false
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -67,29 +66,6 @@ struct MainView: View {
             }
             .sheet(item: $presentedBannerWebView) { presentation in
                 BannerWebViewLauncher.makeWebView(for: presentation, authManager: authManager)
-            }
-            .sheet(isPresented: $isPresentingSearch) {
-                NavigationStack {
-                    SearchView(
-                        authManager: authManager,
-                        activityDetailAction: { activityId in
-                            // 시트 dismiss 후 메인 path push — hero zoom·탭바 일관성을 위해 메인 컨텍스트로 보낸다.
-                            isPresentingSearch = false
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(150))
-                                navigationPath.append(MainRoute.activityDetail(activityId: activityId))
-                            }
-                        },
-                        categorySelectedAction: { category in
-                            // 카테고리 push도 일단 시트 dismiss → 메인 path. 시트 안 push는 후속에서 다듬는다.
-                            isPresentingSearch = false
-                            Task { @MainActor in
-                                try? await Task.sleep(for: .milliseconds(150))
-                                navigationPath.append(MainRoute.searchCategory(category))
-                            }
-                        }
-                    )
-                }
             }
             .fullScreenCover(isPresented: $isPresentingVideoFeed) {
                 VideoFeedView(authManager: authManager)
@@ -204,7 +180,7 @@ struct MainView: View {
 
             FeedView(
                 viewModel: viewModel,
-                searchAction: { isPresentingSearch = true },
+                searchAction: { navigationPath.append(MainRoute.search) },
                 mediaAction: { media in
                     selectedMedia = media
                 },
@@ -283,6 +259,13 @@ struct MainView: View {
                             .frame(height: 0)
                             .id("homeTop")
 
+                        // 본문에 위치한 카테고리 아이콘 그리드. 헤더 고정에서 빼서 위로 스크롤되도록 한다.
+                        CategoryIconGrid(
+                            items: MainCategoryFilter.samples,
+                            selectedID: $selectedCategoryID
+                        )
+                        .padding(.top, 8)
+
                         MainSectionTitleRow(title: "NEW 액티비티")
                             .padding(.top, 26)
 
@@ -348,20 +331,12 @@ struct MainView: View {
     }
 
     private var fixedHeader: some View {
-        VStack(spacing: 0) {
-            MainTopBar(
-                openVideoFeedAction: { isPresentingVideoFeed = true },
-                searchAction: { isPresentingSearch = true }
-            )
-                .padding(.horizontal, 20)
-                .padding(.top, 12)
-
-            CategoryIconGrid(
-                items: MainCategoryFilter.samples,
-                selectedID: $selectedCategoryID
-            )
+        MainTopBar(
+            openVideoFeedAction: { isPresentingVideoFeed = true },
+            searchAction: { navigationPath.append(MainRoute.search) }
+        )
+            .padding(.horizontal, 20)
             .padding(.top, 12)
-        }
     }
 }
 
@@ -510,9 +485,21 @@ private extension MainView {
         "\(selectedCountryID)-\(selectedCategoryID)"
     }
 
+    // 라우트 케이스가 늘어나며 함수 본문이 길어졌지만, switch 한 곳에서 라우팅을 책임지는 게 가독성에 유리해 룰을 풀어둔다.
+    // swiftlint:disable function_body_length
     @ViewBuilder
     func destination(for route: MainRoute) -> some View {
         switch route {
+        case .search:
+            SearchView(
+                authManager: authManager,
+                activityDetailAction: { activityId in
+                    navigationPath.append(MainRoute.activityDetail(activityId: activityId))
+                },
+                categorySelectedAction: { category in
+                    navigationPath.append(MainRoute.searchCategory(category))
+                }
+            )
         case .activityDetail(let activityId):
             ActivityDetailView(
                 activityId: activityId,
@@ -560,7 +547,8 @@ private extension MainView {
             ActivityCardComposeSelectorView(authManager: authManager)
         }
     }
+    // swiftlint:enable function_body_length
 }
 
 #Preview { MainView(authManager: AuthManager()) }
-// swiftlint:enable file_length type_body_length
+// swiftlint:enable file_length

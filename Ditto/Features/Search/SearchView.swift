@@ -12,7 +12,6 @@ struct SearchView: View {
     private let activityDetailAction: (String) -> Void
     private let categorySelectedAction: (SearchCategory) -> Void
 
-    @Environment(\.dismiss) private var dismiss
     @State private var searchText = ""
     @State private var viewModel: SearchViewModel
     @State private var locationManager = UserLocationManager()
@@ -30,9 +29,6 @@ struct SearchView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            sheetHeader
-                .padding(.top, 6)
-
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 0) {
                     SearchInputField(text: $searchText)
@@ -96,6 +92,8 @@ struct SearchView: View {
                 maxDistanceMeters: selectedDistanceMeters
             )
         }
+        .navigationTitle("검색")
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private var nearbyQueryID: String {
@@ -157,33 +155,6 @@ struct SearchView: View {
         UIApplication.shared.open(url)
     }
 
-    private var sheetHeader: some View {
-        HStack {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(MainScreenPalette.textPrimary)
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-
-            Spacer()
-
-            Text("검색")
-                .font(MainFont.pretendard(.bold, size: 18))
-                .foregroundStyle(MainScreenPalette.textPrimary)
-
-            Spacer()
-
-            // 좌우 균형용 placeholder
-            Color.clear
-                .frame(width: 28, height: 28)
-        }
-        .padding(.horizontal, 20)
-        .frame(height: 48)
-    }
 }
 
 enum SearchLayout {

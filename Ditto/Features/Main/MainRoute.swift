@@ -12,6 +12,7 @@ enum MainRoute: Hashable {
     case activityDetail(activityId: String)
     case postDetail(postId: String)
     case chat(roomId: String, opponentNick: String)
+    case search
     case searchCategory(SearchCategory)
     case orderList
     case receipt(

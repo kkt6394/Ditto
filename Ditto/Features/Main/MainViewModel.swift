@@ -199,6 +199,32 @@ final class MainViewModel {
         )
     }
 
+    // 피드 카드의 하트 탭 시 호출. optimistic update 후 실패 시 원상 복귀한다.
+    func togglePostLike(postId: String) async {
+        guard let index = activityPosts.firstIndex(where: { $0.id == postId }) else {
+            return
+        }
+        let originalLike = activityPosts[index].isLiked
+        let nextLike = !originalLike
+        activityPosts[index].isLiked = nextLike
+
+        do {
+            let networkManager = try networkManagerProvider()
+            let request = PostLikeRequestDTO(likeStatus: nextLike)
+            let response: PostLikeResponseDTO = try await networkManager.request(
+                PostRouter.like(postId: postId, request: request)
+            )
+            if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
+                activityPosts[idx].isLiked = response.likeStatus
+            }
+        } catch {
+            // 실패 시 원래 상태로 복귀
+            if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
+                activityPosts[idx].isLiked = originalLike
+            }
+        }
+    }
+
     // 홈 본문 하단의 추천 row용. country/category 필터 없이 가져온다.
     // SearchView의 추천 라우터와 동일한 ActivityRouter.new(country:nil, category:nil) 호출이다.
     func loadHomeRecommendations() async {
