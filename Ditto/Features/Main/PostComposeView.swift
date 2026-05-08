@@ -28,7 +28,11 @@ struct PostComposeView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        // @State + @Observable 조합은 $-prefix만으로 양방향 binding이 안전하지 않다.
+        // 명시적 @Bindable wrapper를 통해 chip picker selection이 반영되도록 한다.
+        @Bindable var bindable = viewModel
+
+        return VStack(spacing: 0) {
             PostComposeNavigationBar(
                 canSubmit: viewModel.canSubmit,
                 isSubmitting: viewModel.isSubmitting,
@@ -41,7 +45,7 @@ struct PostComposeView: View {
                     PostComposeChipPicker(
                         title: "국가",
                         options: viewModel.countryOptions,
-                        selection: $viewModel.country
+                        selection: $bindable.country
                     )
 
                     PostComposeActivityRow(
@@ -50,9 +54,9 @@ struct PostComposeView: View {
                         clearAction: { viewModel.selectActivity(nil) }
                     )
 
-                    PostComposeTitleField(text: $viewModel.title)
+                    PostComposeTitleField(text: $bindable.title)
 
-                    PostComposeContentField(text: $viewModel.content)
+                    PostComposeContentField(text: $bindable.content)
 
                     PostComposeAttachmentGrid(
                         attachments: viewModel.attachments,
@@ -194,8 +198,12 @@ struct PostComposeActivityPickerSheet: View {
     }
 
     private var categoryOptions: [CategoryOption] {
+        // MainCategoryFilter.samples에 이미 "전체"(id="all")가 있어 그대로 매핑하면 중복된다.
+        // "전체"는 value=nil로 prepend하고, 나머지 카테고리만 뒤에 붙인다.
         [CategoryOption(id: "all", title: "전체", value: nil)] +
-        MainCategoryFilter.samples.map { CategoryOption(id: $0.id, title: $0.title, value: $0.title) }
+        MainCategoryFilter.samples
+            .filter { $0.id != "all" }
+            .map { CategoryOption(id: $0.id, title: $0.title, value: $0.title) }
     }
 
     private struct CategoryOption: Identifiable {
