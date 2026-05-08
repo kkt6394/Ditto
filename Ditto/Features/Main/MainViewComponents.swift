@@ -52,22 +52,25 @@ enum MainScreenTypography {
 }
 
 struct MainTopBar: View {
-    // 영상 피드 진입은 외부에서 주입받아 화면 전환 흐름은 MainView가 책임지게 한다.
+    // 영상 피드 진입과 검색 시트 진입을 외부에서 주입받아 MainView가 화면 전환을 책임지게 한다.
     var openVideoFeedAction: () -> Void = {}
+    var searchAction: () -> Void = {}
 
     var body: some View {
         HStack {
-            Text("DITTO")
-                .font(MainScreenTypography.brand)
-                .foregroundStyle(MainScreenPalette.primaryBlue)
+            TopBarIconButton(systemName: "play.rectangle.fill", action: openVideoFeedAction)
 
             Spacer()
 
-            HStack(spacing: 12) {
-                TopBarIconButton(systemName: "play.rectangle.fill", action: openVideoFeedAction)
-                TopBarIconButton(systemName: "bell")
-                TopBarIconButton(systemName: "magnifyingglass")
-            }
+            // Playfair Italic 폴백 — 번들 폰트 미등록 시 system serif italic으로 표시
+            Text("Ditto")
+                .font(.system(size: 26, design: .serif))
+                .italic()
+                .foregroundStyle(MainScreenPalette.textPrimary)
+
+            Spacer()
+
+            TopBarIconButton(systemName: "magnifyingglass", action: searchAction)
         }
         .frame(height: 56)
     }
@@ -179,6 +182,69 @@ struct CategoryFilterCarousel: View {
             .padding(.trailing, 20)
             .padding(.vertical, 4)
         }
+    }
+}
+
+// 2×5 그리드의 카테고리 아이콘. 각 셀은 컬러 캡슐 + 선택 링 + 활성 닷으로 구성된다.
+struct CategoryIconGrid: View {
+    let items: [MainCategoryFilter]
+    @Binding var selectedID: String
+
+    private let columns = Array(repeating: GridItem(.flexible(), spacing: 12), count: 5)
+
+    var body: some View {
+        LazyVGrid(columns: columns, spacing: 14) {
+            ForEach(items) { item in
+                Button {
+                    selectedID = item.id
+                } label: {
+                    CategoryIconCell(item: item, isSelected: item.id == selectedID)
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+}
+
+private struct CategoryIconCell: View {
+    let item: MainCategoryFilter
+    let isSelected: Bool
+
+    var body: some View {
+        VStack(spacing: 6) {
+            ZStack {
+                // 컬러 캡슐 — 카테고리 강조색의 옅은 톤
+                Circle()
+                    .fill(item.accentColor.opacity(0.18))
+                    .frame(width: 52, height: 52)
+
+                // 선택 링
+                Circle()
+                    .strokeBorder(item.accentColor, lineWidth: 2)
+                    .frame(width: 52, height: 52)
+                    .opacity(isSelected ? 1 : 0)
+
+                Image(systemName: item.sfSymbol)
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(item.accentColor)
+            }
+
+            Text(item.title)
+                .font(MainScreenTypography.category)
+                .foregroundStyle(
+                    isSelected ? MainScreenPalette.textPrimary : MainScreenPalette.textSecondary
+                )
+                .lineLimit(1)
+
+            // 활성 닷 — 선택 시에만 표시되는 작은 강조점
+            Circle()
+                .fill(item.accentColor)
+                .frame(width: 4, height: 4)
+                .opacity(isSelected ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
     }
 }
 

@@ -27,6 +27,7 @@ struct MainView: View {
     @State private var isPresentingPostComposer = false
     @State private var presentedBannerWebView: BannerWebViewPresentation?
     @State private var isPresentingVideoFeed = false
+    @State private var isPresentingSearch = false
 
     init(authManager: any AuthManaging) {
         self.authManager = authManager
@@ -324,23 +325,18 @@ struct MainView: View {
 
     private var fixedHeader: some View {
         VStack(spacing: 0) {
-            MainTopBar {
-                isPresentingVideoFeed = true
-            }
+            MainTopBar(
+                openVideoFeedAction: { isPresentingVideoFeed = true },
+                searchAction: { isPresentingSearch = true }
+            )
                 .padding(.horizontal, 20)
                 .padding(.top, 12)
 
-            CountryFilterCarousel(
-                items: MainCountryFilter.samples,
-                selectedID: $selectedCountryID
-            )
-            .padding(.top, 8)
-
-            CategoryFilterCarousel(
+            CategoryIconGrid(
                 items: MainCategoryFilter.samples,
                 selectedID: $selectedCategoryID
             )
-            .padding(.top, 6)
+            .padding(.top, 12)
         }
     }
 }
