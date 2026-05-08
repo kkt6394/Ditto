@@ -83,8 +83,10 @@ private struct HomeRecommendationCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: HomeRecommendationLayout.stackSpacing) {
             // 이미지 + 좌상단 카테고리 칩(D) + 우상단 Keep 하트(C)
+            // .frame 후 .clipped()를 명시해 scaledToFill로 펼쳐진 이미지가 카드 frame 밖으로 새지 않게 한다.
             HomeRecommendationImage(item: item)
-                .frame(height: HomeRecommendationLayout.imageHeight)
+                .frame(width: HomeRecommendationLayout.cardWidth, height: HomeRecommendationLayout.imageHeight)
+                .clipped()
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(alignment: .topLeading) {
                     if let category = item.category {
@@ -193,6 +195,7 @@ private struct HomeRecommendationImage: View {
                 Image(uiImage: remoteImage)
                     .resizable()
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if let request = item.imageRequest, !didFail {
                 Color(MainScreenPalette.border)
                     .task(id: request.url?.absoluteString) {
@@ -202,9 +205,9 @@ private struct HomeRecommendationImage: View {
                 Image(item.imageName)
                     .resizable()
                     .scaledToFill()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .frame(maxWidth: .infinity)
         .clipped()
     }
 
