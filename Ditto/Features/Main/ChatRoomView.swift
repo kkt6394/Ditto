@@ -183,6 +183,7 @@ struct ChatRoomView: View {
                                 status: display.status,
                                 showTime: shouldShowTime(at: index),
                                 showSenderName: shouldShowSenderName(at: index),
+                                showSenderAvatar: shouldShowSenderName(at: index),
                                 onSelectMedia: { presentedMedia = $0 },
                                 onTapFailed: { failedMessageId = display.id }
                             )

@@ -83,8 +83,13 @@ struct ChatBubble: View {
     let showTime: Bool
     // 같은 발신자 연속 메시지 그룹의 첫 말풍선에만 닉네임을 표기한다 (incoming 한정).
     let showSenderName: Bool
+    // 같은 발신자 연속 메시지 그룹의 첫 말풍선에만 프로필 아바타를 그린다.
+    // 그 외 말풍선은 같은 폭의 빈 공간을 둬 좌측 정렬을 유지한다.
+    let showSenderAvatar: Bool
     let onSelectMedia: (ChatMediaPresentation) -> Void
     let onTapFailed: () -> Void
+
+    private static let avatarSize: CGFloat = 36
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 6) {
@@ -93,22 +98,42 @@ struct ChatBubble: View {
                 timeText
                 outgoingColumn
             } else {
-                VStack(alignment: .leading, spacing: 4) {
-                    if showSenderName {
-                        Text(message.sender.nick.isEmpty ? opponentNick : message.sender.nick)
-                            .font(MainScreenTypography.timestamp)
-                            .foregroundStyle(MainScreenPalette.textSecondary)
+                HStack(alignment: .top, spacing: 8) {
+                    if showSenderAvatar {
+                        ProfileAvatar(imageRequest: senderProfileImageRequest, size: Self.avatarSize)
+                    } else {
+                        // 같은 그룹 후속 말풍선은 아바타가 없어도 좌측 들여쓰기를 유지한다.
+                        Color.clear.frame(width: Self.avatarSize, height: Self.avatarSize)
                     }
 
-                    HStack(alignment: .bottom, spacing: 6) {
-                        bubbleColumn(alignment: .leading)
-                        timeText
+                    VStack(alignment: .leading, spacing: 4) {
+                        if showSenderName {
+                            Text(message.sender.nick.isEmpty ? opponentNick : message.sender.nick)
+                                .font(MainScreenTypography.timestamp)
+                                .foregroundStyle(MainScreenPalette.textSecondary)
+                        }
+
+                        HStack(alignment: .bottom, spacing: 6) {
+                            bubbleColumn(alignment: .leading)
+                            timeText
+                        }
                     }
                 }
                 Spacer(minLength: 60)
             }
         }
         .frame(maxWidth: .infinity, alignment: isOutgoing ? .trailing : .leading)
+    }
+
+    // sender.profileImage는 절대 URL이거나 상대 경로 둘 다 들어올 수 있어
+    // 미디어 썸네일과 동일하게 ActivityFormatting.makeImageRequest 로 인증 헤더까지 붙여 만든다.
+    private var senderProfileImageRequest: URLRequest? {
+        guard let configuration = try? AppConfiguration() else { return nil }
+        return ActivityFormatting.makeImageRequest(
+            from: message.sender.profileImage,
+            configuration: configuration,
+            accessToken: authManager.tokens?.accessToken
+        )
     }
 
     // 보내는 메시지에만 sending/failed 상태가 발생하므로 outgoing 전용으로 묶는다.
