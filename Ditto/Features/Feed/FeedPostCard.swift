@@ -147,11 +147,6 @@ struct FeedPostCard: View {
                 detailAction(post)
             }
 
-            // 북마크 — DTO에 플래그 부재로 1차 placeholder. 회색 비활성.
-            Image(systemName: "bookmark")
-                .font(.system(size: 18, weight: .medium))
-                .foregroundStyle(MainScreenPalette.textMuted)
-
             Spacer()
         }
         .padding(.horizontal, 22)
