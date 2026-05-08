@@ -45,6 +45,9 @@ struct FeedView: View {
                                 activityAction: activityAction
                             )
                             .onAppear {
+                                // 카드가 화면에 들어오면 댓글 갯수를 prefetch (한 번만).
+                                Task { await viewModel.prefetchCommentCount(forPostId: post.id) }
+
                                 // 마지막 카드가 보이기 시작하면 다음 페이지를 prefetch.
                                 // ViewModel이 cursor 없거나 동시 호출이면 내부에서 무시한다.
                                 if index == viewModel.activityPosts.count - 1 {

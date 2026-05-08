@@ -40,6 +40,13 @@ struct SearchCountryFilter: Identifiable, Hashable {
             flag: "🇹🇭",
             backgroundColor: Color(red: 0.831, green: 0.482, blue: 0.624)
         ),
+        // "전체"는 country 필터를 nil로 해제해 모든 국가 액티비티를 노출하는 가상 옵션.
+        .init(
+            id: "all",
+            title: "전체",
+            flag: "🌐",
+            backgroundColor: Color(red: 0.475, green: 0.196, blue: 0.749)
+        ),
         .init(
             id: "philippines",
             title: "필리핀",

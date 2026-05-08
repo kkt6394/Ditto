@@ -11,6 +11,7 @@ import UIKit
 struct SearchView: View {
     private let activityDetailAction: (String) -> Void
     private let categorySelectedAction: (SearchCategory) -> Void
+    private let countrySelectedAction: (SearchCountryFilter) -> Void
 
     @State private var searchText = ""
     @State private var viewModel: SearchViewModel
@@ -20,10 +21,12 @@ struct SearchView: View {
     init(
         authManager: any AuthManaging,
         activityDetailAction: @escaping (String) -> Void,
-        categorySelectedAction: @escaping (SearchCategory) -> Void
+        categorySelectedAction: @escaping (SearchCategory) -> Void,
+        countrySelectedAction: @escaping (SearchCountryFilter) -> Void = { _ in }
     ) {
         self.activityDetailAction = activityDetailAction
         self.categorySelectedAction = categorySelectedAction
+        self.countrySelectedAction = countrySelectedAction
         _viewModel = State(initialValue: SearchViewModel(authManager: authManager))
     }
 
@@ -43,7 +46,9 @@ struct SearchView: View {
                         selectedCountryID: viewModel.selectedCountryID,
                         onCategorySelect: categorySelectedAction
                     ) { country in
+                        // 선택 상태 갱신과 함께 호출자(MainView)에 navigate를 위임한다.
                         viewModel.selectedCountryID = country.id
+                        countrySelectedAction(country)
                     }
                         .padding(.top, 10)
 
@@ -218,6 +223,8 @@ private struct SearchCategoryGrid: View {
     ]
 
     var body: some View {
+        // VStack 외곽에 padding을 두면 자체 padding을 가진 SearchSectionHeader 와 합쳐져
+        // "국가" 헤더만 더 안쪽으로 들여쓰기되어 보인다. grid에만 직접 horizontal padding을 적용한다.
         VStack(spacing: 14) {
             LazyVGrid(columns: columns, spacing: 10) {
                 ForEach(categories) { item in
@@ -229,8 +236,9 @@ private struct SearchCategoryGrid: View {
                     .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, 20)
 
-            // 카테고리 카드 아래 국가 필터 row — 카테고리 카드와 동일 톤
+            // 카테고리 카드 아래 국가 필터 row — 다른 섹션 헤더와 동일한 leading edge.
             SearchSectionHeader(title: "국가")
 
             LazyVGrid(columns: columns, spacing: 10) {
@@ -243,8 +251,8 @@ private struct SearchCategoryGrid: View {
                     .buttonStyle(.plain)
                 }
             }
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
     }
 }
 

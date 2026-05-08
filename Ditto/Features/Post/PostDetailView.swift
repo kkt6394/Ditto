@@ -19,11 +19,24 @@ struct PostDetailView: View {
     @State private var editingTarget: PostCommentEditTarget?
     @State private var deletingTarget: PostCommentEditTarget?
     @State private var editSubmitMessage: String?
+    @State private var isPresentingDeletePostAlert = false
     @FocusState private var isComposerFocused: Bool
 
-    init(postId: String, authManager: any AuthManaging) {
+    // 댓글 갯수가 바뀔 때마다 호출 — 호출자(MainView)가 피드 카드 commentCount를 동기화한다.
+    let onCommentCountChange: ((Int) -> Void)?
+    // 글 삭제 성공 후 호출 — 호출자가 navigationPath pop + 리스트에서 제거한다.
+    let onPostDeleted: (() -> Void)?
+
+    init(
+        postId: String,
+        authManager: any AuthManaging,
+        onCommentCountChange: ((Int) -> Void)? = nil,
+        onPostDeleted: (() -> Void)? = nil
+    ) {
         _viewModel = State(initialValue: PostDetailViewModel(postId: postId, authManager: authManager))
         _commentViewModel = State(initialValue: PostCommentViewModel(postId: postId, authManager: authManager))
+        self.onCommentCountChange = onCommentCountChange
+        self.onPostDeleted = onPostDeleted
     }
 
     var body: some View {
@@ -66,6 +79,20 @@ struct PostDetailView: View {
             }
         } message: {
             Text("삭제한 댓글은 복구할 수 없습니다.")
+        }
+        .alert("이 포스트를 삭제할까요?", isPresented: $isPresentingDeletePostAlert) {
+            Button("취소", role: .cancel) {}
+            Button("삭제", role: .destructive) {
+                Task { await submitDeletePost() }
+            }
+        } message: {
+            Text("삭제한 포스트는 복구할 수 없습니다.")
+        }
+        // 댓글 갯수가 변경될 때마다 호출자에게 알린다 (피드 카드의 commentCount 동기화용).
+        .onChange(of: viewModel.post?.comments.count ?? -1) { _, newCount in
+            if newCount >= 0 {
+                onCommentCountChange?(newCount)
+            }
         }
     }
 
@@ -198,13 +225,34 @@ struct PostDetailView: View {
 
             Spacer()
 
-            // 좌측 뒤로 가기 버튼과 시각적 균형을 맞추기 위한 placeholder.
-            Color.clear
-                .frame(width: 44, height: 44)
+            // 본인 글일 때만 우측에 삭제 버튼을 노출. 그 외엔 좌측 chevron과의 시각적 균형용 placeholder.
+            if isOwnPost {
+                Button {
+                    isPresentingDeletePostAlert = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(MainScreenPalette.textPrimary)
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.isMutating)
+            } else {
+                Color.clear
+                    .frame(width: 44, height: 44)
+            }
         }
         .padding(.horizontal, 4)
         .frame(height: 44)
         .background(MainScreenPalette.background)
+    }
+
+    // 본인이 작성한 포스트인지 판별. PostDetailViewModel이 myProfile을 fetch한 뒤에야 true가 된다.
+    private var isOwnPost: Bool {
+        guard let post = viewModel.post, let currentUserId = viewModel.currentUserId else {
+            return false
+        }
+        return post.creator.userId == currentUserId
     }
 
     private var deletePresentationBinding: Binding<Bool> {
@@ -248,6 +296,15 @@ struct PostDetailView: View {
     private func submitDelete(target: PostCommentEditTarget) async {
         await commentViewModel.delete(commentId: target.commentId)
         deletingTarget = nil
+    }
+
+    private func submitDeletePost() async {
+        let success = await viewModel.delete()
+        if success {
+            // 호출자(MainView)가 navigationPath pop과 피드 리스트에서 제거를 처리한다.
+            onPostDeleted?()
+            dismiss()
+        }
     }
 }
 

@@ -43,8 +43,6 @@ enum AuthManagerError: Error {
 @MainActor
 @Observable
 final class AuthManager: AuthManaging {
-    private static let didPrepareKeychainKey = "auth.didPrepareKeychain"
-
     private let tokenStore: any TokenStoring
     private(set) var tokens: AuthTokens?
     // 인증이 풀린 사유를 LoginView에 한 번만 노출하기 위한 일회성 상태다.
@@ -58,13 +56,8 @@ final class AuthManager: AuthManaging {
         self.init(tokenStore: KeychainTokenStore())
     }
 
-    init(
-        tokenStore: any TokenStoring,
-        userDefaults: UserDefaults = .standard,
-        didPrepareKeychainKey: String = AuthManager.didPrepareKeychainKey
-    ) {
+    init(tokenStore: any TokenStoring) {
         self.tokenStore = tokenStore
-        prepareKeychainIfNeeded(userDefaults: userDefaults, key: didPrepareKeychainKey)
         // 저장 토큰을 읽지 못하더라도 앱 자체는 시작할 수 있어야 하므로 실패 시 비로그인 상태로 둔다.
         tokens = try? tokenStore.loadTokens()
     }
@@ -92,17 +85,5 @@ final class AuthManager: AuthManaging {
 
     func consumeSignOutReason() {
         lastSignOutReason = nil
-    }
-}
-
-private extension AuthManager {
-    func prepareKeychainIfNeeded(userDefaults: UserDefaults, key: String) {
-        guard !userDefaults.bool(forKey: key) else {
-            return
-        }
-
-        // 앱 삭제 후에도 남을 수 있는 Keychain 토큰을 첫 실행에서 정리해 재설치 시 로그인 화면부터 보여준다.
-        try? tokenStore.deleteTokens()
-        userDefaults.set(true, forKey: key)
     }
 }

@@ -13,40 +13,25 @@ import Testing
 struct AuthManagerTests {
     @Test func initLoadsStoredTokens() {
         let tokenStore = InMemoryTokenStore(tokens: .fixture)
-        let userDefaults = makePreparedUserDefaults()
 
-        let authManager = AuthManager(tokenStore: tokenStore, userDefaults: userDefaults)
+        let authManager = AuthManager(tokenStore: tokenStore)
 
         #expect(authManager.tokens == .fixture)
         #expect(authManager.isAuthenticated)
     }
 
-    @Test func initClearsStoredTokensOnFirstLaunchAfterInstall() {
-        let tokenStore = InMemoryTokenStore(tokens: .fixture)
-        let userDefaults = makeUserDefaults()
+    @Test func initWithoutStoredTokensIsUnauthenticated() {
+        let tokenStore = InMemoryTokenStore()
 
-        let authManager = AuthManager(tokenStore: tokenStore, userDefaults: userDefaults)
+        let authManager = AuthManager(tokenStore: tokenStore)
 
         #expect(authManager.tokens == nil)
         #expect(!authManager.isAuthenticated)
-        #expect(tokenStore.tokens == nil)
-    }
-
-    @Test func initKeepsStoredTokensAfterFirstLaunchPreparation() {
-        let tokenStore = InMemoryTokenStore(tokens: .fixture)
-        let userDefaults = makePreparedUserDefaults()
-
-        let authManager = AuthManager(tokenStore: tokenStore, userDefaults: userDefaults)
-
-        #expect(authManager.tokens == .fixture)
-        #expect(authManager.isAuthenticated)
-        #expect(tokenStore.tokens == .fixture)
     }
 
     @Test func authenticatePersistsTokensAndUpdatesAuthenticationState() throws {
         let tokenStore = InMemoryTokenStore()
-        let userDefaults = makePreparedUserDefaults()
-        let authManager = AuthManager(tokenStore: tokenStore, userDefaults: userDefaults)
+        let authManager = AuthManager(tokenStore: tokenStore)
 
         try authManager.authenticate(with: .fixture)
 
@@ -57,8 +42,7 @@ struct AuthManagerTests {
 
     @Test func signOutClearsStoredTokensAndUpdatesAuthenticationState() throws {
         let tokenStore = InMemoryTokenStore(tokens: .fixture)
-        let userDefaults = makePreparedUserDefaults()
-        let authManager = AuthManager(tokenStore: tokenStore, userDefaults: userDefaults)
+        let authManager = AuthManager(tokenStore: tokenStore)
 
         try authManager.signOut()
 
@@ -66,23 +50,6 @@ struct AuthManagerTests {
         #expect(!authManager.isAuthenticated)
         #expect(tokenStore.tokens == nil)
     }
-}
-
-private func makePreparedUserDefaults() -> UserDefaults {
-    let userDefaults = makeUserDefaults()
-    userDefaults.set(true, forKey: "auth.didPrepareKeychain")
-    return userDefaults
-}
-
-private func makeUserDefaults() -> UserDefaults {
-    let suiteName = "AuthManagerTests.\(UUID().uuidString)"
-    guard let userDefaults = UserDefaults(suiteName: suiteName) else {
-        Issue.record("UserDefaults suite 생성에 실패했습니다.")
-        return .standard
-    }
-
-    userDefaults.removePersistentDomain(forName: suiteName)
-    return userDefaults
 }
 
 private final class InMemoryTokenStore: @unchecked Sendable, TokenStoring {

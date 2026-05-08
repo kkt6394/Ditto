@@ -505,6 +505,9 @@ private extension MainView {
                 },
                 categorySelectedAction: { category in
                     navigationPath.append(MainRoute.searchCategory(category))
+                },
+                countrySelectedAction: { country in
+                    navigationPath.append(MainRoute.searchCountry(country))
                 }
             )
         case .activityDetail(let activityId):
@@ -519,12 +522,31 @@ private extension MainView {
                 }
             )
         case .postDetail(let postId):
-            PostDetailView(postId: postId, authManager: authManager)
+            PostDetailView(
+                postId: postId,
+                authManager: authManager,
+                onCommentCountChange: { newCount in
+                    viewModel.updateCommentCount(forPostId: postId, count: newCount)
+                },
+                onPostDeleted: {
+                    viewModel.removeActivityPost(postId: postId)
+                    if !navigationPath.isEmpty {
+                        navigationPath.removeLast()
+                    }
+                }
+            )
         case .chat(let roomId, let opponentNick):
             ChatRoomView(roomId: roomId, opponentNick: opponentNick, authManager: authManager)
         case .searchCategory(let category):
             SearchCategoryActivityListView(
                 category: category,
+                authManager: authManager
+            ) { activityId in
+                openActivityDetail(activityId: activityId)
+            }
+        case .searchCountry(let country):
+            SearchCountryActivityListView(
+                country: country,
                 authManager: authManager
             ) { activityId in
                 openActivityDetail(activityId: activityId)

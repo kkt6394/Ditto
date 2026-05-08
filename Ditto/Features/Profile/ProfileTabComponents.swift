@@ -237,8 +237,11 @@ struct ProfileActionRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
+            // SF Symbol마다 가로 폭이 달라(특히 photo.on.rectangle.angled가 넓음)
+            // 텍스트 leading edge가 행마다 어긋난다. 고정 너비 슬롯으로 정렬을 맞춘다.
             Image(systemName: systemImage)
                 .font(.system(size: 15, weight: .semibold))
+                .frame(width: 22, alignment: .center)
             Text(title)
                 .font(MainFont.pretendard(.bold, size: 15))
             Spacer()

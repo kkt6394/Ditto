@@ -111,8 +111,9 @@ final class SearchViewModel {
         }
     }
 
-    // category가 nil이면 카테고리 필터 없이 전체 액티비티를 가져온다.
-    func loadCategoryActivities(category: String?) async {
+    // category가 nil이면 카테고리 필터 없이, country가 nil이면 국가 필터 없이 가져온다.
+    // 같은 categoryActivities 컨테이너를 재사용해 카테고리/국가 리스트 화면 모두에서 활용한다.
+    func loadCategoryActivities(category: String? = nil, country: String? = nil) async {
         isLoadingCategoryActivities = true
         categoryActivitiesMessage = nil
         defer {
@@ -122,12 +123,12 @@ final class SearchViewModel {
         do {
             let networkManager = try networkManagerProvider()
             let configuration = try configurationProvider()
-            let query = ActivityListQuery(country: nil, category: category, limit: 20, next: nil)
+            let query = ActivityListQuery(country: country, category: category, limit: 20, next: nil)
             let response: ActivitySummaryListResponseDTO = try await networkManager.request(ActivityRouter.list(query))
             categoryActivities = mapActivities(response.data, configuration: configuration)
 
             if categoryActivities.isEmpty {
-                let label = category ?? "전체"
+                let label = country ?? category ?? "전체"
                 categoryActivitiesMessage = "\(label) 액티비티가 없습니다."
             } else {
                 scheduleCityNameResolution(for: categoryActivities, target: .category)

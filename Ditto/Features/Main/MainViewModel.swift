@@ -31,6 +31,9 @@ final class MainViewModel {
     // 화면 재진입 시 동일 조건의 NEW 액티비티를 다시 fetch하지 않도록 마지막 query key를 보관한다.
     @ObservationIgnored private var lastNewActivitiesQueryKey: String?
 
+    // 피드 카드의 댓글 갯수를 위해 한 번 fetch한 결과를 저장. 같은 글 다시 prefetch 시 skip.
+    @ObservationIgnored private var commentCountFetchedPostIds: Set<String> = []
+
     private let networkManagerProvider: @MainActor () throws -> any NetworkManaging
     private let configurationProvider: @MainActor () throws -> AppConfiguration
     private let authManager: (any AuthManaging)?
@@ -260,6 +263,49 @@ final class MainViewModel {
             coordinate: nil,
             maxDistanceMeters: nil
         )
+    }
+
+    // 피드 카드 onAppear 트리거. 한 번 fetch한 글은 다시 호출해도 즉시 빠져나온다.
+    // 서버 PostSummary에 commentCount가 없어 detail 응답의 comments.count로 자체 카운팅한다.
+    func prefetchCommentCount(forPostId postId: String) async {
+        guard !commentCountFetchedPostIds.contains(postId) else { return }
+        commentCountFetchedPostIds.insert(postId)
+        await fetchAndApplyCommentCount(forPostId: postId)
+    }
+
+    // PostDetail에서 댓글 작성/삭제 후 호출. cache flag와 무관하게 다시 fetch해 갱신한다.
+    func refreshCommentCount(forPostId postId: String) async {
+        commentCountFetchedPostIds.insert(postId)
+        await fetchAndApplyCommentCount(forPostId: postId)
+    }
+
+    // PostDetailView에서 그 글의 commentCount를 이미 알고 있을 때 직접 동기화하는 fast-path.
+    func updateCommentCount(forPostId postId: String, count: Int) {
+        commentCountFetchedPostIds.insert(postId)
+        if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
+            activityPosts[idx].commentCount = count
+        }
+    }
+
+    // PostDetail에서 글 삭제 성공 시 피드 리스트에서도 제거한다.
+    func removeActivityPost(postId: String) {
+        activityPosts.removeAll { $0.id == postId }
+        commentCountFetchedPostIds.remove(postId)
+    }
+
+    private func fetchAndApplyCommentCount(forPostId postId: String) async {
+        do {
+            let networkManager = try networkManagerProvider()
+            let response: PostResponseDTO = try await networkManager.request(
+                PostRouter.detail(postId: postId)
+            )
+            if let idx = activityPosts.firstIndex(where: { $0.id == postId }) {
+                activityPosts[idx].commentCount = response.comments.count
+            }
+        } catch {
+            // 실패는 조용히 무시 — 다음 prefetch 시도에서 재시도되도록 cache flag만 풀어준다.
+            commentCountFetchedPostIds.remove(postId)
+        }
     }
 
     // 피드 카드의 하트 탭 시 호출. optimistic update(좋아요 상태 + 카운트) 후 실패 시 원상 복귀한다.

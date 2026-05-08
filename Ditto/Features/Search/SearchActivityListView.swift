@@ -50,6 +50,51 @@ struct SearchCategoryActivityListView: View {
     }
 }
 
+// 국가 카드 탭 시 push되는 리스트 화면. SearchViewModel.categoryActivities 컨테이너를
+// country 필터로 재사용한다 ("전체" 카드는 country 필터 없이 모든 액티비티).
+struct SearchCountryActivityListView: View {
+    let country: SearchCountryFilter
+    let activityDetailAction: (String) -> Void
+
+    @State private var viewModel: SearchViewModel
+
+    init(
+        country: SearchCountryFilter,
+        authManager: any AuthManaging,
+        activityDetailAction: @escaping (String) -> Void
+    ) {
+        self.country = country
+        self.activityDetailAction = activityDetailAction
+        _viewModel = State(initialValue: SearchViewModel(authManager: authManager))
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            SearchCategoryNavigationBar(title: country.title)
+
+            SearchSectionHeader(title: "\(country.title) 액티비티")
+                .padding(.top, 8)
+
+            SearchCategoryActivityContent(
+                items: viewModel.categoryActivities,
+                isLoading: viewModel.isLoadingCategoryActivities,
+                message: viewModel.categoryActivitiesMessage,
+                activityDetailAction: activityDetailAction
+            )
+            .padding(.top, 8)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(MainScreenPalette.background.ignoresSafeArea())
+        .navigationBarBackButtonHidden(true)
+        .toolbar(.hidden, for: .navigationBar)
+        .task(id: country.id) {
+            // "전체" 카드는 country 필터 없이 모든 액티비티를 조회한다.
+            let countryFilter: String? = country.id == "all" ? nil : country.title
+            await viewModel.loadCategoryActivities(country: countryFilter)
+        }
+    }
+}
+
 private struct SearchCategoryNavigationBar: View {
     @Environment(\.dismiss) private var dismiss
     let title: String

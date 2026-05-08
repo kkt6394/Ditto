@@ -196,8 +196,9 @@ struct MainActivityPost: Identifiable {
     let media: [MainPostMedia]
     var isLiked: Bool
     var likeCount: Int
-    // PostSummaryResponseDTO에 comment_count 필드가 부재해 1차에는 0으로 채운다. 서버 보강 시 mapper에서 매핑.
-    let commentCount: Int
+    // 서버 PostSummary에 comment_count 필드가 없어 detail 응답 comments.count로 자체 카운팅한다.
+    // 피드 카드 onAppear 시 prefetch + PostDetail 갱신 시 동기화되므로 var.
+    var commentCount: Int
 
     static let samples: [MainActivityPost] = [
         .init(
