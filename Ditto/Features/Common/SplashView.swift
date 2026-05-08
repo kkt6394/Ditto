@@ -26,15 +26,47 @@ struct SplashView: View {
 
     var body: some View {
         ZStack {
+            // 베이스 배경
             MainScreenPalette.background.ignoresSafeArea()
 
-            VStack(spacing: 24) {
+            // 부드러운 orb 3개 — 흐릿한 컬러 블롭으로 V5 톤 형성
+            Circle()
+                .fill(MainScreenPalette.primaryBlueSoft)
+                .frame(width: 320, height: 320)
+                .blur(radius: 80)
+                .offset(x: -120, y: -240)
+            Circle()
+                .fill(MainScreenPalette.primaryBlue.opacity(0.45))
+                .frame(width: 260, height: 260)
+                .blur(radius: 70)
+                .offset(x: 130, y: 180)
+            Circle()
+                .fill(MainScreenPalette.borderBlue)
+                .frame(width: 220, height: 220)
+                .blur(radius: 60)
+                .offset(x: 0, y: 60)
+
+            VStack(spacing: 18) {
+                // Playfair Italic 폴백 (번들 폰트 미등록 시 system serif italic)
                 Text("Ditto")
-                    .font(MainFont.paperlogyBlack(size: 48))
-                    .foregroundStyle(MainScreenPalette.primaryBlue)
-                ProgressView()
-                    .progressViewStyle(.circular)
-                    .tint(MainScreenPalette.primaryBlue)
+                    .font(.system(size: 64, design: .serif))
+                    .italic()
+                    .foregroundStyle(MainScreenPalette.textPrimary)
+
+                // 브랜드 디바이더 라인
+                Rectangle()
+                    .fill(MainScreenPalette.textPrimary.opacity(0.35))
+                    .frame(width: 64, height: 1)
+
+                // tagline
+                Text("Find your moment, share your activity")
+                    .font(.system(size: 13, design: .serif))
+                    .italic()
+                    .foregroundStyle(MainScreenPalette.textSecondary)
+
+                // 모션 닷 — 단계별 점멸 로딩 인디케이터
+                SplashLoadingDots()
+                    .padding(.top, 20)
             }
         }
         .task {
@@ -43,6 +75,29 @@ struct SplashView: View {
             await validateTokensIfAuthenticated()
             try? await Task.sleep(for: Self.minimumDisplay)
             onFinish()
+        }
+    }
+}
+
+// 0.35초 간격으로 한 점씩 활성화되는 3-단 로딩 닷
+private struct SplashLoadingDots: View {
+    @State private var phase = 0
+
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(0..<3, id: \.self) { idx in
+                Circle()
+                    .fill(MainScreenPalette.primaryBlue)
+                    .frame(width: 8, height: 8)
+                    .opacity(phase == idx ? 1.0 : 0.35)
+                    .animation(.easeInOut(duration: 0.25), value: phase)
+            }
+        }
+        .task {
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(350))
+                phase = (phase + 1) % 3
+            }
         }
     }
 }
