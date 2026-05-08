@@ -26,74 +26,77 @@ struct FeedView: View {
 
             ScrollViewReader { proxy in
                 ScrollView(showsIndicators: false) {
-                    LazyVStack(spacing: 0) {
-                        // 정렬 변경 시 맨 위로 이동하기 위한 sentinel anchor.
+                    // sentinel은 LazyVStack 외부 VStack 자식으로 둬 항상 mount된 상태로 둔다.
+                    // LazyVStack 내부에 두면 데이터 갱신 중 일시적으로 unmount돼 scrollTo가 무시될 수 있다.
+                    VStack(spacing: 0) {
                         Color.clear
-                            .frame(height: 0)
+                            .frame(height: 1)
                             .id(topAnchorID)
 
-                        if viewModel.isLoadingActivityPosts && viewModel.activityPosts.isEmpty {
-                            FeedPlaceholderCard()
-                                .padding(.horizontal, 20)
-                                .padding(.top, 12)
-                        } else if viewModel.activityPosts.isEmpty {
-                            FeedEmptyCard(text: viewModel.activityPostsMessage ?? "표시할 액티비티 포스트가 없습니다.")
-                                .padding(.horizontal, 20)
-                                .padding(.top, 12)
-                        } else {
-                            ForEach(Array(viewModel.activityPosts.enumerated()), id: \.element.id) { index, post in
-                                FeedPostCard(
-                                    post: post,
-                                    mediaAction: mediaAction,
-                                    detailAction: detailAction,
-                                    chatAction: chatAction,
-                                    likeAction: { tappedPost in
-                                        Task { await viewModel.togglePostLike(postId: tappedPost.id) }
-                                    },
-                                    activityAction: activityAction
-                                )
-                                .onAppear {
-                                    // 카드가 화면에 들어오면 댓글 갯수를 prefetch (한 번만).
-                                    Task { await viewModel.prefetchCommentCount(forPostId: post.id) }
+                        LazyVStack(spacing: 0) {
+                            if viewModel.isLoadingActivityPosts && viewModel.activityPosts.isEmpty {
+                                FeedPlaceholderCard()
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 12)
+                            } else if viewModel.activityPosts.isEmpty {
+                                FeedEmptyCard(text: viewModel.activityPostsMessage ?? "표시할 액티비티 포스트가 없습니다.")
+                                    .padding(.horizontal, 20)
+                                    .padding(.top, 12)
+                            } else {
+                                ForEach(Array(viewModel.activityPosts.enumerated()), id: \.element.id) { index, post in
+                                    FeedPostCard(
+                                        post: post,
+                                        mediaAction: mediaAction,
+                                        detailAction: detailAction,
+                                        chatAction: chatAction,
+                                        likeAction: { tappedPost in
+                                            Task { await viewModel.togglePostLike(postId: tappedPost.id) }
+                                        },
+                                        activityAction: activityAction
+                                    )
+                                    .onAppear {
+                                        // 카드가 화면에 들어오면 댓글 갯수를 prefetch (한 번만).
+                                        Task { await viewModel.prefetchCommentCount(forPostId: post.id) }
 
-                                    // 마지막 카드가 보이기 시작하면 다음 페이지를 prefetch.
-                                    // ViewModel이 cursor 없거나 동시 호출이면 내부에서 무시한다.
-                                    if index == viewModel.activityPosts.count - 1 {
-                                        Task {
-                                            await viewModel.loadMoreActivityPosts(
-                                                country: nil,
-                                                category: nil,
-                                                orderBy: orderBy
-                                            )
+                                        // 마지막 카드가 보이기 시작하면 다음 페이지를 prefetch.
+                                        // ViewModel이 cursor 없거나 동시 호출이면 내부에서 무시한다.
+                                        if index == viewModel.activityPosts.count - 1 {
+                                            Task {
+                                                await viewModel.loadMoreActivityPosts(
+                                                    country: nil,
+                                                    category: nil,
+                                                    orderBy: orderBy
+                                                )
+                                            }
                                         }
                                     }
+                                    Divider()
+                                        .padding(.horizontal, 20)
+                                        .overlay(MainScreenPalette.border)
                                 }
-                                Divider()
-                                    .padding(.horizontal, 20)
-                                    .overlay(MainScreenPalette.border)
-                            }
 
-                            if viewModel.isLoadingMoreActivityPosts {
-                                ProgressView()
-                                    .padding(.vertical, 16)
+                                if viewModel.isLoadingMoreActivityPosts {
+                                    ProgressView()
+                                        .padding(.vertical, 16)
+                                }
                             }
                         }
                     }
                     .padding(.bottom, 100)
                 }
                 .task(id: orderBy) {
-                    // 정렬 토글 시 우선 sentinel anchor로 위로 이동시켜 깜빡임을 줄이고,
-                    // fetch 끝난 뒤 새 첫 카드 id로 한 번 더 정렬해 화면에 정확히 노출되게 한다.
+                    // fetch 시작 전: sentinel anchor로 즉시 위로 이동해 새 데이터 들어오는 동안 위치 고정.
                     proxy.scrollTo(topAnchorID, anchor: .top)
                     await viewModel.loadActivityPosts(
                         country: nil,
                         category: nil,
                         orderBy: orderBy
                     )
-                    if let firstId = viewModel.activityPosts.first?.id {
-                        withAnimation(.easeOut(duration: 0.2)) {
-                            proxy.scrollTo(firstId, anchor: .top)
-                        }
+                    // fetch 후 layout pass가 한 번 끝나길 기다린 뒤 sentinel로 한 번 더 ensure.
+                    // LazyVStack이 새 카드들을 lazy하게 mount하는 시점과 scrollTo 시점 차이를 흡수한다.
+                    try? await Task.sleep(for: .milliseconds(80))
+                    withAnimation(.easeOut(duration: 0.2)) {
+                        proxy.scrollTo(topAnchorID, anchor: .top)
                     }
                 }
             }
