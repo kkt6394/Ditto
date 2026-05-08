@@ -412,7 +412,9 @@ struct MainBottomTabBar: View {
                         Image(systemName: item.systemName)
                             .font(.system(size: 18, weight: isSelected ? .semibold : .medium))
                             .foregroundStyle(
-                                isSelected ? Color.white : MainScreenPalette.textMuted
+                                isSelected
+                                    ? Color.white
+                                    : MainScreenPalette.primaryBlue.opacity(0.7)
                             )
                             .symbolEffect(
                                 .bounce,
@@ -430,7 +432,9 @@ struct MainBottomTabBar: View {
                         Text(item.title)
                             .font(MainScreenTypography.tab)
                             .foregroundStyle(
-                                isSelected ? Color.white : MainScreenPalette.textMuted
+                                isSelected
+                                    ? Color.white
+                                    : MainScreenPalette.primaryBlue.opacity(0.7)
                             )
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
