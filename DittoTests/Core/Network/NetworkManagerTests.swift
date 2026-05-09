@@ -118,6 +118,54 @@ struct NetworkManagerTests {
         #expect(authManager.tokens == nil)
     }
 
+    @Test func refreshReturning419DoesNotSignOut() async throws {
+        // refresh 호출 자체가 419(access 만료)로 실패해도 refresh 토큰은 멀쩡할 수 있으므로
+        // 곧바로 sessionExpired sign-out으로 떨어뜨리면 안 된다. 419는 418/401과 의미가 다르다.
+        let configuration = try makeTestConfiguration()
+        let testID = UUID().uuidString
+        let authManager = StubAuthManager(
+            tokens: AuthTokens(accessToken: "expired-access", refreshToken: "refresh-token")
+        )
+        let session = makeSession(testID: testID)
+        let networkManager = NetworkManager(configuration: configuration, authManager: authManager, session: session)
+
+        URLProtocolStub.setRequestHandler(for: testID) { request in
+            let url = try #require(request.url)
+
+            switch url.path {
+            case "/v1/protected":
+                return (
+                    HTTPURLResponse(url: url, statusCode: 419, httpVersion: nil, headerFields: nil)!,
+                    try makeErrorResponseData(message: "액세스 토큰이 만료되었습니다.")
+                )
+            case "/v1/auth/refresh":
+                return (
+                    HTTPURLResponse(url: url, statusCode: 419, httpVersion: nil, headerFields: nil)!,
+                    try makeErrorResponseData(message: "액세스 토큰이 만료되었습니다.")
+                )
+            default:
+                Issue.record("Unexpected request path: \(url.path)")
+                throw StubNetworkTestError.unexpectedRequest
+            }
+        }
+        defer {
+            URLProtocolStub.removeRequestHandler(for: testID)
+        }
+
+        do {
+            let _: ProtectedResponse = try await networkManager.request(ProtectedRouter())
+            Issue.record("Expected refresh failure to be thrown.")
+        } catch let NetworkError.statusCode(statusCode, _, _) {
+            #expect(statusCode == 419)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+
+        // 419는 access 만료 신호이므로 refresh 토큰을 그대로 유지한 채 sign out되지 않아야 한다.
+        #expect(authManager.tokens != nil)
+        #expect(authManager.lastSignOutReason == nil)
+    }
+
     @Test func multipartRequestSetsMultipartContentTypeAndBody() async throws {
         let configuration = try makeTestConfiguration()
         let testID = UUID().uuidString
