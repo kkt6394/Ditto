@@ -95,6 +95,7 @@ struct ActivityDetailView: View {
                     activity: activity,
                     authManager: authManager
                 )
+                .presentationDetents([.fraction(0.8)])
             }
         }
         .sheet(item: $editingReview) { review in
