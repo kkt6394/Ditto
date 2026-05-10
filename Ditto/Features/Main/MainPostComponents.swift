@@ -272,7 +272,7 @@ private struct ActivityPostMediaButton: View {
     }
 }
 
-private struct ActivityPostRemoteImage: View {
+struct ActivityPostRemoteImage: View {
     let request: URLRequest?
     let fallbackImageName: String
     let width: CGFloat

@@ -43,14 +43,15 @@ struct FeedPostCard: View {
 
     private var authorHeader: some View {
         HStack(spacing: 10) {
-            Circle()
-                .fill(MainScreenPalette.border)
-                .frame(width: 32, height: 32)
-                .overlay {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 14))
-                        .foregroundStyle(MainScreenPalette.textSecondary)
-                }
+            // 작성자 프로필 이미지 — 다른 카드와 동일하게 ActivityPostRemoteImage로 통일.
+            // request가 nil이면 fallbackImageName 에셋이 표시된다.
+            ActivityPostRemoteImage(
+                request: post.profileImageRequest,
+                fallbackImageName: post.profileImageName,
+                width: 32,
+                height: 32,
+                cornerRadius: 16
+            )
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(post.author)
