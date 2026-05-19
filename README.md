@@ -1,96 +1,83 @@
-# DITTO
+# Ditto
 
-DITTO는 다양한 투어, 액티비티, 체험 상품을 탐색하고 구매할 수 있는 iOS 앱입니다.
+> 너와 함께하는 짜릿한 경험.
 
-이 프로젝트는 Xcode 환경에서 SwiftUI 기반으로 개발하며, 단방향 데이터 흐름과 테스트 가능한 구조를 목표로 합니다. 프로젝트가 진행됨에 따라 기능 정의, 구조 설계, 문서 내용을 함께 발전시켜 나갑니다.
+액티비티를 탐색·예약하고 후기를 공유하는 iOS 앱. 결제·인증·실시간 채팅·온디바이스 AI까지 단독 설계·구현.
 
-## 1. Project Summary
+| 항목 | 내용 |
+|---|---|
+| 기간 | 2026.04.20 ~ 2026.05.08 |
+| 인원 | 단독 |
+| 플랫폼 | iOS · iPhone |
+| 최소 버전 | iOS 26.0+ |
+| 카테고리 | 액티비티 · 커머스 · 소셜 |
+| 아키텍처 | MVVM |
 
-- Platform: iOS
-- Language: Swift
-- UI Framework: SwiftUI
-- Architecture: MVVM
-- Networking: URLSession
-- Concurrency: Swift Concurrency
-- State Management Experiment: TCA 일부 적용
-- IDE: Xcode
+## Preview
 
-## 2. Project Goal
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/01-auth.png" width="220" alt="회원인증"/><br/><sub><b>01 회원인증</b></sub></td>
+    <td align="center"><img src="docs/screenshots/02-home.png" width="220" alt="홈"/><br/><sub><b>02 홈</b></sub></td>
+    <td align="center"><img src="docs/screenshots/03-search.png" width="220" alt="검색"/><br/><sub><b>03 검색</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/04-feed.png" width="220" alt="피드"/><br/><sub><b>04 피드</b></sub></td>
+    <td align="center"><img src="docs/screenshots/05-ai-review.png" width="220" alt="AI 리뷰 요약"/><br/><sub><b>05 AI 리뷰 요약</b></sub></td>
+    <td align="center"><img src="docs/screenshots/06-payment.png" width="220" alt="결제"/><br/><sub><b>06 결제</b></sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/07-chat.png" width="220" alt="채팅"/><br/><sub><b>07 채팅</b></sub></td>
+    <td align="center"><img src="docs/screenshots/08-streaming.png" width="220" alt="스트리밍"/><br/><sub><b>08 스트리밍</b></sub></td>
+    <td align="center"><img src="docs/screenshots/09-card-builder.png" width="220" alt="액티비티 카드 만들기"/><br/><sub><b>09 액티비티 카드 만들기</b></sub></td>
+  </tr>
+</table>
 
-이 프로젝트의 목표는 다양한 액티비티 상품을 판매하는 iOS 앱을 구현하는 것입니다.
+## Screens
 
-주요 목표:
-- 사용자가 액티비티 상품을 쉽고 직관적으로 탐색할 수 있는 경험 제공
-- 상품 상세 확인부터 구매까지 자연스러운 사용자 흐름 설계
-- 확장 가능하고 유지보수가 쉬운 구조 구축
-- 테스트 가능한 코드베이스 설계
+| # | 화면 | 핵심 기능 |
+|---|---|---|
+| 01 | 회원인증 | 이메일 / 카카오 / 애플 로그인, 회원가입 |
+| 02 | 홈 | 액티비티 탐색, 카테고리 선택, 좋아요 토글, 프로모션 배너 |
+| 03 | 검색 | 추천 · 카테고리 · 국가 · 내 주변 액티비티 |
+| 04 | 피드 | 정렬, 무한 스크롤, 좋아요, 사진 보기, 피드 작성, 액티비티 연동 |
+| 05 | AI 리뷰 요약 | Apple Intelligence 기반 한국어 자동 요약 |
+| 06 | 결제 | 항목·시간 선택, 인원 조정, 결제 진행, 영수증 검증 |
+| 07 | 채팅 | 메시지 전송, 사진·PDF 첨부, Socket.IO 실시간 수신 |
+| 08 | 스트리밍 | HLS 비디오 재생, 자막·언어 선택, 좋아요 |
+| 09 | 액티비티 카드 만들기 | 객체 추가·변형, 손글씨, 고해상도 내보내기 |
 
-## 3. Core Features
+## Tech Stack
 
-현재 기준으로 예상하는 핵심 기능은 다음과 같습니다.
+- **UI** — SwiftUI · MVVM · Observation
+- **동시성** — Swift Concurrency (async/await · actor)
+- **네트워크** — URLSession · Socket.IO
+- **인증** — KakaoSDKAuth · AuthenticationServices
+- **저장** — Keychain · UserDefaults · SwiftData
+- **AI · NLP** — Apple Intelligence Foundation Models · NaturalLanguage
+- **결제** — iamport-ios (포트원)
+- **그래픽** — ImageRenderer · PencilKit · TextKit
 
-- 액티비티 상품 목록 조회
-- 카테고리별 상품 탐색
-- 상품 상세 정보 확인
-- 예약 및 구매 흐름 제공
+## 핵심 설계 포인트
 
-추가 기능은 프로젝트 진행에 따라 구체화하고 확장합니다.
+### 💳 이중결제 방지
+결제 ID를 메모리와 로컬 두 곳에 보관. 네트워크 단절·앱 크래시 상황에서도 같은 ID로 멱등 검증 재호출하여 이중결제 차단.
 
-## 4. Architecture
+### 🔐 토큰 갱신 동시 요청 직렬화
+AccessToken 만료 시 진행 중인 refresh task를 공유. 다중 동시 만료 요청에서도 갱신은 한 번만, 나머지는 갱신 완료 후 동일 토큰으로 재시도.
 
-프로젝트의 기본 구조는 MVVM을 기반으로 설계합니다. 화면 단위로 View와 ViewModel의 역할을 분리하고, 네트워크 요청과 같은 비동기 작업은 Swift Concurrency를 중심으로 처리합니다.
+### 🤖 리뷰 요약 2단 fallback
+Apple Intelligence Foundation Models로 디바이스 내 한국어 요약. 미지원 환경에서는 평균 별점 및 긍정·부정 비율 한 줄로 대체해 빈 화면 차단.
 
-구성 원칙:
-- View는 화면을 렌더링하고 사용자 입력을 ViewModel에 전달합니다.
-- ViewModel은 화면 상태를 관리하고 사용자 액션에 따른 비즈니스 흐름을 처리합니다.
-- Model과 Service는 데이터 구조와 외부 API 호출을 담당합니다.
-- 네트워크 요청은 `async/await` 기반으로 구현합니다.
-- Combine은 기본 설계에 포함하지 않고, 필요성이 명확할 때 제한적으로 검토합니다.
+## Build
 
-### TCA Experiment
+1. `Ditto/Configurations/Secrets.xcconfig.example`을 복사해 `Secrets.xcconfig` 생성
+2. 카카오·포트원·서버 키 등 비밀값 입력
+3. `Ditto.xcodeproj` 실행 및 빌드
 
-학습과 비교를 위해 특정 독립 뷰 하나에는 TCA를 실험적으로 적용합니다. 단, 앱 전체의 기본 아키텍처는 MVVM으로 유지합니다.
+> `Secrets.xcconfig`, `GoogleService-Info.plist`, `AuthKey_*.p8` 등 민감 파일은 `.gitignore` 처리되어 있음.
 
-TCA 적용 원칙:
-- 전역 상태나 핵심 인증 흐름이 아닌 독립적인 기능을 대상으로 합니다.
-- 한 화면 안에서 MVVM과 TCA를 동시에 섞지 않습니다.
-- TCA 화면은 Store, State, Action, Reducer 구조를 독립적으로 가집니다.
-- 비동기 작업은 TCA에서도 Swift Concurrency 기반으로 처리합니다.
+## License & Contact
 
-## 5. Development Principles
-
-- 요구사항을 먼저 정리한 뒤 구현을 진행합니다.
-- 큰 변경은 작업 계획과 영향 범위를 먼저 공유합니다.
-- 코드 변경 후에는 가능한 범위에서 빌드와 검증을 수행합니다.
-- 테스트 가능하고 유지보수하기 쉬운 구조를 우선합니다.
-- 협업 규칙은 `AGENTS.md`를 따릅니다.
-
-## 6. Project Structure
-
-현재 문서 구조는 다음과 같습니다.
-
-```text
-DITTO/
-├── AGENTS.md
-├── README.md
-└── docs/
-```
-
-프로젝트 구조는 개발 진행에 따라 점진적으로 구체화합니다.
-
-## 7. Documentation
-
-- 프로젝트 개요 및 개발 방향: `README.md`
-- 협업 규칙: `AGENTS.md`
-- 요구사항, 작업 목록, 결정 사항: `docs/`
-
-## 8. Next Steps
-
-초기 단계에서 우선 진행할 작업은 다음과 같습니다.
-
-- 핵심 사용자 시나리오 정의
-- 주요 화면 구조 정리
-- 도메인 모델 초안 작성
-- 네트워크 구조 설계
-- MVVM 기준 폴더 구조와 역할 정리
-- TCA 실험 대상 뷰 선정
+© 2026 KITAE KIM  
+GitHub: [kkt6394/Ditto](https://github.com/kkt6394/Ditto)
