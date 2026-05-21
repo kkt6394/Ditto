@@ -37,15 +37,18 @@ struct ReviewSummarizer {
             return ReviewSummary(text: "요약할 리뷰가 없습니다.", source: .statsTemplate)
         }
 
-        // 1단: 온디바이스 LLM
-        if let summary = await summarizeWithFoundationModels(reviews: cleaned.map { $0.content }) {
-            return ReviewSummary(text: summary, source: .foundationModels)
+        // 1단: 온디바이스 LLM (Foundation Models는 iOS 26+에서만 사용 가능)
+        if #available(iOS 26, *) {
+            if let summary = await summarizeWithFoundationModels(reviews: cleaned.map { $0.content }) {
+                return ReviewSummary(text: summary, source: .foundationModels)
+            }
         }
 
         // 2단: 통계 템플릿 — 무조건 성공
         return ReviewSummary(text: statsTemplate(reviews: cleaned), source: .statsTemplate)
     }
 
+    @available(iOS 26, *)
     private func summarizeWithFoundationModels(reviews: [String]) async -> String? {
         let model = SystemLanguageModel.default
         guard model.isAvailable else {
